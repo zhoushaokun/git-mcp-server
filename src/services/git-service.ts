@@ -121,12 +121,33 @@ export class GitService {
    * Initializes a new Git repository
    * 
    * @param bare - Whether to create a bare repository
+   * @param initialBranch - Initial branch name (default: main)
    * @returns Promise resolving to operation result
    */
-  async initRepo(bare = false): Promise<OperationResult<string>> {
+  async initRepo(bare = false, initialBranch = 'main'): Promise<OperationResult<string>> {
     try {
       await this.ensureRepoPathExists();
-      const result = await this.git.init(bare);
+      // Use init with options to set the initial branch name
+      const initOptions = {
+        '--initial-branch': initialBranch,
+        '--bare': bare ? true : undefined,
+      };
+      const result = await this.git.init(initOptions);
+      
+      // If we're not in a bare repository, make an initial commit to establish the branch
+      if (!bare) {
+        try {
+          // Create a README.md file as first commit to establish the branch
+          const readmePath = path.join(this.repoPath, 'README.md');
+          await fs.writeFile(readmePath, `# Git Repository\n\nInitialized with branch '${initialBranch}'.`);
+          await this.git.add('README.md');
+          await this.git.commit(`Initial commit`, { '--allow-empty': null });
+        } catch (commitError) {
+          // If initial commit fails, it's not critical - the repo is still initialized
+          console.error('Failed to create initial commit:', commitError);
+        }
+      }
+      
       return createSuccessResult(result);
     } catch (error) {
       return createFailureResult(

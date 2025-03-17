@@ -19,6 +19,7 @@ export function setupRemoteTools(server: McpServer): void {
   // Add a remote
   server.tool(
     "git_remote_add",
+    "Add a new remote repository reference. Creates a connection to a remote repository with a name and URL, allowing fetching and pushing changes to and from that repository.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       name: z.string().min(1, "Remote name is required").describe("Name for the remote repository (e.g., 'origin')"),
@@ -77,6 +78,7 @@ export function setupRemoteTools(server: McpServer): void {
   // List remotes
   server.tool(
     "git_remote_list",
+    "List all configured remote repositories. Displays the names and URLs of all remotes associated with the repository, showing both fetch and push URLs.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository")
     },
@@ -147,6 +149,7 @@ export function setupRemoteTools(server: McpServer): void {
   // Fetch from remote
   server.tool(
     "git_fetch",
+    "Fetch changes from a remote repository. Downloads objects and refs from a remote repository without merging them into local branches.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       remote: z.string().optional().default("origin").describe("Name of the remote to fetch from (defaults to 'origin')"),
@@ -202,6 +205,7 @@ export function setupRemoteTools(server: McpServer): void {
   // Pull from remote
   server.tool(
     "git_pull",
+    "Pull changes from a remote repository. Fetches from a remote repository and integrates changes into the current branch, either by merging or rebasing.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       remote: z.string().optional().describe("Name of the remote to pull from (defaults to origin)"),
@@ -262,6 +266,7 @@ export function setupRemoteTools(server: McpServer): void {
   // Push to remote
   server.tool(
     "git_push",
+    "Push local changes to a remote repository. Uploads local branch commits to the remote repository, updating remote references.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       remote: z.string().optional().default("origin").describe("Name of the remote to push to (defaults to 'origin')"),

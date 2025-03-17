@@ -19,6 +19,7 @@ export function setupAdvancedTools(server: McpServer): void {
   // Create tag
   server.tool(
     "git_tag_create",
+    "Create a new tag in the repository. Tags are references that point to specific commits, useful for marking release points or important commits. Can create lightweight tags or annotated tags with messages.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       name: z.string().min(1, "Tag name is required").describe("Name for the new tag"),
@@ -79,6 +80,7 @@ export function setupAdvancedTools(server: McpServer): void {
   // List tags
   server.tool(
     "git_tag_list",
+    "List all tags in the repository. Displays all tag names that exist in the repository, which can be used to identify releases or important reference points.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository")
     },
@@ -147,6 +149,7 @@ export function setupAdvancedTools(server: McpServer): void {
   // Create stash
   server.tool(
     "git_stash_create",
+    "Save uncommitted changes to a stash. Captures the current state of working directory and index and saves it on a stack of stashes, allowing you to switch branches without committing in-progress work.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       message: z.string().optional().describe("Optional description for the stash"),
@@ -205,6 +208,7 @@ export function setupAdvancedTools(server: McpServer): void {
   // List stashes
   server.tool(
     "git_stash_list",
+    "List all stashes in the repository. Shows the stack of stashes that have been created and their descriptions, allowing you to identify the stash you want to apply or pop.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository")
     },
@@ -267,6 +271,7 @@ export function setupAdvancedTools(server: McpServer): void {
   // Apply stash
   server.tool(
     "git_stash_apply",
+    "Apply stashed changes to the working directory. Applies changes from the specified stash to the current working directory, but keeps the stash in the stash list.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       stashId: z.string().optional().default("stash@{0}").describe("Stash reference to apply (defaults to most recent stash)")
@@ -321,6 +326,7 @@ export function setupAdvancedTools(server: McpServer): void {
   // Pop stash
   server.tool(
     "git_stash_pop",
+    "Apply and remove a stash. Applies the specified stash to the working directory and then removes it from the stash stack. Combines the apply and drop operations.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       stashId: z.string().optional().default("stash@{0}").describe("Stash reference to pop (defaults to most recent stash)")
@@ -375,6 +381,7 @@ export function setupAdvancedTools(server: McpServer): void {
   // Cherry-pick commits
   server.tool(
     "git_cherry_pick",
+    "Apply changes from specific commits to the current branch. Takes the changes introduced in one or more existing commits and creates new commits with those changes on the current branch.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       commits: z.array(z.string()).min(1, "At least one commit hash is required").describe("Array of commit hashes to cherry-pick")
@@ -429,6 +436,7 @@ export function setupAdvancedTools(server: McpServer): void {
   // Rebase
   server.tool(
     "git_rebase",
+    "Reapply commits on top of another base commit. Takes all changes that were committed on one branch and replays them on another branch, providing a cleaner project history.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       branch: z.string().min(1, "Branch to rebase onto is required").describe("Branch or reference to rebase onto"),
@@ -484,6 +492,7 @@ export function setupAdvancedTools(server: McpServer): void {
   // Log commits
   server.tool(
     "git_log",
+    "Show commit history. Displays a log of commits in reverse chronological order, optionally limited to a specific file's history or a maximum number of commits.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       maxCount: z.number().positive().optional().default(50).describe("Maximum number of commits to display"),
@@ -561,6 +570,7 @@ export function setupAdvancedTools(server: McpServer): void {
   // Show commit details
   server.tool(
     "git_show",
+    "Show details of a specific commit. Displays the commit message, author, date, and the changes introduced by the commit including the diff.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       commitHash: z.string().min(1, "Commit hash is required").describe("Hash or reference of the commit to display")

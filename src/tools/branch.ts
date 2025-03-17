@@ -19,6 +19,7 @@ export function setupBranchTools(server: McpServer): void {
   // List branches
   server.tool(
     "git_branch_list",
+    "List branches in a repository. Displays both local and optionally remote branches, clearly marking the current branch.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       all: z.boolean().optional().default(false).describe("Whether to include remote branches in the list")
@@ -96,6 +97,7 @@ export function setupBranchTools(server: McpServer): void {
   // Create branch
   server.tool(
     "git_branch_create",
+    "Create a new branch. Creates a new branch at the specified reference point (commit or branch) and optionally checks it out.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       name: z.string().min(1, "Branch name is required").describe("Name of the new branch to create"),
@@ -156,6 +158,7 @@ export function setupBranchTools(server: McpServer): void {
   // Checkout branch
   server.tool(
     "git_checkout",
+    "Checkout a branch, tag, or commit. Switches the working directory to the specified target and updates HEAD to point to it. Can optionally create a new branch.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       target: z.string().min(1, "Branch or commit to checkout is required").describe("Branch name, tag, or commit hash to checkout"),
@@ -211,6 +214,7 @@ export function setupBranchTools(server: McpServer): void {
   // Delete branch
   server.tool(
     "git_branch_delete",
+    "Delete a branch. Removes the specified branch from the repository. By default, only fully merged branches can be deleted unless force is set to true.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       branch: z.string().min(1, "Branch name is required").describe("Name of the branch to delete"),
@@ -266,6 +270,7 @@ export function setupBranchTools(server: McpServer): void {
   // Merge branch
   server.tool(
     "git_merge",
+    "Merge a branch into the current branch. Combines changes from the specified branch into the current branch with configurable merge strategies.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       branch: z.string().min(1, "Branch to merge is required").describe("Name of the branch to merge into the current branch"),

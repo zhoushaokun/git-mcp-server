@@ -19,6 +19,7 @@ export function setupWorkdirTools(server: McpServer): void {
   // Stage files
   server.tool(
     "git_add",
+    "Stage files for commit. Adds file contents to the index (staging area) in preparation for the next commit. Can stage specific files or all changes in the working directory.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       files: z.union([
@@ -77,6 +78,7 @@ export function setupWorkdirTools(server: McpServer): void {
   // Unstage files
   server.tool(
     "git_reset",
+    "Unstage files from the index. Removes file contents from the staging area while preserving the working directory changes. The opposite of git_add.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       files: z.union([
@@ -135,6 +137,7 @@ export function setupWorkdirTools(server: McpServer): void {
   // Commit changes
   server.tool(
     "git_commit",
+    "Commit staged changes to the repository. Creates a new commit containing the current contents of the index with the provided commit message. Supports optional author information, amending previous commits, and creating empty commits.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       message: z.string().min(1, "Commit message is required").describe("Message for the commit"),
@@ -200,6 +203,7 @@ export function setupWorkdirTools(server: McpServer): void {
   // View working directory diff
   server.tool(
     "git_diff_unstaged",
+    "Show unstaged changes in the working directory. Displays the differences between the working directory and the index (staging area). Can be limited to a specific file or show all changed files.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       file: z.string().optional().describe("Specific file to get diff for, or all files if omitted"),
@@ -264,6 +268,7 @@ export function setupWorkdirTools(server: McpServer): void {
   // View staged diff
   server.tool(
     "git_diff_staged",
+    "Show staged changes ready for commit. Displays the differences between the index (staging area) and the latest commit. Can be limited to a specific file or show all staged files.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       file: z.string().optional().describe("Specific file to get diff for, or all files if omitted")
@@ -327,6 +332,7 @@ export function setupWorkdirTools(server: McpServer): void {
   // Reset to a specific commit
   server.tool(
     "git_reset_commit",
+    "Reset the current branch to a specific commit. This changes where the branch HEAD points to, with different modes affecting the working directory and index differently (hard: discard all changes, soft: keep staged changes, mixed: unstage but keep changes).",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       ref: z.string().default("HEAD").describe("Reference to reset to, defaults to HEAD"),
@@ -382,6 +388,7 @@ export function setupWorkdirTools(server: McpServer): void {
   // Clean working directory
   server.tool(
     "git_clean",
+    "Remove untracked files from the working directory. Deletes files that aren't tracked by Git, optionally including directories. Use with caution as this operation cannot be undone.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
       directories: z.boolean().optional().default(false).describe("Whether to remove untracked directories in addition to files"),

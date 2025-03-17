@@ -19,16 +19,18 @@ export function setupRepositoryTools(server: McpServer): void {
   // Initialize a new Git repository
   server.tool(
     "git_init",
+    "Initialize a new Git repository. Creates the necessary directory structure and Git metadata for a new Git repository at the specified path. The repository can be created as a standard repository with a working directory or as a bare repository (typically used for centralized repositories). Creates a 'main' branch by default.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to initialize the Git repository in"),
-      bare: z.boolean().optional().default(false).describe("Whether to create a bare repository without a working directory")
+      bare: z.boolean().optional().default(false).describe("Whether to create a bare repository without a working directory"),
+      initialBranch: z.string().optional().default("main").describe("Name of the initial branch (defaults to 'main')")
     },
-    async ({ path, bare }) => {
+    async ({ path, bare, initialBranch }) => {
       try {
         const normalizedPath = PathValidation.normalizePath(path);
         const gitService = new GitService(normalizedPath);
         
-        const result = await gitService.initRepo(bare);
+        const result = await gitService.initRepo(bare, initialBranch);
         
         if (!result.resultSuccessful) {
           return {
@@ -43,7 +45,7 @@ export function setupRepositoryTools(server: McpServer): void {
         return {
           content: [{
             type: "text",
-            text: `Successfully initialized ${bare ? 'bare ' : ''}Git repository at: ${normalizedPath}`
+            text: `Successfully initialized ${bare ? 'bare ' : ''}Git repository with initial branch '${initialBranch}' at: ${normalizedPath}`
           }]
         };
       } catch (error) {
@@ -61,6 +63,7 @@ export function setupRepositoryTools(server: McpServer): void {
   // Clone a Git repository
   server.tool(
     "git_clone",
+    "Clone a Git repository. Downloads a repository from a remote location and creates a local copy with all its history. Supports specifying branches, creating shallow clones, and more.",
     {
       url: z.string().url("Invalid repository URL").describe("URL of the Git repository to clone"),
       path: z.string().min(1, "Destination path is required").describe("Local path where the repository will be cloned"),
@@ -109,6 +112,7 @@ export function setupRepositoryTools(server: McpServer): void {
   // Get repository status
   server.tool(
     "git_status",
+    "Get repository status. Shows the working tree status including tracked/untracked files, modifications, staged changes, and current branch information.",
     {
       path: z.string().min(1, "Repository path is required").describe("Path to the Git repository")
     },
