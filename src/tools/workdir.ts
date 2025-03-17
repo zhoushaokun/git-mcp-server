@@ -9,6 +9,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { GitService } from '../services/git-service.js';
 import { Schemas, PathValidation } from '../utils/validation.js';
+import { getGlobalSettings } from '../utils/global-settings.js';
 
 /**
  * Registers working directory tools with the MCP server
@@ -16,6 +17,84 @@ import { Schemas, PathValidation } from '../utils/validation.js';
  * @param server - MCP server instance
  */
 export function setupWorkdirTools(server: McpServer): void {
+  // Set global working directory
+  server.tool(
+    "git_set_working_dir",
+    "Set a global working directory path for all Git operations. Future tool calls can use '.' as the filepath and it will resolve to this global path.",
+    {
+      path: z.string().min(1, "Working directory path is required").describe("Path to use as the global working directory"),
+      validateGitRepo: z.boolean().optional().default(true).describe("Whether to validate that the path is a Git repository")
+    },
+    async ({ path, validateGitRepo }) => {
+      try {
+        const normalizedPath = PathValidation.normalizePath(path);
+        
+        // Check if this is a git repository if validation is requested
+        if (validateGitRepo) {
+          const gitService = new GitService(normalizedPath);
+          const isRepo = await gitService.isGitRepository();
+          if (!isRepo) {
+            return {
+              content: [{
+                type: "text",
+                text: `Error: Not a Git repository: ${normalizedPath}`
+              }],
+              isError: true
+            };
+          }
+        }
+        
+        // Set the global working directory
+        getGlobalSettings().setGlobalWorkingDir(normalizedPath);
+        
+        return {
+          content: [{
+            type: "text",
+            text: `Successfully set global working directory to: ${normalizedPath}`
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`
+          }],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // Clear global working directory
+  server.tool(
+    "git_clear_working_dir",
+    "Clear the global working directory setting. Tools will use their explicitly provided path parameters.",
+    {},
+    async () => {
+      try {
+        const currentPath = getGlobalSettings().globalWorkingDir;
+        getGlobalSettings().setGlobalWorkingDir(null);
+        
+        return {
+          content: [{
+            type: "text",
+            text: currentPath 
+              ? `Successfully cleared global working directory (was: ${currentPath})` 
+              : "No global working directory was set"
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`
+          }],
+          isError: true
+        };
+      }
+    }
+  );
+
   // Stage files
   server.tool(
     "git_add",

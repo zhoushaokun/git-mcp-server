@@ -7,6 +7,7 @@
 
 import { z } from 'zod';
 import path from 'path';
+import { getGlobalSettings } from './global-settings.js';
 
 /**
  * Common validation schemas used throughout the server
@@ -86,8 +87,16 @@ export const Schemas = {
 export const PathValidation = {
   /**
    * Normalizes a path to ensure consistent format
+   * If path is "." and a global working directory is set, uses the global directory instead
    */
   normalizePath(inputPath: string): string {
+    // Check if this is a relative path (like ".") and we have a global working dir set
+    if (inputPath === '.') {
+      const globalWorkingDir = getGlobalSettings().globalWorkingDir;
+      if (globalWorkingDir) {
+        return path.normalize(globalWorkingDir);
+      }
+    }
     return path.normalize(inputPath);
   },
   
