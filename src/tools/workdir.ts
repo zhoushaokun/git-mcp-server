@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { GitService } from '../services/git-service.js';
 import { Schemas, PathValidation } from '../utils/validation.js';
 import { getGlobalSettings } from '../utils/global-settings.js';
+import { execSync } from 'child_process';
 
 /**
  * Registers working directory tools with the MCP server
@@ -243,10 +244,27 @@ export function setupWorkdirTools(server: McpServer): void {
             isError: true
           };
         }
+
+        // Get global author information directly
+        let finalAuthor = author;
+        if (!author) {
+          try {
+            // Try to get global git config directly
+            const globalUserName = execSync('git config --global user.name').toString().trim();
+            const globalUserEmail = execSync('git config --global user.email').toString().trim();
+            
+            // Only set if we successfully got both values
+            if (globalUserName && globalUserEmail) {
+              finalAuthor = { name: globalUserName, email: globalUserEmail };
+            }
+          } catch (error) {
+            console.error('Failed to get global git config for author', error);
+          }
+        }
         
         const result = await gitService.commit({
           message,
-          author,
+          author: finalAuthor,
           allowEmpty,
           amend
         });

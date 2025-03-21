@@ -10,6 +10,7 @@ import { simpleGit } from 'simple-git';
 type SimpleGit = any;
 type SimpleGitOptions = any;
 import fs from 'fs/promises';
+import { execSync } from 'child_process';
 import path from 'path';
 import { 
   GitRepositoryOptions, 
@@ -47,7 +48,28 @@ export class GitService {
    */
   constructor(repoPath: string, options: SimpleGitOptions = {}) {
     this.repoPath = repoPath;
-    this.git = simpleGit(this.repoPath, options);
+
+    try {
+      // Try to get the global git user configuration
+      const globalUserName = execSync('git config --global user.name').toString().trim();
+      const globalUserEmail = execSync('git config --global user.email').toString().trim();
+
+      // Initialize git with this configuration to ensure it uses the global values
+      this.git = simpleGit(this.repoPath, {
+        ...options,
+        config: [
+          `user.name=${globalUserName}`,
+          `user.email=${globalUserEmail}`
+        ]
+      });
+    } catch (error) {
+      // If we can't get the global config, fall back to standard initialization
+      console.error('Failed to get global git config, using default initialization', error);
+      this.git = simpleGit(this.repoPath, {
+        ...options,
+        baseDir: this.repoPath
+      });
+    }
   }
 
   /**
@@ -246,16 +268,17 @@ export class GitService {
    */
   async commit(options: GitCommitOptions): Promise<OperationResult<string>> {
     try {
-      const commitOptions: any = {};
-      
-      if (options.author) {
-        if (options.author.name) commitOptions['--author'] = options.author.name;
-        if (options.author.email) commitOptions['--author'] += ` <${options.author.email}>`;
+      // Simple-git uses the underlying git config for author information
+      // when these specific options aren't provided, so we'll only set
+      // them when explicitly specified
+      const commitOptions: any = {
+        '--allow-empty': options.allowEmpty ? null : undefined,
+        '--amend': options.amend ? null : undefined
+      };
+
+      if (options.author && options.author.name) {
+        commitOptions['--author'] = `${options.author.name} <${options.author.email || ''}>`;
       }
-      
-      if (options.allowEmpty) commitOptions['--allow-empty'] = null;
-      if (options.amend) commitOptions['--amend'] = null;
-      
       const result = await this.git.commit(options.message, commitOptions);
       return createSuccessResult(result.commit || '');
     } catch (error) {
