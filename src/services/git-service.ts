@@ -246,9 +246,7 @@ export class GitService {
    */
   async commit(options: GitCommitOptions): Promise<OperationResult<string>> {
     try {
-      const commitOptions: any = {
-        '--message': options.message
-      };
+      const commitOptions: any = {};
       
       if (options.author) {
         if (options.author.name) commitOptions['--author'] = options.author.name;

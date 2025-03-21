@@ -20,9 +20,9 @@ export function setupWorkdirTools(server: McpServer): void {
   // Set global working directory
   server.tool(
     "git_set_working_dir",
-    "Set a global working directory path for all Git operations. Future tool calls can use '.' as the filepath and it will resolve to this global path.",
+    "Set a global working directory path for all Git operations. Future tool calls can use '.' as the filepath and it will resolve to this global path. IMPORTANT: Always use a full, absolute path to ensure proper functionality.",
     {
-      path: z.string().min(1, "Working directory path is required").describe("Path to use as the global working directory"),
+      path: z.string().min(1, "Working directory path is required").describe("Full, absolute path to use as the global working directory"),
       validateGitRepo: z.boolean().optional().default(true).describe("Whether to validate that the path is a Git repository")
     },
     async ({ path, validateGitRepo }) => {
@@ -98,9 +98,9 @@ export function setupWorkdirTools(server: McpServer): void {
   // Stage files
   server.tool(
     "git_add",
-    "Stage files for commit. Adds file contents to the index (staging area) in preparation for the next commit. Can stage specific files or all changes in the working directory.",
+    "Stage files for commit. Adds file contents to the index (staging area) in preparation for the next commit. Can stage specific files or all changes in the working directory. IMPORTANT: Always use a full, absolute path to the repository to ensure proper functionality.",
     {
-      path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
+      path: z.string().min(1, "Repository path is required").describe("Full, absolute path to the Git repository"),
       files: z.union([
         z.string().min(1, "File path is required").describe("Path to a file to stage"), 
         z.array(z.string().min(1, "File path is required")).describe("Array of file paths to stage")
@@ -157,9 +157,9 @@ export function setupWorkdirTools(server: McpServer): void {
   // Unstage files
   server.tool(
     "git_reset",
-    "Unstage files from the index. Removes file contents from the staging area while preserving the working directory changes. The opposite of git_add.",
+    "Unstage files from the index. Removes file contents from the staging area while preserving the working directory changes. The opposite of git_add. IMPORTANT: Always use a full, absolute path to the repository to ensure proper functionality.",
     {
-      path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
+      path: z.string().min(1, "Repository path is required").describe("Full, absolute path to the Git repository"),
       files: z.union([
         z.string().min(1, "File path is required").describe("Path to a file to unstage"), 
         z.array(z.string().min(1, "File path is required")).describe("Array of file paths to unstage")
@@ -216,9 +216,9 @@ export function setupWorkdirTools(server: McpServer): void {
   // Commit changes
   server.tool(
     "git_commit",
-    "Commit staged changes to the repository. Creates a new commit containing the current contents of the index with the provided commit message. Supports optional author information, amending previous commits, and creating empty commits.",
+    "Commit staged changes to the repository. Creates a new commit containing the current contents of the index with the provided commit message. Supports optional author information, amending previous commits, and creating empty commits. IMPORTANT: Always use a full, absolute path to the repository to ensure proper functionality.",
     {
-      path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
+      path: z.string().min(1, "Repository path is required").describe("Full, absolute path to the Git repository"),
       message: z.string().min(1, "Commit message is required").describe("Message for the commit"),
       author: z.object({
         name: z.string().optional().describe("Author name for the commit"),
@@ -282,9 +282,9 @@ export function setupWorkdirTools(server: McpServer): void {
   // View working directory diff
   server.tool(
     "git_diff_unstaged",
-    "Show unstaged changes in the working directory. Displays the differences between the working directory and the index (staging area). Can be limited to a specific file or show all changed files.",
+    "Show unstaged changes in the working directory. Displays the differences between the working directory and the index (staging area). Can be limited to a specific file or show all changed files. IMPORTANT: Always use a full, absolute path to the repository to ensure proper functionality.",
     {
-      path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
+      path: z.string().min(1, "Repository path is required").describe("Full, absolute path to the Git repository"),
       file: z.string().optional().describe("Specific file to get diff for, or all files if omitted"),
       showUntracked: z.boolean().optional().default(true).describe("Whether to include information about untracked files")
     },
@@ -347,9 +347,9 @@ export function setupWorkdirTools(server: McpServer): void {
   // View staged diff
   server.tool(
     "git_diff_staged",
-    "Show staged changes ready for commit. Displays the differences between the index (staging area) and the latest commit. Can be limited to a specific file or show all staged files.",
+    "Show staged changes ready for commit. Displays the differences between the index (staging area) and the latest commit. Can be limited to a specific file or show all staged files. IMPORTANT: Always use a full, absolute path to the repository to ensure proper functionality.",
     {
-      path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
+      path: z.string().min(1, "Repository path is required").describe("Full, absolute path to the Git repository"),
       file: z.string().optional().describe("Specific file to get diff for, or all files if omitted")
     },
     async ({ path, file }) => {
@@ -411,10 +411,10 @@ export function setupWorkdirTools(server: McpServer): void {
   // Reset to a specific commit
   server.tool(
     "git_reset_commit",
-    "Reset the current branch to a specific commit. This changes where the branch HEAD points to, with different modes affecting the working directory and index differently (hard: discard all changes, soft: keep staged changes, mixed: unstage but keep changes).",
+    "Reset the current branch to a specific commit. This changes where the branch HEAD points to, with different modes affecting the working directory and index differently (hard: discard all changes, soft: keep staged changes, mixed: unstage but keep changes). IMPORTANT: Always use a full, absolute path to the repository to ensure proper functionality.",
     {
-      path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
-      ref: z.string().default("HEAD").describe("Reference to reset to, defaults to HEAD"),
+      path: z.string().min(1, "Repository path is required").describe("Full, absolute path to the Git repository"),
+      ref: z.string().default("HEAD").describe("Reference to reset to, defaults to HEAD (e.g., commit hash, branch name, or HEAD~1)"),
       mode: z.enum(["hard", "soft", "mixed"]).default("mixed").describe("Reset mode: hard (discard changes), soft (keep staged), or mixed (unstage but keep changes)")
     },
     async ({ path, ref, mode }) => {
@@ -467,9 +467,9 @@ export function setupWorkdirTools(server: McpServer): void {
   // Clean working directory
   server.tool(
     "git_clean",
-    "Remove untracked files from the working directory. Deletes files that aren't tracked by Git, optionally including directories. Use with caution as this operation cannot be undone.",
+    "Remove untracked files from the working directory. Deletes files that aren't tracked by Git, optionally including directories. Use with caution as this operation cannot be undone. IMPORTANT: Always use a full, absolute path to the repository to ensure proper functionality.",
     {
-      path: z.string().min(1, "Repository path is required").describe("Path to the Git repository"),
+      path: z.string().min(1, "Repository path is required").describe("Full, absolute path to the Git repository"),
       directories: z.boolean().optional().default(false).describe("Whether to remove untracked directories in addition to files"),
       force: z.boolean().optional().default(false).describe("Force cleaning of files, including ignored files")
     },
