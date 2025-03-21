@@ -490,19 +490,24 @@ export class GitService {
    */
   async getLog(options: {maxCount?: number, file?: string} = {}): Promise<OperationResult<GitLogEntry[]>> {
     try {
-      const logOptions: Record<string, any> = {
-        '--pretty': 'format:%H|%h|%an|%ae|%ai|%s'
+      // Build options object for simple-git in the format it expects
+      const logOptions: any = {
+        maxCount: options.maxCount || 50,
+        format: {
+          hash: '%H',
+          abbrevHash: '%h',
+          author_name: '%an',
+          author_email: '%ae',
+          date: '%ai',
+          message: '%s'
+        }
       };
       
-      // Use array format for command-line options to avoid format issues
-      const logParams = [`-n`, `${options.maxCount || 50}`];
-      
       if (options.file) {
-        logOptions['--'] = options.file;
+        logOptions.file = options.file;
       }
       
-      // Pass the maxCount parameter separately to avoid the '=' format issue
-      const result = await this.git.log([...logParams, logOptions]);
+      const result = await this.git.log(logOptions);
       
       // Parse the log output into structured data
       const entries: GitLogEntry[] = result.all.map((entry: any) => ({
