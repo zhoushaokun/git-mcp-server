@@ -29,7 +29,6 @@ Thumbs.db
 *.d.ts.map
 *.d.ts
 !*.d.ts.template
-yarn.lock
 .pnp.js
 .pnp.cjs
 .pnp.mjs
@@ -163,5 +162,5 @@ coverage/
 *.swo
 *~
 .history/
-*repomix*
+repomix-output*
 mcp-servers.json
