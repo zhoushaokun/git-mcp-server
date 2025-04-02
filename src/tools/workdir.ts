@@ -244,27 +244,14 @@ export function setupWorkdirTools(server: McpServer): void {
             isError: true
           };
         }
-
-        // Get global author information directly
-        let finalAuthor = author;
-        if (!author) {
-          try {
-            // Try to get global git config directly
-            const globalUserName = execSync('git config --global user.name').toString().trim();
-            const globalUserEmail = execSync('git config --global user.email').toString().trim();
-            
-            // Only set if we successfully got both values
-            if (globalUserName && globalUserEmail) {
-              finalAuthor = { name: globalUserName, email: globalUserEmail };
-            }
-          } catch (error) {
-            console.error('Failed to get global git config for author', error);
-          }
-        }
         
+        // The GitService constructor and simple-git should automatically use the 
+        // GIT_AUTHOR_NAME/EMAIL environment variables set in server.ts.
+        // No need to fetch global config here again.
+        // Pass the provided author object directly, or undefined if not provided.
         const result = await gitService.commit({
           message,
-          author: finalAuthor,
+          author: author, // Pass the input author directly
           allowEmpty,
           amend
         });

@@ -1,13 +1,13 @@
 # GIT MCP Server
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol](https://img.shields.io/badge/MCP-1.7.0-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-1.2.0-blue.svg)]()
+[![Model Context Protocol](https://img.shields.io/badge/MCP-1.8.0-green.svg)](https://modelcontextprotocol.io/)
+[![Version](https://img.shields.io/badge/Version-1.2.3-blue.svg)]()
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Beta-orange.svg)]()
 [![GitHub](https://img.shields.io/github/stars/cyanheads/git-mcp-server?style=social)](https://github.com/cyanheads/git-mcp-server)
 
-A Model Context Protocol (MCP) server that provides tools for interacting with Git repositories. This server allows AI assistants and LLM agents to manage repositories, branches, commits, and files through a standardized interface without requiring direct filesystem or command-line access. It exposes Git operations as MCP resources and tools while maintaining proper security boundaries.
+A Model Context Protocol (MCP) server that provides tools for interacting with Git repositories. This server allows AI assistants and LLM agents to manage repositories, branches, commits, and files through a standardized interface without requiring direct filesystem or command-line access. It exposes Git operations as MCP resources and tools, leveraging the `simple-git` library for core functionality while maintaining proper security boundaries.
 
 ## Table of Contents
 
@@ -59,14 +59,14 @@ flowchart TB
     subgraph API["API Layer"]
         direction LR
         MCP["MCP Protocol"]
-        Val["Validation"]
+        Val["Validation (Zod)"]
 
         MCP --> Val
     end
 
     subgraph Core["Core Services"]
         direction LR
-        GitService["Git Service"]
+        GitService["Git Service (simple-git)"]
         ErrorService["Error Service"]
 
         GitService <--> ErrorService
@@ -120,11 +120,12 @@ flowchart TB
 
 Core Components:
 
-- **MCP Server**: Uses the Model Context Protocol SDK to create a server that exposes resources and tools
-- **Git Service**: Abstraction layer over simple-git to provide clean interfaces for Git operations
-- **Resources**: Expose Git data through MCP resources with consistent URI templates
-- **Tools**: Expose Git operations through MCP tools with well-defined schemas
-- **Error Handling**: Standardized error handling and reporting
+- **MCP Server (`server.ts`)**: Uses the `@modelcontextprotocol/sdk` to create a server exposing resources and tools.
+- **Git Service (`services/git-service.ts`)**: Abstraction layer over the `simple-git` library providing clean interfaces for Git operations.
+- **Resources (`resources/`)**: Expose Git data (like status, logs, file content) through MCP resources with consistent URI templates.
+- **Tools (`tools/`)**: Expose Git actions (like commit, push, pull) through MCP tools with well-defined input schemas (validated using Zod).
+- **Error Handling (`services/error-service.ts`)**: Standardized error handling and reporting for Git and MCP operations.
+- **Entry Point (`index.ts`)**: Initializes and starts the server, connecting it to the standard I/O transport.
 
 ## Features
 
@@ -163,7 +164,7 @@ Execute Git commands through MCP tools:
 ### Install from NPM
 
 ```bash
-npm install -g git-mcp-server
+npm install -g @cyanheads/git-mcp-server
 ```
 
 ### Install from Source
@@ -179,24 +180,33 @@ npm run build
 
 ### Running the Server
 
+If installed globally via NPM:
+
 ```bash
 git-mcp-server
+```
+
+If running from source:
+
+```bash
+node build/index.js
 ```
 
 The server communicates through stdin/stdout using the Model Context Protocol, making it compatible with any MCP client.
 
 ### Integration with Claude
 
-Add to your Claude configuration file:
+Add to your Claude configuration file (e.g., `cline_mcp_settings.json` or `claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "git": {
-      "command": "git-mcp-server",
+      "command": "git-mcp-server", // Or the full path to build/index.js if not installed globally
       "args": [],
       "env": {},
-      "disabled": false
+      "disabled": false,
+      "autoApprove": [] // Configure auto-approval rules if desired
     }
   }
 }
@@ -207,7 +217,11 @@ Add to your Claude configuration file:
 Use the MCP inspector to test the server:
 
 ```bash
+# If installed globally
 npx @modelcontextprotocol/inspector git-mcp-server
+
+# If running from source
+npx @modelcontextprotocol/inspector build/index.js
 ```
 
 ## Project Structure
@@ -217,30 +231,41 @@ The codebase follows a modular structure:
 ```
 git-mcp-server/
 ├── src/
-│   ├── index.ts           # Entry point
-│   ├── server.ts          # MCP server implementation
-│   ├── resources/         # Resource implementations
-│   │   ├── descriptors.ts # Resource URI templates
-│   │   ├── diff.ts        # Diff-related resources
-│   │   ├── file.ts        # File-related resources
-│   │   ├── history.ts     # History-related resources
-│   │   ├── index.ts       # Resource registration
-│   │   └── repository.ts  # Repository resources
-│   ├── services/          # Service implementations
-│   │   ├── error-service.ts # Error handling
-│   │   └── git-service.ts   # Git operations abstraction
-│   ├── tools/             # Tool implementations
-│   │   ├── advanced.ts    # Advanced Git operations
-│   │   ├── branch.ts      # Branch operations
-│   │   ├── index.ts       # Tool registration
-│   │   ├── remote.ts      # Remote operations
-│   │   ├── repository.ts  # Repository operations
-│   │   └── workdir.ts     # Working directory operations
-│   ├── types/             # Type definitions
-│   │   └── git.ts         # Git-related types
-│   └── utils/             # Utility functions
-│       └── validation.ts  # Input validation
-└── scripts/               # Development scripts
+│   ├── index.ts           # Entry point: Initializes and starts the server
+│   ├── server.ts          # Core MCP server implementation and setup
+│   ├── resources/         # MCP Resource implementations
+│   │   ├── descriptors.ts # Resource URI templates and descriptions
+│   │   ├── diff.ts        # Diff-related resources (staged, unstaged, commit)
+│   │   ├── file.ts        # File content and directory listing resources
+│   │   ├── history.ts     # Commit history and blame resources
+│   │   ├── index.ts       # Aggregates and registers all resources
+│   │   └── repository.ts  # Repository info, branches, remotes, tags resources
+│   ├── services/          # Core logic and external integrations
+│   │   ├── error-service.ts # Centralized error handling utilities
+│   │   └── git-service.ts   # Abstraction layer for simple-git operations
+│   ├── tools/             # MCP Tool implementations
+│   │   ├── advanced.ts    # Advanced Git tools (tag, stash, cherry-pick, rebase, log, show)
+│   │   ├── branch.ts      # Branch management tools (list, create, checkout, delete, merge)
+│   │   ├── index.ts       # Aggregates and registers all tools
+│   │   ├── remote.ts      # Remote interaction tools (add, list, fetch, pull, push)
+│   │   ├── repository.ts  # Repository level tools (init, clone, status)
+│   │   └── workdir.ts     # Working directory tools (add, reset, commit, diff, reset-commit, clean)
+│   ├── types/             # TypeScript type definitions
+│   │   └── git.ts         # Custom types related to Git operations
+│   └── utils/             # Shared utility functions
+│       ├── global-settings.ts # Manages global working directory setting
+│       └── validation.ts  # Input validation schemas (Zod) and helpers
+├── build/                 # Compiled JavaScript output
+├── docs/                  # Documentation files
+├── logs/                  # Log files (if any)
+├── scripts/               # Helper scripts for development (e.g., clean, tree)
+├── .env.example           # Example environment variables
+├── .gitignore             # Git ignore rules
+├── LICENSE                # Project license file
+├── package.json           # Project metadata and dependencies
+├── package-lock.json      # Lockfile for dependencies
+├── README.md              # This file
+└── tsconfig.json          # TypeScript compiler configuration
 ```
 
 ## Tools
@@ -331,16 +356,19 @@ Git MCP Server exposes Git data through standard MCP resources:
 # Build the project
 npm run build
 
-# Watch for changes
+# Watch for changes and rebuild automatically
 npm run watch
 
-# Test with MCP inspector
+# Test the server locally using the MCP inspector tool
 npm run inspector
 
 # Clean build artifacts
 npm run clean
 
-# Rebuild completely
+# Generate a file tree representation for documentation
+npm run tree
+
+# Clean and rebuild the project completely
 npm run rebuild
 ```
 

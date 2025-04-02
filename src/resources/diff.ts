@@ -33,7 +33,7 @@ export function setupDiffResources(server: McpServer, resourceDescriptors: any):
     {
       name: "Reference Diff",
       description: "Returns a diff between two Git references (commits, branches, tags)",
-      mimeType: "text/plain"
+      mimeType: "application/json" // Corrected MIME type
     },
     // Returns a diff between two references (branches, tags, or commits) with optional path filter
     async (uri, variables) => {

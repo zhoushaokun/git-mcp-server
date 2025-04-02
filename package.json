@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/git-mcp-server",
-  "version": "1.2.0",
+  "version": "1.2.3",
   "description": "A Model Context Protocol server for Git integration",
   "type": "module",
   "license": "Apache-2.0",
@@ -25,10 +25,10 @@
     "rebuild": "npm run clean && npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.7.0",
+    "@modelcontextprotocol/sdk": "1.8.0",
     "dotenv": "^16.4.7",
     "zod": "^3.24.2",
-    "@types/node": "^22.13.10",
+    "@types/node": "^22.13.17",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2",
     "simple-git": "^3.27.0"

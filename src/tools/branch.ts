@@ -53,7 +53,12 @@ export function setupBranchTools(server: McpServer): void {
           };
         }
         
-        if (result.resultData.length === 0) {
+        // The listBranches result now contains the current branch
+        const branchSummary = result.resultData;
+        const currentBranch = branchSummary.current;
+        const allBranches = branchSummary.all; // Get all branch names from the summary
+
+        if (allBranches.length === 0) { // Check the length of the derived array
           return {
             content: [{
               type: "text",
@@ -62,17 +67,15 @@ export function setupBranchTools(server: McpServer): void {
           };
         }
         
-        // Get status to determine current branch
-        const statusResult = await gitService.getStatus();
-        const currentBranch = statusResult.resultSuccessful ? statusResult.resultData.current : null;
-        
         // Format output
         let output = `Branches in repository at: ${normalizedPath}\n\n`;
-        result.resultData.forEach(branch => {
-          if (branch === currentBranch) {
-            output += `* ${branch} (current)\n`;
+        allBranches.forEach(branch => {
+          // Clean up potential remote prefixes like 'remotes/origin/' for display if needed
+          const displayBranch = branch.replace(/^remotes\/[^\/]+\//, ''); 
+          if (displayBranch === currentBranch) {
+            output += `* ${displayBranch} (current)\n`;
           } else {
-            output += `  ${branch}\n`;
+            output += `  ${displayBranch}\n`;
           }
         });
         

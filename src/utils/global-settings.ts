@@ -2,9 +2,11 @@
  * Global Settings Utility
  * ======================
  * 
- * Provides global settings for the Git MCP server.
+ * Provides global settings for the Git MCP server, including security configurations.
  * These settings can be used across different tools and services.
  */
+
+import path from 'path';
 
 /**
  * Global settings singleton for storing app-wide configuration
@@ -12,11 +14,21 @@
 export class GlobalSettings {
   private static instance: GlobalSettings;
   private _globalWorkingDir: string | null = null;
+  private _allowedBaseDir: string;
 
   /**
-   * Private constructor to enforce singleton pattern
+   * Private constructor to enforce singleton pattern and validate required settings
    */
-  private constructor() {}
+  private constructor() {
+    // Validate and set the allowed base directory from environment variable
+    const baseDir = process.env.GIT_MCP_BASE_DIR;
+    if (!baseDir) {
+      throw new Error('FATAL: GIT_MCP_BASE_DIR environment variable is not set. Server cannot operate securely without a defined base directory.');
+    }
+    // Normalize the base directory path
+    this._allowedBaseDir = path.resolve(baseDir); 
+    console.log(`[GlobalSettings] Allowed base directory set to: ${this._allowedBaseDir}`);
+  }
 
   /**
    * Get the singleton instance
@@ -33,6 +45,13 @@ export class GlobalSettings {
    */
   public get globalWorkingDir(): string | null {
     return this._globalWorkingDir;
+  }
+  
+  /**
+   * Get the allowed base directory for sandboxing repository access
+   */
+  public get allowedBaseDir(): string {
+    return this._allowedBaseDir;
   }
 
   /**

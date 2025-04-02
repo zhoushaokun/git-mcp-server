@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-03-17 20:01:15
+Generated on: 2025-04-02 17:01:14
 
 
 ```
@@ -32,13 +32,16 @@ git-mcp-server
     ├── types
     │   └── git.ts
     ├── utils
+    │   ├── global-settings.ts
     │   └── validation.ts
     ├── index.ts
     └── server.ts
+├── .env.example
 ├── LICENSE
 ├── package-lock.json
 ├── package.json
 ├── README.md
+├── repomix.config.json
 └── tsconfig.json
 
 ```

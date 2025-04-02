@@ -12,6 +12,8 @@ type SimpleGitOptions = any;
 import fs from 'fs/promises';
 import { execSync } from 'child_process';
 import path from 'path';
+import { PathValidation } from '../utils/validation.js'; // Import PathValidation
+import { getGlobalSettings } from '../utils/global-settings.js'; // Import GlobalSettings
 import { 
   GitRepositoryOptions, 
   GitCommitOptions, 
@@ -26,15 +28,27 @@ import {
   GitLogEntry,
   GitDiffEntry,
   GitError
+  // GitBranchSummary is not exported from types, use inline definition below
 } from '../types/git.js';
+// Define BranchSummary inline as it's not exported from types
+interface BranchSummary {
+  current: string;
+  branches: { [key: string]: { current: boolean; name: string; commit: string; label: string } };
+  all: string[];
+  // Add other properties if needed based on simple-git's actual return type
+}
 import {
   createGitError,
   createSuccessResult,
   createFailureResult,
   OperationResult,
   StandardizedApplicationErrorObject,
-  wrapExceptionAsStandardizedError
+  wrapExceptionAsStandardizedError,
+  createStandardizedError, // Use the correct function
+  ErrorCategoryType,       // Import category type
+  ErrorSeverityLevel     // Import severity level
 } from './error-service.js';
+import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js'; // Import from SDK
 
 export class GitService {
   private git: SimpleGit;
@@ -47,7 +61,22 @@ export class GitService {
    * @param options - Additional simple-git options
    */
   constructor(repoPath: string, options: SimpleGitOptions = {}) {
-    this.repoPath = repoPath;
+    // --- Path Sandboxing Validation ---
+    const settings = getGlobalSettings();
+    const normalizedRepoPath = PathValidation.normalizePath(repoPath);
+    
+    if (!PathValidation.isWithinDirectory(normalizedRepoPath, settings.allowedBaseDir)) {
+      // Use createStandardizedError with appropriate parameters
+      throw createStandardizedError(
+        `Access denied: Repository path '${repoPath}' (resolved to '${normalizedRepoPath}') is outside the allowed base directory '${settings.allowedBaseDir}'.`,
+        'PATH_OUTSIDE_BASEDIR', // Error code
+        ErrorCategoryType.CATEGORY_VALIDATION, // Category
+        ErrorSeverityLevel.SEVERITY_ERROR, // Severity
+        { requestedPath: repoPath, resolvedPath: normalizedRepoPath, allowedBaseDir: settings.allowedBaseDir } // Context
+      );
+    }
+    this.repoPath = normalizedRepoPath; // Use the validated, normalized path
+    // --- End Path Sandboxing Validation ---
 
     try {
       // Try to get the global git user configuration
@@ -71,6 +100,43 @@ export class GitService {
       });
     }
   }
+
+  /**
+   * Validates a path relative to the repository root to prevent traversal.
+   * Throws a standardized error if validation fails.
+   * 
+   * @param relativePath - The path relative to the repository root.
+   * @param paramName - The name of the parameter being validated (for error messages).
+   * @returns The validated and normalized relative path.
+   */
+  private validateRelativePath(relativePath: string, paramName: string): string {
+    // Avoid validating special case '.' which means 'current directory' or 'all' in some contexts
+    if (relativePath === '.' || relativePath === '') {
+        return relativePath;
+    }
+    
+    // Normalize the input relative path *before* resolving against the repo path
+    // This handles inputs like 'subdir/../file' correctly within the context of the repo
+    const normalizedRelativePath = path.normalize(relativePath);
+
+    // Resolve the normalized relative path against the repository path
+    const resolvedPath = path.resolve(this.repoPath, normalizedRelativePath);
+    
+    // Use the existing validation utility
+    // Check if the resolved path is the repo path itself OR is within it
+    if (resolvedPath !== this.repoPath && !PathValidation.isWithinDirectory(resolvedPath, this.repoPath)) {
+        throw createStandardizedError(
+            `Access denied: Path '${relativePath}' in parameter '${paramName}' (resolved to '${resolvedPath}') attempts to traverse outside the repository root '${this.repoPath}'.`,
+            'PATH_TRAVERSAL_ATTEMPT', // Keep specific error code
+            ErrorCategoryType.CATEGORY_VALIDATION, // Use existing validation category
+            ErrorSeverityLevel.SEVERITY_ERROR, // Use existing error severity
+            { requestedPath: relativePath, resolvedPath: resolvedPath, repoPath: this.repoPath, parameter: paramName }
+        );
+    }
+    // Return the normalized relative path, as simple-git expects paths relative to repoPath
+    return normalizedRelativePath;
+  }
+
 
   /**
    * Handles Git errors in a standardized way
@@ -117,8 +183,18 @@ export class GitService {
    * @returns Promise resolving to true if path is a Git repository
    */
   async isGitRepository(dirPath: string = this.repoPath): Promise<boolean> {
+    // --- Path Sandboxing Validation ---
+    const settings = getGlobalSettings();
+    const normalizedDirPath = PathValidation.normalizePath(dirPath);
+    if (!PathValidation.isWithinDirectory(normalizedDirPath, settings.allowedBaseDir)) {
+      console.error(`Security Warning: isGitRepository check attempted outside allowed base directory. Path: ${dirPath}, Base: ${settings.allowedBaseDir}`);
+      // Return false instead of throwing an error, as this might be used for checks
+      return false; 
+    }
+    // --- End Path Sandboxing Validation ---
+    
     try {
-      const gitDir = path.join(dirPath, '.git');
+      const gitDir = path.join(normalizedDirPath, '.git'); // Use normalized path
       await fs.access(gitDir);
       return true;
     } catch (error) {
@@ -126,7 +202,7 @@ export class GitService {
         // Check if it's a bare repository by looking for common Git files
         const gitFiles = ['HEAD', 'config', 'objects', 'refs'];
         for (const file of gitFiles) {
-          await fs.access(path.join(dirPath, file));
+          await fs.access(path.join(normalizedDirPath, file)); // Use normalized path
         }
         return true;
       } catch {
@@ -225,13 +301,25 @@ export class GitService {
    */
   async stageFiles(files: string[] | string = '.'): Promise<OperationResult<string>> {
     try {
-      if (Array.isArray(files) && files.length === 0) {
-        return createSuccessResult('No files to stage');
+      let validatedFiles: string[] | string;
+      if (Array.isArray(files)) {
+        if (files.length === 0) {
+          return createSuccessResult('No files to stage');
+        }
+        // Validate each file path in the array
+        validatedFiles = files.map(file => this.validateRelativePath(file, 'files'));
+      } else {
+        // Validate the single file path (unless it's '.')
+        validatedFiles = this.validateRelativePath(files, 'files');
       }
       
-      const result = await this.git.add(files);
+      const result = await this.git.add(validatedFiles); // Use validated files
       return createSuccessResult(result);
     } catch (error) {
+       // Check if it's our standardized error by looking for errorCode property
+       if ((error as StandardizedApplicationErrorObject)?.errorCode) {
+         throw error; // Rethrow standardized errors directly
+       }
       return createFailureResult(
         this.handleGitError(error, 'Failed to stage files')
       );
@@ -246,14 +334,26 @@ export class GitService {
    */
   async unstageFiles(files: string[] | string = '.'): Promise<OperationResult<string>> {
     try {
-      if (Array.isArray(files) && files.length === 0) {
-        return createSuccessResult('No files to unstage');
+      let validatedFiles: string[] | string;
+       if (Array.isArray(files)) {
+        if (files.length === 0) {
+          return createSuccessResult('No files to unstage');
+        }
+        // Validate each file path in the array
+        validatedFiles = files.map(file => this.validateRelativePath(file, 'files'));
+      } else {
+        // Validate the single file path (unless it's '.')
+        validatedFiles = this.validateRelativePath(files, 'files');
       }
       
       // Use reset to unstage files
-      const result = await this.git.reset(['--', ...(Array.isArray(files) ? files : [files])]);
+      const result = await this.git.reset(['--', ...(Array.isArray(validatedFiles) ? validatedFiles : [validatedFiles])]); // Use validated files
       return createSuccessResult(result);
     } catch (error) {
+       // Check if it's our standardized error by looking for errorCode property
+       if ((error as StandardizedApplicationErrorObject)?.errorCode) {
+         throw error; // Rethrow standardized errors directly
+       }
       return createFailureResult(
         this.handleGitError(error, 'Failed to unstage files')
       );
@@ -321,12 +421,13 @@ export class GitService {
    * Lists all branches
    * 
    * @param all - Whether to include remote branches
-   * @returns Promise resolving to list of branches
+   * @returns Promise resolving to branch summary including current branch
    */
-  async listBranches(all = false): Promise<OperationResult<string[]>> {
+  async listBranches(all = false): Promise<OperationResult<BranchSummary>> { // Return BranchSummary
     try {
       const branchSummary = await this.git.branch(all ? ['-a'] : []);
-      return createSuccessResult(Object.keys(branchSummary.branches));
+      // Directly return the summary object provided by simple-git
+      return createSuccessResult(branchSummary); 
     } catch (error) {
       return createFailureResult(
         this.handleGitError(error, 'Failed to list branches')
@@ -513,6 +614,11 @@ export class GitService {
    */
   async getLog(options: {maxCount?: number, file?: string} = {}): Promise<OperationResult<GitLogEntry[]>> {
     try {
+      let validatedFilePath: string | undefined;
+      if (options.file) {
+        validatedFilePath = this.validateRelativePath(options.file, 'options.file');
+      }
+
       // Build options object for simple-git in the format it expects
       const logOptions: any = {
         maxCount: options.maxCount || 50,
@@ -526,8 +632,8 @@ export class GitService {
         }
       };
       
-      if (options.file) {
-        logOptions.file = options.file;
+      if (validatedFilePath) {
+        logOptions.file = validatedFilePath; // Use validated path
       }
       
       const result = await this.git.log(logOptions);
@@ -545,6 +651,10 @@ export class GitService {
       
       return createSuccessResult(entries);
     } catch (error) {
+       // Check if it's our standardized error by looking for errorCode property
+       if ((error as StandardizedApplicationErrorObject)?.errorCode) {
+         throw error; // Rethrow standardized errors directly
+       }
       return createFailureResult(
         this.handleGitError(error, 'Failed to get commit history')
       );
@@ -559,9 +669,14 @@ export class GitService {
    */
   async getBlame(filePath: string): Promise<OperationResult<string>> {
     try {
-      const result = await this.git.raw(['blame', filePath]);
+      const validatedPath = this.validateRelativePath(filePath, 'filePath');
+      const result = await this.git.raw(['blame', validatedPath]); // Use validated path
       return createSuccessResult(result);
     } catch (error) {
+       // Check if it's our standardized error by looking for errorCode property
+       if ((error as StandardizedApplicationErrorObject)?.errorCode) {
+         throw error; // Rethrow standardized errors directly
+       }
       return createFailureResult(
         this.handleGitError(error, `Failed to get blame for file '${filePath}'`)
       );
@@ -576,16 +691,21 @@ export class GitService {
    * @param path - Optional path to restrict the diff to
    * @returns Promise resolving to diff information
    */
-  async getDiff(fromRef: string, toRef = 'HEAD', path?: string): Promise<OperationResult<GitDiffEntry[]>> {
+  async getDiff(fromRef: string, toRef = 'HEAD', filePath?: string): Promise<OperationResult<GitDiffEntry[]>> { // Renamed path to filePath for clarity
     try {
+      let validatedPath: string | undefined;
+      if (filePath) {
+        validatedPath = this.validateRelativePath(filePath, 'filePath');
+      }
+
       const args = ['diff', '--name-status', fromRef];
       
       if (toRef !== 'HEAD') {
         args.push(toRef);
       }
       
-      if (path) {
-        args.push('--', path);
+      if (validatedPath) {
+        args.push('--', validatedPath); // Use validated path
       }
       
       const result = await this.git.raw(args);
@@ -611,6 +731,10 @@ export class GitService {
       
       return createSuccessResult(entries);
     } catch (error) {
+       // Check if it's our standardized error by looking for errorCode property
+       if ((error as StandardizedApplicationErrorObject)?.errorCode) {
+         throw error; // Rethrow standardized errors directly
+       }
       return createFailureResult(
         this.handleGitError(error, 'Failed to get diff')
       );
@@ -626,9 +750,16 @@ export class GitService {
    */
   async getFileAtRef(filePath: string, ref = 'HEAD'): Promise<OperationResult<string>> {
     try {
-      const result = await this.git.show([`${ref}:${filePath}`]);
+      const validatedPath = this.validateRelativePath(filePath, 'filePath');
+      // Note: simple-git's show command expects the path within the ref string itself.
+      // We validated the path component, but we still construct the argument as needed.
+      const result = await this.git.show([`${ref}:${validatedPath}`]); // Use validated path component
       return createSuccessResult(result);
     } catch (error) {
+       // Check if it's our standardized error by looking for errorCode property
+       if ((error as StandardizedApplicationErrorObject)?.errorCode) {
+         throw error; // Rethrow standardized errors directly
+       }
       return createFailureResult(
         this.handleGitError(error, `Failed to get file '${filePath}' at ref '${ref}'`)
       );
@@ -642,12 +773,17 @@ export class GitService {
    * @param showUntracked - Whether to include information about untracked files
    * @returns Promise resolving to diff content
    */
-  async getUnstagedDiff(path?: string, showUntracked = true): Promise<OperationResult<string>> {
+  async getUnstagedDiff(filePath?: string, showUntracked = true): Promise<OperationResult<string>> { // Renamed path to filePath
     try {
+      let validatedPath: string | undefined;
+      if (filePath) {
+        validatedPath = this.validateRelativePath(filePath, 'filePath');
+      }
+
       const args = ['diff'];
       
-      if (path) {
-        args.push('--', path);
+      if (validatedPath) {
+        args.push('--', validatedPath); // Use validated path
       }
       
       let diffResult = await this.git.raw(args);
@@ -659,9 +795,9 @@ export class GitService {
           const statusResult = await this.getStatus();
           
           if (statusResult.resultSuccessful && statusResult.resultData.not_added.length > 0) {
-            // Filter untracked files by path if specified
-            const untrackedFiles = path 
-              ? statusResult.resultData.not_added.filter(file => file === path || file.startsWith(path + '/'))
+            // Filter untracked files by validatedPath if specified
+            const untrackedFiles = validatedPath 
+              ? statusResult.resultData.not_added.filter(file => file === validatedPath || file.startsWith(validatedPath + '/'))
               : statusResult.resultData.not_added;
             
             if (untrackedFiles.length > 0) {
@@ -684,6 +820,10 @@ export class GitService {
       
       return createSuccessResult(diffResult);
     } catch (error) {
+       // Check if it's our standardized error by looking for errorCode property
+       if ((error as StandardizedApplicationErrorObject)?.errorCode) {
+         throw error; // Rethrow standardized errors directly
+       }
       return createFailureResult(
         this.handleGitError(error, 'Failed to get unstaged diff')
       );
@@ -696,17 +836,26 @@ export class GitService {
    * @param path - Optional path to restrict the diff to
    * @returns Promise resolving to diff content
    */
-  async getStagedDiff(path?: string): Promise<OperationResult<string>> {
+  async getStagedDiff(filePath?: string): Promise<OperationResult<string>> { // Renamed path to filePath
     try {
+      let validatedPath: string | undefined;
+      if (filePath) {
+        validatedPath = this.validateRelativePath(filePath, 'filePath');
+      }
+
       const args = ['diff', '--cached'];
       
-      if (path) {
-        args.push('--', path);
+      if (validatedPath) {
+        args.push('--', validatedPath); // Use validated path
       }
       
       const result = await this.git.raw(args);
       return createSuccessResult(result);
     } catch (error) {
+       // Check if it's our standardized error by looking for errorCode property
+       if ((error as StandardizedApplicationErrorObject)?.errorCode) {
+         throw error; // Rethrow standardized errors directly
+       }
       return createFailureResult(
         this.handleGitError(error, 'Failed to get staged diff')
       );
@@ -718,27 +867,37 @@ export class GitService {
    * 
    * @param dirPath - Path to the directory (relative to the repo root)
    * @param ref - Git reference (commit, branch, etc.)
-   * @returns Promise resolving to list of files
+   * @returns Promise resolving to list of immediate files/directories within the specified path
    */
   async listFilesAtRef(dirPath: string = '.', ref = 'HEAD'): Promise<OperationResult<string[]>> {
     try {
-      const result = await this.git.raw(['ls-tree', '-r', '--name-only', ref, dirPath]);
+      const validatedDirPath = this.validateRelativePath(dirPath, 'dirPath');
+      
+      // Remove '-r' to list only immediate children, not recursive
+      // Use the validated path
+      const result = await this.git.raw(['ls-tree', '--name-only', ref, validatedDirPath]); 
       
       // Parse the output
       const files = result.split('\n')
         .filter((line: string) => line.trim() !== '')
-        .filter((file: string) => {
-          // If dirPath is empty or root, include all files
-          if (!dirPath || dirPath === '.') {
-            return true;
-          }
+        // No need for post-filtering, ls-tree with validatedDirPath handles it.
+        // .filter((file: string) => {
+        //   // If validatedDirPath is empty or root, include all files
+        //   if (!validatedDirPath || validatedDirPath === '.') {
+        //     return true;
+        //   }
           
-          // Otherwise, only include files that are within the directory
-          return file.startsWith(dirPath + '/');
-        });
+        //   // Otherwise, only include files that are within the directory
+        //   // This check might be redundant now with ls-tree using the validated path
+        //   return file.startsWith(validatedDirPath + '/'); 
+        // });
       
       return createSuccessResult(files);
     } catch (error) {
+       // Check if it's our standardized error by looking for errorCode property
+       if ((error as StandardizedApplicationErrorObject)?.errorCode) {
+         throw error; // Rethrow standardized errors directly
+       }
       return createFailureResult(
         this.handleGitError(error, `Failed to list files in directory '${dirPath}' at ref '${ref}'`)
       );

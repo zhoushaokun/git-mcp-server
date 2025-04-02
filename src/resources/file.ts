@@ -191,22 +191,14 @@ export function setupFileResources(server: McpServer, resourceDescriptors: any):
                 mimeType: "application/json"
               }]
             };
-          }
-          
-          // Process files to strip directory prefix if needed
-          const files = filesResult.resultData
-            .map((file: string) => {
-              // If we're in a subdirectory, we want to strip the prefix
-              if (normalizedDirPath && normalizedDirPath !== '.') {
-                if (file.startsWith(normalizedDirPath + '/')) {
-                  return file.substring(normalizedDirPath.length + 1);
-                }
-              }
-              return file;
-            });
-          
-          return {
-            contents: [{
+            }
+            
+            // The listFilesAtRef method now returns only immediate children,
+            // so no need to strip prefixes here.
+            const files = filesResult.resultData;
+            
+            return {
+              contents: [{
               uri: uri.href,
               text: JSON.stringify({
                 repoPath: normalizedRepoPath,
