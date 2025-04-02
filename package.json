@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/git-mcp-server",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "A Model Context Protocol server for Git integration",
   "type": "module",
   "license": "Apache-2.0",
@@ -23,6 +23,9 @@
     "clean": "ts-node scripts/clean.ts",
     "tree": "ts-node scripts/tree.ts",
     "rebuild": "npm run clean && npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.8.0",

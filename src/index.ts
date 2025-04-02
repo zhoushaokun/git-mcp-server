@@ -20,10 +20,11 @@ dotenv.config();
  */
 async function main(): Promise<void> {
   console.error('Starting Git MCP Server...');
-  
+  let server: GitMcpServer | null = null; // Declare server outside try block
+
   try {
     // Create server instance
-    const server = new GitMcpServer();
+    server = new GitMcpServer();
     
     // Use stdio transport for communication
     const transport = new StdioServerTransport();
@@ -33,16 +34,26 @@ async function main(): Promise<void> {
     
     console.error('Git MCP Server running on stdio transport');
     
-    // Handle interruption signals
-    process.on('SIGINT', async () => {
-      console.error('Received SIGINT, shutting down Git MCP Server');
-      process.exit(0);
-    });
-    
-    process.on('SIGTERM', async () => {
-      console.error('Received SIGTERM, shutting down Git MCP Server');
-      process.exit(0);
-    });
+    // Handle interruption signals for graceful shutdown
+    const shutdownHandler = async (signal: string) => {
+      console.error(`Received ${signal}, shutting down Git MCP Server...`);
+      if (server) {
+        try {
+          await server.shutdown();
+          process.exit(0);
+        } catch (shutdownError) {
+          console.error('Error during server shutdown:', shutdownError);
+          process.exit(1); // Exit with error if shutdown fails
+        }
+      } else {
+        console.error('Server not initialized, exiting.');
+        process.exit(1);
+      }
+    };
+
+    process.on('SIGINT', () => shutdownHandler('SIGINT'));
+    process.on('SIGTERM', () => shutdownHandler('SIGTERM'));
+
   } catch (error) {
     console.error('Failed to start Git MCP Server:');
     console.error(error instanceof Error ? error.message : String(error));
