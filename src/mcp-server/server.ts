@@ -17,23 +17,31 @@ import { config, environment } from '../config/index.js';
 import { ErrorHandler } from '../utils/errorHandler.js';
 import { logger } from '../utils/logger.js';
 import { requestContextService } from '../utils/requestContext.js';
-import { registerGitStatusTool } from './tools/gitStatus/index.js';
-import { registerGitBranchListTool } from './tools/gitBranchList/index.js';
-import { registerGitCommitTool } from './tools/gitCommit/index.js';
-import { registerGitAddTool } from './tools/gitAdd/index.js';
-import { registerGitSetWorkingDirTool, initializeGitSetWorkingDirStateAccessors } from './tools/gitSetWorkingDir/index.js';
-import { registerGitClearWorkingDirTool, initializeGitClearWorkingDirStateAccessors } from './tools/gitClearWorkingDir/index.js';
-import { registerGitPullTool, initializeGitPullStateAccessors } from './tools/gitPull/index.js'; // Import git_pull
-import { registerGitPushTool, initializeGitPushStateAccessors } from './tools/gitPush/index.js'; // Import git_push
-import { registerGitCheckoutTool, initializeGitCheckoutStateAccessors } from './tools/gitCheckout/index.js'; // Import git_checkout
-import { registerGitLogTool, initializeGitLogStateAccessors } from './tools/gitLog/index.js'; // Import git_log
-import { registerGitDiffTool, initializeGitDiffStateAccessors } from './tools/gitDiff/index.js'; // Import git_diff
-import { registerGitResetTool, initializeGitResetStateAccessors } from './tools/gitReset/index.js'; // Import git_reset
-import { registerGitFetchTool, initializeGitFetchStateAccessors } from './tools/gitFetch/index.js'; // Import git_fetch
-import { initializeGitStatusStateAccessors } from './tools/gitStatus/index.js';
-import { initializeGitBranchListStateAccessors } from './tools/gitBranchList/index.js';
-import { initializeGitCommitStateAccessors } from './tools/gitCommit/index.js';
+import { registerGitAddTool } from './tools/gitAdd/index.js'; // Import git_add
+import { registerGitBranchListTool } from './tools/gitBranchList/index.js'; // Import git_branch_list
+import { initializeGitCheckoutStateAccessors, registerGitCheckoutTool } from './tools/gitCheckout/index.js'; // Import git_checkout
+import { initializeGitCleanStateAccessors, registerGitCleanTool } from './tools/gitClean/index.js'; // Import git_clean
+import { initializeGitClearWorkingDirStateAccessors, registerGitClearWorkingDirTool } from './tools/gitClearWorkingDir/index.js'; // Import git_clear_working_dir
+import { registerGitCommitTool } from './tools/gitCommit/index.js'; // Import git_commit
+import { initializeGitDiffStateAccessors, registerGitDiffTool } from './tools/gitDiff/index.js'; // Import git_diff
+import { initializeGitFetchStateAccessors, registerGitFetchTool } from './tools/gitFetch/index.js'; // Import git_fetch
+import { initializeGitLogStateAccessors, registerGitLogTool } from './tools/gitLog/index.js'; // Import git_log
+import { initializeGitMergeStateAccessors, registerGitMergeTool } from './tools/gitMerge/index.js'; // Import git_merge
+import { initializeGitPullStateAccessors, registerGitPullTool } from './tools/gitPull/index.js'; // Import git_pull
+import { initializeGitPushStateAccessors, registerGitPushTool } from './tools/gitPush/index.js'; // Import git_push
+import { initializeGitRemoteStateAccessors, registerGitRemoteTool } from './tools/gitRemote/index.js'; // Import git_remote
+import { initializeGitResetStateAccessors, registerGitResetTool } from './tools/gitReset/index.js'; // Import git_reset
+import { initializeGitSetWorkingDirStateAccessors, registerGitSetWorkingDirTool } from './tools/gitSetWorkingDir/index.js'; // Import git_set_working_dir
+import { initializeGitShowStateAccessors, registerGitShowTool } from './tools/gitShow/index.js'; // Import git_show
+import { initializeGitStashStateAccessors, registerGitStashTool } from './tools/gitStash/index.js'; // Import git_stash
+import { registerGitStatusTool } from './tools/gitStatus/index.js'; // Import git_status
+import { initializeGitTagStateAccessors, registerGitTagTool } from './tools/gitTag/index.js'; // Import git_tag
+// --- Import Accessor Inits ---
 import { initializeGitAddStateAccessors } from './tools/gitAdd/index.js'; // Import add accessor init
+import { initializeGitBranchListStateAccessors } from './tools/gitBranchList/index.js'; // Import branch list accessor init
+import { initializeGitCommitStateAccessors } from './tools/gitCommit/index.js'; // Import commit accessor init
+import { initializeGitStatusStateAccessors } from './tools/gitStatus/index.js'; // Import status accessor init
+
 
 // --- Configuration Constants ---
 
@@ -182,8 +190,14 @@ async function createMcpServerInstance(): Promise<McpServer> {
     await registerGitDiffTool(server); // Register git_diff tool
     await registerGitResetTool(server); // Register git_reset tool
     await registerGitFetchTool(server); // Register git_fetch tool
-    // TODO: Register other Git tools here
-    logger.info('Git tools (status, branch_list, commit, add, set_working_dir, clear_working_dir, pull, push, checkout, log, diff, reset, fetch) registered successfully', context);
+    await registerGitMergeTool(server); // Register git_merge tool
+    // --- Register New Tools ---
+    await registerGitRemoteTool(server);
+    await registerGitTagTool(server);
+    await registerGitStashTool(server);
+    await registerGitShowTool(server);
+    await registerGitCleanTool(server);
+    logger.info('All Git tools registered successfully', context);
   } catch (err) {
     // Log and re-throw any errors during registration, as the server cannot function correctly without them.
     logger.error('Failed to register resources/tools', {
@@ -355,6 +369,14 @@ async function startTransport(): Promise<McpServer | void> {
   initializeGitDiffStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize diff accessors
   initializeGitResetStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize reset accessors
   initializeGitFetchStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize fetch accessors
+  initializeGitMergeStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize merge accessors
+  // --- Initialize New Tool Accessors ---
+  initializeGitRemoteStateAccessors(getWorkingDirectoryFn, getSessionIdFn);
+  initializeGitTagStateAccessors(getWorkingDirectoryFn, getSessionIdFn);
+  initializeGitStashStateAccessors(getWorkingDirectoryFn, getSessionIdFn);
+  initializeGitShowStateAccessors(getWorkingDirectoryFn, getSessionIdFn);
+  initializeGitCleanStateAccessors(getWorkingDirectoryFn, getSessionIdFn);
+
 
   // --- HTTP Transport Setup ---
   if (TRANSPORT_TYPE === 'http') {
