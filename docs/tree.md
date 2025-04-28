@@ -1,12 +1,13 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-04-28 21:17:41
+Generated on: 2025-04-28 22:02:27
 
 
 ```
 git-mcp-server
 ├── docs
     └── tree.md
+├── logs
 ├── scripts
     ├── clean.ts
     ├── make-executable.ts
@@ -25,11 +26,41 @@ git-mcp-server
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
+    │   │   ├── gitCheckout
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
     │   │   ├── gitClearWorkingDir
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
     │   │   ├── gitCommit
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitDiff
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitFetch
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitLog
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitMerge
+    │   │   │   └── index.ts
+    │   │   ├── gitPull
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitPush
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitReset
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
@@ -59,6 +90,7 @@ git-mcp-server
     ├── .DS_Store
     └── index.ts
 ├── .clinerules
+├── .env.example
 ├── CHANGELOG.md
 ├── Dockerfile
 ├── LICENSE
