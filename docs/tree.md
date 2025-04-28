@@ -1,11 +1,12 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-04-28 22:02:27
+Generated on: 2025-04-28 22:46:14
 
 
 ```
 git-mcp-server
 ├── docs
+    ├── new_git_tools_plan.md
     └── tree.md
 ├── logs
 ├── scripts
@@ -30,6 +31,10 @@ git-mcp-server
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
+    │   │   ├── gitClean
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
     │   │   ├── gitClearWorkingDir
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
@@ -51,12 +56,18 @@ git-mcp-server
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
     │   │   ├── gitMerge
-    │   │   │   └── index.ts
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
     │   │   ├── gitPull
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
     │   │   ├── gitPush
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitRemote
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
@@ -68,7 +79,19 @@ git-mcp-server
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
-    │   │   └── gitStatus
+    │   │   ├── gitShow
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitStash
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitStatus
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   └── gitTag
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
