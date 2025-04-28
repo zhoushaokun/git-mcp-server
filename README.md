@@ -132,6 +132,13 @@ Exposes core Git functionalities as MCP tools:
 - Stage files (`git_add`).
 - Commit changes (`git_commit`).
 - Set/clear session working directory (`git_set_working_dir`, `git_clear_working_dir`).
+- Fetch changes from a remote (`git_fetch`).
+- Pull changes from a remote (`git_pull`).
+- Push changes to a remote (`git_push`).
+- Checkout branches or commits (`git_checkout`).
+- View commit history (`git_log`).
+- Show changes between commits/working tree (`git_diff`).
+- Reset current HEAD (`git_reset`).
 
 ## Installation
 
@@ -260,6 +267,13 @@ The following Git operations are currently implemented as MCP tools:
 | `git_commit`            | Commits staged changes with a message. Supports author override, amend, allow-empty.                                             | `path?`, `message`, `author?`, `allowEmpty?`, `amend?` | `success`, `statusMessage`, `commitHash?`, `nothingToCommit?` |
 | `git_set_working_dir`   | Sets the default working directory for the current session. Requires absolute path. Validates if path is Git repo by default. | `path`, `validateGitRepo?` | `success`, `statusMessage`, `workingDirectory`                                     |
 | `git_clear_working_dir` | Clears the session-specific working directory set by `git_set_working_dir`.                                                  | (none)                     | `success`, `statusMessage`                                                         |
+| `git_fetch`             | Downloads objects and refs from other repositories.                                                                          | `path?`, `remote?`, `prune?`, `tags?`, `all?` | `success`, `statusMessage`, `fetchResult?`                                         |
+| `git_pull`              | Fetches from and integrates with another repository or local branch.                                                         | `path?`, `remote?`, `branch?`, `rebase?`, `ffOnly?` | `success`, `statusMessage`, `filesChanged?`                                        |
+| `git_push`              | Updates remote refs using local refs. Supports tags, force, upstream setting, delete.                                        | `path?`, `remote?`, `branch?`, `remoteBranch?`, `force?`, `forceWithLease?`, `setUpstream?`, `tags?`, `delete?` | `success`, `statusMessage`, `remoteMessages?`                                      |
+| `git_checkout`          | Switches branches or restores working tree files. Supports creating new branches.                                            | `path?`, `branchOrPath`, `newBranch?`, `force?` | `success`, `statusMessage`, `branchSwitched?`, `filesRestored?`                    |
+| `git_log`               | Shows commit logs. Supports filtering by count, author, date, branch/file.                                                   | `path?`, `maxCount?`, `author?`, `since?`, `until?`, `branchOrFile?` | `commits` (array of commit objects)                                                |
+| `git_diff`              | Shows changes between commits, commit and working tree, etc. Can show staged changes or diff specific files.                 | `path?`, `commit1?`, `commit2?`, `staged?`, `file?` | `diff` (string output)                                                             |
+| `git_reset`             | Resets current HEAD to a specified state. Supports soft, mixed, hard modes. USE 'hard' WITH CAUTION.                         | `path?`, `mode?`, `commit?` | `success`, `statusMessage`                                                         |
 
 *Note: The `path` parameter for most tools defaults to the session's working directory if set via `git_set_working_dir`, otherwise it defaults to the server's CWD.*
 
