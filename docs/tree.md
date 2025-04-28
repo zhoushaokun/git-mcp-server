@@ -1,42 +1,66 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-04-02 17:01:14
+Generated on: 2025-04-28 21:17:41
 
 
 ```
 git-mcp-server
 ├── docs
     └── tree.md
-├── logs
 ├── scripts
     ├── clean.ts
+    ├── make-executable.ts
     └── tree.ts
 ├── src
-    ├── resources
-    │   ├── descriptors.ts
-    │   ├── diff.ts
-    │   ├── file.ts
-    │   ├── history.ts
-    │   ├── index.ts
-    │   └── repository.ts
-    ├── services
-    │   ├── error-service.ts
-    │   └── git-service.ts
-    ├── tools
-    │   ├── advanced.ts
-    │   ├── branch.ts
-    │   ├── index.ts
-    │   ├── remote.ts
-    │   ├── repository.ts
-    │   └── workdir.ts
-    ├── types
-    │   └── git.ts
+    ├── config
+    │   └── index.ts
+    ├── mcp-server
+    │   ├── resources
+    │   ├── tools
+    │   │   ├── gitAdd
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitBranchList
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitClearWorkingDir
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitCommit
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitSetWorkingDir
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   └── gitStatus
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   └── server.ts
+    ├── types-global
+    │   ├── errors.ts
+    │   ├── mcp.ts
+    │   └── tool.ts
     ├── utils
-    │   ├── global-settings.ts
-    │   └── validation.ts
-    ├── index.ts
-    └── server.ts
-├── .env.example
+    │   ├── errorHandler.ts
+    │   ├── idGenerator.ts
+    │   ├── index.ts
+    │   ├── jsonParser.ts
+    │   ├── logger.ts
+    │   ├── rateLimiter.ts
+    │   ├── requestContext.ts
+    │   ├── sanitization.ts
+    │   └── tokenCounter.ts
+    ├── .DS_Store
+    └── index.ts
+├── .clinerules
+├── CHANGELOG.md
+├── Dockerfile
 ├── LICENSE
 ├── package-lock.json
 ├── package.json

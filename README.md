@@ -1,383 +1,272 @@
-# GIT MCP Server
+# Git MCP Server (TypeScript)
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol](https://img.shields.io/badge/MCP-1.8.0-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-1.2.4-blue.svg)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
+[![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.10.2-green.svg)](https://modelcontextprotocol.io/)
+[![Version](https://img.shields.io/badge/Version-2.0.0-blue.svg)](./CHANGELOG.md) <!-- Link to Changelog -->
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Status](https://img.shields.io/badge/Status-Beta-orange.svg)]()
-[![GitHub](https://img.shields.io/github/stars/cyanheads/git-mcp-server?style=social)](https://github.com/cyanheads/git-mcp-server)
+[![Status](https://img.shields.io/badge/Status-Development-orange.svg)](https://github.com/cyanheads/git-mcp-server/issues) <!-- Update repo link if needed -->
 
-A Model Context Protocol (MCP) server that provides tools for interacting with Git repositories. This server allows AI assistants and LLM agents to manage repositories, branches, commits, and files through a standardized interface without requiring direct filesystem or command-line access. It exposes Git operations as MCP resources and tools, leveraging the `simple-git` library for core functionality while maintaining proper security boundaries.
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server built with TypeScript, providing tools to interact with Git repositories. This server allows MCP-compatible clients (like LLM agents or IDE extensions) to perform Git operations programmatically.
+
+This project started from the `mcp-ts-template` and has been adapted to focus solely on providing Git functionalities as an MCP server.
+
+## Using this server will get you:
+
+- **Git Tools**: MCP tools for common Git operations (`git status`, `git branch`, `git add`, `git commit`).
+- **Utilities**: A set of reusable utilities for logging, error handling, ID generation, rate limiting, and request context management inherited from the template.
+- **Type Safety**: Strong typing with TypeScript.
+- **Security**: Foundational security considerations (input sanitization).
+- **Error Handling**: A robust error handling system.
+- **JSON Responses**: Tools return structured JSON output for easier parsing by clients.
+
+> **.clinerules**: This repository includes a [.clinerules](.clinerules) file that serves as a developer cheat sheet for your LLM coding agent with quick reference for the codebase patterns, file locations, and code snippets. Remember to keep it updated as the server evolves.
 
 ## Table of Contents
 
 - [Overview](#overview)
+  - [What is Model Context Protocol?](#what-is-model-context-protocol)
   - [Architecture & Components](#architecture--components)
 - [Features](#features)
-  - [Resource Access](#resource-access)
-  - [Git Operations](#git-operations)
+  - [Core Utilities](#core-utilities)
+  - [Type Safety](#type-safety)
+  - [Error Handling](#error-handling)
+  - [Security](#security)
+  - [Implemented Git Tools](#implemented-git-tools)
 - [Installation](#installation)
-  - [Prerequisites](#prerequisites)
-  - [Install from NPM](#install-from-npm)
-  - [Install from Source](#install-from-source)
-- [Usage](#usage)
-  - [Running the Server](#running-the-server)
-  - [Integration with Claude](#integration-with-claude)
-  - [Integration with Other MCP Clients](#integration-with-other-mcp-clients)
+- [Configuration](#configuration)
+  - [Server Configuration](#server-configuration)
 - [Project Structure](#project-structure)
-- [Tools](#tools)
-  - [Repository Operations](#repository-operations)
-  - [Branch Operations](#branch-operations)
-  - [Working Directory Operations](#working-directory-operations)
-  - [Remote Operations](#remote-operations)
-  - [Advanced Operations](#advanced-operations)
-- [Resources](#resources)
-  - [Repository Resources](#repository-resources)
-- [Development](#development)
-  - [Build and Test](#build-and-test)
+- [Tool Documentation](#tool-documentation)
+- [Development Guidelines](#development-guidelines)
+  - [Adding a New Tool](#adding-a-new-tool)
+- [Future Plans](#future-plans)
 - [License](#license)
 
 ## Overview
 
-Key capabilities:
+### What is Model Context Protocol?
 
-- **Repository Management**: Initialize, clone, and check repository status
-- **Branch Operations**: Create, list, checkout, delete, and merge branches
-- **Working Directory**: Stage files, commit changes, create diffs
-- **Remote Operations**: Add remotes, fetch, pull, push
-- **Advanced Git Commands**: Manage tags, stash changes, cherry-pick, rebase
+Model Context Protocol (MCP) is a framework that enables AI systems to interact with external tools and resources. It allows language models to execute **tools** that perform actions (like Git commands) and return results.
+
+This server implements the MCP standard to expose Git operations as tools.
 
 ### Architecture & Components
 
-Core system architecture:
+The server follows a modular architecture designed for clarity and extensibility:
 
 <details>
-<summary>Click to expand Mermaid diagram</summary>
+<summary>Click to expand architecture diagram</summary>
 
 ```mermaid
 flowchart TB
     subgraph API["API Layer"]
         direction LR
         MCP["MCP Protocol"]
-        Val["Validation (Zod)"]
+        Val["Validation"]
+        San["Sanitization"]
 
-        MCP --> Val
+        MCP --> Val --> San
     end
 
-    subgraph Core["Core Services"]
+    subgraph Core["Core Components"]
         direction LR
-        GitService["Git Service (simple-git)"]
-        ErrorService["Error Service"]
+        Config["Configuration"]
+        Logger["Logging System"]
+        Error["Error Handling"]
+        Server["MCP Server"]
 
-        GitService <--> ErrorService
+        Config --> Server
+        Logger --> Server
+        Error --> Server
     end
 
-    subgraph Resources["Resource Layer"]
+    subgraph Implementation["Implementation Layer"]
         direction LR
-        Repo["Repository Resources"]
-        Diff["Diff Resources"]
-        File["File Resources"]
-        History["History Resources"]
+        Tool["Tools (Server)"]
+        Util["Utilities"]
 
-        Repo <--> Diff
-        Repo <--> File
-        Repo <--> History
+        Tool --> Server
+        Util --> Tool
     end
 
-    subgraph Tools["Tool Layer"]
-        direction LR
-        RepoTools["Repository Tools"]
-        BranchTools["Branch Tools"]
-        WorkdirTools["Working Directory Tools"]
-        RemoteTools["Remote Tools"]
-        AdvancedTools["Advanced Tools"]
-
-        RepoTools <--> BranchTools
-        BranchTools <--> WorkdirTools
-        WorkdirTools <--> RemoteTools
-        RemoteTools <--> AdvancedTools
-    end
-
-    Val --> GitService
-    GitService --> Resources
-    GitService --> Tools
+    San --> Config
+    San --> Server
 
     classDef layer fill:#2d3748,stroke:#4299e1,stroke-width:3px,rx:5,color:#fff
     classDef component fill:#1a202c,stroke:#a0aec0,stroke-width:2px,rx:3,color:#fff
-    classDef api fill:#3182ce,stroke:#90cdf4,stroke-width:2px,rx:3,color:#fff
-    classDef core fill:#319795,stroke:#81e6d9,stroke-width:2px,rx:3,color:#fff
-    classDef resource fill:#2f855a,stroke:#9ae6b4,stroke-width:2px,rx:3,color:#fff
-    classDef tool fill:#805ad5,stroke:#d6bcfa,stroke-width:2px,rx:3,color:#fff
-
-    class API,Core,Resources,Tools layer
-    class MCP,Val api
-    class GitService,ErrorService core
-    class Repo,Diff,File,History resource
-    class RepoTools,BranchTools,WorkdirTools,RemoteTools,AdvancedTools tool
+    class API,Core,Implementation layer
+    class MCP,Val,San,Config,Logger,Error,Server,Tool,Util component
 ```
 
 </details>
 
 Core Components:
 
-- **MCP Server (`server.ts`)**: Uses the `@modelcontextprotocol/sdk` to create a server exposing resources and tools.
-- **Git Service (`services/git-service.ts`)**: Abstraction layer over the `simple-git` library providing clean interfaces for Git operations.
-- **Resources (`resources/`)**: Expose Git data (like status, logs, file content) through MCP resources with consistent URI templates.
-- **Tools (`tools/`)**: Expose Git actions (like commit, push, pull) through MCP tools with well-defined input schemas (validated using Zod).
-- **Error Handling (`services/error-service.ts`)**: Standardized error handling and reporting for Git and MCP operations.
-- **Entry Point (`index.ts`)**: Initializes and starts the server, connecting it to the standard I/O transport.
+- **Configuration System**: Environment-aware configuration.
+- **Logging System**: Structured logging with sensitive data redaction.
+- **Error Handling**: Centralized error processing.
+- **MCP Server**: Protocol implementation supporting both `stdio` and `http` transports.
+- **HTTP Transport**: Express-based server using Server-Sent Events (SSE) for streaming, session management, and configurable CORS. Includes port conflict retry logic.
+- **Validation Layer**: Input validation and sanitization using `validator`, `sanitize-html`, and `zod`.
+- **Utilities**: Reusable utility functions.
 
 ## Features
 
-### Resource Access
+### Core Utilities
 
-Expose Git repository information through MCP resources:
+- **Logging**: Configurable logging with file rotation and sensitive data redaction.
+- **Error Handling**: Pattern-based error classification and standardized reporting.
+- **ID Generation**: Secure unique identifier creation with prefix support.
+- **Rate Limiting**: Request throttling to prevent API abuse.
+- **Request Context**: Request tracking and correlation across operations.
+- **Sanitization**: Input validation and cleaning using `validator` and `sanitize-html`.
 
-- **Repository Information**: Access basic Git repository information including current branch, status, and reference details
-- **Repository Branches**: List all branches in the repository with current branch indicator
-- **Repository Remotes**: List all configured remote repositories with their URLs
-- **Repository Tags**: List all tags in the repository with their references
-- **File Content**: Access content of specific files at a given Git reference
-- **Directory Listing**: View lists of files and directories at a specific path and reference
-- **Diffs**: Get differences between references, unstaged changes, or staged changes
-- **Commit History**: View detailed commit logs with author, date, and message information
-- **File Blame**: See line-by-line attribution showing which commit last modified each line
-- **Commit Details**: Access detailed information about specific commits including diff changes
+### Type Safety
 
-### Git Operations
+- **Global Types**: Shared type definitions for consistent interfaces.
+- **Error Types**: Standardized error codes and structures.
+- **MCP Protocol Types**: Type definitions for the MCP protocol (leveraging `@modelcontextprotocol/sdk`).
+- **Tool Types**: Interfaces for tool registration and configuration.
+- **Zod Schemas**: Used for robust validation of configuration files and tool inputs.
 
-Execute Git commands through MCP tools:
+### Error Handling
 
-- **Repository Operations**: Initialize repositories, clone from remotes, check repository status
-- **Branch Operations**: Create branches, list branches, checkout, delete branches, merge
-- **Working Directory Operations**: Stage files, unstage files, commit changes, create diffs
-- **Remote Operations**: Add remotes, list remotes, fetch, pull, push
-- **Advanced Operations**: Manage tags, stash changes, cherry-pick commits, rebase branches, reset, clean
+- **Pattern-Based Classification**: Automatically categorize errors based on message patterns.
+- **Consistent Formatting**: Standardized error responses with additional context.
+- **Error Mapping**: Custom error transformation for domain-specific errors.
+- **Safe Try/Catch Patterns**: Centralized error processing helpers (`ErrorHandler.tryCatch`).
+
+### Security
+
+- **Input Validation**: Using `validator` and `zod` for various data type checks.
+- **Input Sanitization**: Using path normalization and basic checks to prevent command injection/path traversal.
+- **Parameter Bounds**: Enforced limits within sanitization logic to prevent abuse.
+- **Sensitive Data Redaction**: Automatic redaction in logs.
+
+### Implemented Git Tools
+
+- **[git_status](src/mcp-server/tools/gitStatus/)**: Gets repository status (branch, staged, modified, untracked files).
+- **[git_branch_list](src/mcp-server/tools/gitBranchList/)**: Lists local or all branches.
+- **[git_add](src/mcp-server/tools/gitAdd/)**: Stages specified files or patterns.
+- **[git_commit](src/mcp-server/tools/gitCommit/)**: Commits staged changes with a message.
+- **[git_set_working_dir](src/mcp-server/tools/gitSetWorkingDir/)**: Sets the default working directory for the session.
+- **[git_clear_working_dir](src/mcp-server/tools/gitClearWorkingDir/)**: Clears the session-specific working directory.
 
 ## Installation
 
 ### Prerequisites
 
-- Node.js 16 or higher
-- Git installed and available in the PATH
+- [Node.js (v18+)](https://nodejs.org/)
+- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+- [Git](https://git-scm.com/) installed and accessible in the system PATH.
 
-### Install from NPM
+### Setup
 
-```bash
-npm install -g @cyanheads/git-mcp-server
-```
+1. Clone this repository:
 
-### Install from Source
+   ```bash
+   # Replace with your repo URL if different
+   git clone https://github.com/cyanheads/git-mcp-server.git
+   cd git-mcp-server
+   ```
 
-```bash
-git clone https://github.com/cyanheads/git-mcp-server.git
-cd git-mcp-server
-npm install
-npm run build
-```
+2. Install dependencies:
 
-## Usage
+   ```bash
+   npm install
+   ```
 
-### Running the Server
+3. Build the project:
 
-If installed globally via NPM:
+   ```bash
+   npm run build
+   ```
 
-```bash
-git-mcp-server
-```
+## Configuration
 
-If running from source:
+### Server Configuration
 
-```bash
-node build/index.js
-```
+#### Environment Variables
 
-The server communicates through stdin/stdout using the Model Context Protocol, making it compatible with any MCP client.
+The **server** behavior can be configured using the following environment variables:
 
-### Integration with Claude
+| Variable               | Description                                                                                                   | Default             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `MCP_TRANSPORT_TYPE`   | Specifies the transport mechanism for the **server**. Options: `stdio`, `http`.                               | `stdio`             |
+| `MCP_HTTP_PORT`        | The port number for the HTTP **server** to listen on.                                                         | `3000`              |
+| `MCP_HTTP_HOST`        | The host address for the HTTP **server** to bind to.                                                          | `127.0.0.1`         |
+| `MCP_ALLOWED_ORIGINS`  | Comma-separated list of allowed origins for CORS requests when using the `http` transport for the **server**. | (none)              |
+| `MCP_SERVER_NAME`      | Name of the MCP **server** (used in initialization).                                                          | `git-mcp-server`    | <!-- Updated Default -->
+| `MCP_SERVER_VERSION`   | Version of the MCP **server** (used in initialization).                                                       | (from package.json) |
+| `LOG_LEVEL`            | Logging level (e.g., `info`, `debug`, `warn`, `error`).                                                       | `info`              |
+| `LOG_REDACT_PATTERNS`  | Comma-separated list of regex patterns for redacting sensitive data in logs.                                  | (predefined)        |
+| `LOG_FILE_PATH`        | Path to the log file. If not set, logs only to console.                                                       | (none)              |
+| `LOG_MAX_FILE_SIZE_MB` | Maximum size of a single log file before rotation (in MB).                                                    | `10`                |
+| `LOG_MAX_FILES`        | Maximum number of rotated log files to keep.                                                                  | `5`                 |
+| `LOG_ZIP_ARCHIVES`     | Whether to compress rotated log files (`true`/`false`).                                                       | `true`              |
 
-Add to your Claude configuration file (e.g., `cline_mcp_settings.json` or `claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "git": {
-      "command": "git-mcp-server", // Or the full path to build/index.js if not installed globally
-      "args": [],
-      "env": {},
-      "disabled": false,
-      "autoApprove": [] // Configure auto-approval rules if desired
-    }
-  }
-}
-```
-
-### Integration with Other MCP Clients
-
-Use the MCP inspector to test the server:
-
-```bash
-# If installed globally
-npx @modelcontextprotocol/inspector git-mcp-server
-
-# If running from source
-npx @modelcontextprotocol/inspector build/index.js
-```
+**Note on HTTP Port Retries:** If the specified `MCP_HTTP_PORT` is in use, the server will attempt to bind to the next available port, retrying up to 15 times (e.g., if 3000 is busy, it tries 3001, 3002, ..., up to 3015).
 
 ## Project Structure
 
-The codebase follows a modular structure:
+The codebase follows a modular structure within the `src/` directory:
 
-```
-git-mcp-server/
-├── src/
-│   ├── index.ts           # Entry point: Initializes and starts the server
-│   ├── server.ts          # Core MCP server implementation and setup
-│   ├── resources/         # MCP Resource implementations
-│   │   ├── descriptors.ts # Resource URI templates and descriptions
-│   │   ├── diff.ts        # Diff-related resources (staged, unstaged, commit)
-│   │   ├── file.ts        # File content and directory listing resources
-│   │   ├── history.ts     # Commit history and blame resources
-│   │   ├── index.ts       # Aggregates and registers all resources
-│   │   └── repository.ts  # Repository info, branches, remotes, tags resources
-│   ├── services/          # Core logic and external integrations
-│   │   ├── error-service.ts # Centralized error handling utilities
-│   │   └── git-service.ts   # Abstraction layer for simple-git operations
-│   ├── tools/             # MCP Tool implementations
-│   │   ├── advanced.ts    # Advanced Git tools (tag, stash, cherry-pick, rebase, log, show)
-│   │   ├── branch.ts      # Branch management tools (list, create, checkout, delete, merge)
-│   │   ├── index.ts       # Aggregates and registers all tools
-│   │   ├── remote.ts      # Remote interaction tools (add, list, fetch, pull, push)
-│   │   ├── repository.ts  # Repository level tools (init, clone, status)
-│   │   └── workdir.ts     # Working directory tools (add, reset, commit, diff, reset-commit, clean)
-│   ├── types/             # TypeScript type definitions
-│   │   └── git.ts         # Custom types related to Git operations
-│   └── utils/             # Shared utility functions
-│       ├── global-settings.ts # Manages global working directory setting
-│       └── validation.ts  # Input validation schemas (Zod) and helpers
-├── build/                 # Compiled JavaScript output
-├── docs/                  # Documentation files
-├── logs/                  # Log files (if any)
-├── scripts/               # Helper scripts for development (e.g., clean, tree)
-├── .env.example           # Example environment variables
-├── .gitignore             # Git ignore rules
-├── LICENSE                # Project license file
-├── package.json           # Project metadata and dependencies
-├── package-lock.json      # Lockfile for dependencies
-├── README.md              # This file
-└── tsconfig.json          # TypeScript compiler configuration
-```
+- `config/`: General configuration loading (primarily environment variables).
+- `mcp-server/`: Logic for the MCP server.
+  - `server.ts`: Server initialization and registration of tools/resources.
+  - `resources/`: Resource implementations (currently none).
+  - `tools/`: Tool implementations (e.g., `gitStatus`, `gitCommit`).
+- `types-global/`: TypeScript definitions shared across the project.
+- `utils/`: Common utility functions (logging, error handling, etc.).
 
-## Tools
+For a detailed, up-to-date view of the project structure, run `npm run tree`.
 
-Git MCP Server provides a comprehensive suite of tools for Git operations:
+## Tool Documentation
 
-### Repository Operations
+_(This section describes the tools provided by **this server**)_
 
-| Tool         | Description                                                                                      |
-| ------------ | ------------------------------------------------------------------------------------------------ |
-| `git_init`   | Initialize a new Git repository at the specified path with options for bare repositories.        |
-| `git_clone`  | Clone a Git repository from a remote URL to a local path with branch and depth options.          |
-| `git_status` | Get the current status of a Git repository including working directory and staging area changes. |
+| Tool              | Description                                                                                                                      | Input Schema Keys | Output (JSON) Keys                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------- |
+| `git_status`      | Gets repository status (branch, staged, modified, untracked files).                                                              | `path`            | `currentBranch`, `staged`, `modified`, `untracked`, `conflicted`, `isClean`        |
+| `git_branch_list` | Lists local or all branches, indicating the current one.                                                                         | `path`, `all?`    | `currentBranch`, `branches`                                                        |
+| `git_add`         | Stages specified files or patterns.                                                                                              | `path`, `files?`  | `success`, `statusMessage`, `filesStaged`                                          |
+| `git_commit`      | Commits staged changes with a message. Supports author override, amend, allow-empty.                                             | `path`, `message`, `author?`, `allowEmpty?`, `amend?` | `success`, `statusMessage`, `commitHash?`, `nothingToCommit?` |
+| `git_set_working_dir` | Sets the default working directory for the current session. Requires absolute path. Validates if path is Git repo by default. | `path`, `validateGitRepo?` | `success`, `statusMessage`, `workingDirectory`                                     |
+| `git_clear_working_dir` | Clears the session-specific working directory set by `git_set_working_dir`.                                                  | (none)            | `success`, `statusMessage`                                                         |
 
-### Branch Operations
+See the implementation directories under `src/mcp-server/tools/` for detailed schemas and logic.
 
-| Tool                | Description                                                                                    |
-| ------------------- | ---------------------------------------------------------------------------------------------- |
-| `git_branch_list`   | List all branches in a repository with options to include remote branches.                     |
-| `git_branch_create` | Create a new branch with options for specifying the starting point and automatic checkout.     |
-| `git_checkout`      | Checkout a branch, tag, or commit with options to create a new branch during checkout.         |
-| `git_branch_delete` | Delete a branch with options for force deletion of unmerged branches.                          |
-| `git_merge`         | Merge a branch into the current branch with customizable commit messages and merge strategies. |
+## Development Guidelines
 
-### Working Directory Operations
+### Adding a New Tool
 
-| Tool                | Description                                                                                     |
-| ------------------- | ----------------------------------------------------------------------------------------------- |
-| `git_add`           | Stage files for commit with support for individual files or entire directories.                 |
-| `git_reset`         | Unstage files from the staging area with options for specific files or all staged changes.      |
-| `git_commit`        | Commit staged changes with customizable commit messages, author information, and amend options. |
-| `git_diff_unstaged` | Get a diff of all unstaged changes in the working directory with options for specific files.    |
-| `git_diff_staged`   | Get a diff of all staged changes in the index with options for specific files.                  |
-| `git_reset_commit`  | Reset the repository to a specific reference with options for hard, soft, or mixed mode.        |
-| `git_clean`         | Remove untracked files from the working tree with options for directories and force cleaning.   |
+1.  **Create Directory**: `src/mcp-server/tools/yourNewGitTool/`.
+2.  **Define Logic & Schema (`logic.ts`)**:
+    - Define Zod input schema (`YourToolInputSchema`).
+    - Infer TypeScript input type (`YourToolInput`).
+    - Define TypeScript output interface (`YourToolResult`).
+    - Implement the core logic function (`async function yourToolLogic(input: YourToolInput, context: RequestContext): Promise<YourToolResult>`) using `child_process.exec` to run the appropriate `git` command. Parse the output and return the structured `YourToolResult`. Handle errors using `McpError`.
+3.  **Implement Registration (`registration.ts`)**:
+    - Import necessary types, schemas, logic function, `McpServer`, `ErrorHandler`, `logger`.
+    - Create `async function registerYourNewTool(server: McpServer)`.
+    - Inside, call `server.tool(TOOL_NAME, TOOL_DESCRIPTION, YourToolInputSchema.shape, async (validatedArgs) => { ... })`.
+    - The handler should call your logic function, wrap the result in `TextContent` (using `JSON.stringify`), and return a `CallToolResult`. Handle errors appropriately.
+4.  **Export Registration (`index.ts`)**: Export the registration function.
+5.  **Register in Server (`src/mcp-server/server.ts`)**: Import and call the registration function.
 
-### Remote Operations
+## Future Plans
 
-| Tool              | Description                                                                                  |
-| ----------------- | -------------------------------------------------------------------------------------------- |
-| `git_remote_add`  | Add a new remote repository with a name and URL.                                             |
-| `git_remote_list` | List all configured remote repositories and their URLs.                                      |
-| `git_fetch`       | Fetch updates from a remote repository with options for specific branches.                   |
-| `git_pull`        | Pull changes from a remote repository with options for rebase strategy.                      |
-| `git_push`        | Push local changes to a remote repository with options for force push and upstream tracking. |
-
-### Advanced Operations
-
-| Tool               | Description                                                                               |
-| ------------------ | ----------------------------------------------------------------------------------------- |
-| `git_tag_create`   | Create a new tag with options for annotated tags with messages.                           |
-| `git_tag_list`     | List all tags in the repository with their references.                                    |
-| `git_stash_create` | Stash changes in the working directory with options for untracked files and descriptions. |
-| `git_stash_list`   | List all stashes in the repository with their descriptions.                               |
-| `git_stash_apply`  | Apply a stashed change without removing it from the stash list.                           |
-| `git_stash_pop`    | Apply a stashed change and remove it from the stash list.                                 |
-| `git_cherry_pick`  | Apply changes from specific commits to the current branch.                                |
-| `git_rebase`       | Rebase the current branch onto another branch with interactive mode options.              |
-| `git_log`          | Get commit history with customizable output format and depth.                             |
-| `git_show`         | Show detailed information about a specific commit including diff changes.                 |
-
-## Resources
-
-Git MCP Server exposes Git data through standard MCP resources:
-
-### Repository Resources
-
-| Resource                                                    | Description                                                                              |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `git://repo/{repoPath}/info`                                | Basic Git repository information including current branch, status, and reference details |
-| `git://repo/{repoPath}/branches`                            | List of all branches in the repository with current branch indicator                     |
-| `git://repo/{repoPath}/remotes`                             | List of all configured remote repositories with their URLs                               |
-| `git://repo/{repoPath}/tags`                                | List of all tags in the repository with their references                                 |
-| `git://repo/{repoPath}/file/{filePath}?ref={ref}`           | Returns the content of a specific file at a given Git reference                          |
-| `git://repo/{repoPath}/ls/{dirPath}?ref={ref}`              | Returns a list of files and directories at a specific path and reference                 |
-| `git://repo/{repoPath}/diff/{fromRef}/{toRef}?path={path}`  | Returns a diff between two Git references (commits, branches, tags)                      |
-| `git://repo/{repoPath}/diff-unstaged?path={path}`           | Returns a diff of all unstaged changes in the working directory                          |
-| `git://repo/{repoPath}/diff-staged?path={path}`             | Returns a diff of all staged changes in the index                                        |
-| `git://repo/{repoPath}/log?maxCount={maxCount}&file={file}` | Returns the commit history log with author, date, and message details                    |
-| `git://repo/{repoPath}/blame/{filePath}`                    | Returns line-by-line attribution showing which commit last modified each line            |
-| `git://repo/{repoPath}/commit/{commitHash}`                 | Returns detailed information about a specific commit including diff changes              |
-
-## Development
-
-### Build and Test
-
-```bash
-# Build the project
-npm run build
-
-# Watch for changes and rebuild automatically
-npm run watch
-
-# Test the server locally using the MCP inspector tool
-npm run inspector
-
-# Clean build artifacts
-npm run clean
-
-# Generate a file tree representation for documentation
-npm run tree
-
-# Clean and rebuild the project completely
-npm run rebuild
-```
+- Implement remaining core Git commands as tools (e.g., `pull`, `push`, `fetch`, `checkout`, `reset`, `log`, `diff`).
+- Add Git-related resources (e.g., file content at specific refs, commit details).
+- Enhance error handling and output parsing for edge cases.
+- Add configuration options (e.g., default author).
 
 ## License
 
-Apache License 2.0 - See [LICENSE](LICENSE) for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ---
 
 <div align="center">
-Built with the Model Context Protocol
+Built with the <a href="https://modelcontextprotocol.io/">Model Context Protocol</a>
 </div>

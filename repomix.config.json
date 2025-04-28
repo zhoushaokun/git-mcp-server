@@ -12,14 +12,7 @@
   "ignore": {
     "useGitignore": true,
     "useDefaultPatterns": true,
-    "customPatterns": [
-      "**/*.svg",
-      "**/*.png",
-      "**/*.jpg",
-      "**/*.jpeg",
-      "**/*.gif",
-      "**/*.ico"
-    ]
+    "customPatterns": []
   },
   "security": {
     "enableSecurityCheck": true

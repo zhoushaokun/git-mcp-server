@@ -1,0 +1,334 @@
+# Git MCP Server Developer Cheatsheet
+
+This cheatsheet provides quick references for common patterns, utilities, and server configuration within the `git-mcp-server` codebase (based on `mcp-ts-template`), updated for MCP Spec 2025-03-26.
+
+## Server Transports & Configuration
+
+The server can run using different communication transports, configured via environment variables.
+
+- **`MCP_TRANSPORT_TYPE`**: Specifies the transport.
+    - `"stdio"` (Default): Uses standard input/output for communication. Suitable for direct integration with parent processes.
+    - `"http"`: Uses Streamable HTTP Server-Sent Events (SSE) for communication. Runs an Express server.
+- **`MCP_HTTP_PORT`**: Port for the HTTP server (Default: `3000`). Used only if `MCP_TRANSPORT_TYPE=http`.
+- **`MCP_HTTP_HOST`**: Host address for the HTTP server (Default: `127.0.0.1`). Used only if `MCP_TRANSPORT_TYPE=http`.
+- **`MCP_ALLOWED_ORIGINS`**: Comma-separated list of allowed origins for HTTP requests (e.g., `http://localhost:8080,https://my-frontend.com`). Used only if `MCP_TRANSPORT_TYPE=http`.
+- **`MCP_LOG_LEVEL`**: Minimum logging level for the server (e.g., "debug", "info", "warning", "error", "notice", "crit", "alert", "emerg"). Defaults to "info". Affects both file logging and MCP notifications.
+
+### HTTP Transport Details (`MCP_TRANSPORT_TYPE=http`)
+
+- **Endpoint**: A single endpoint `/mcp` handles all communication.
+    - `POST /mcp`: Client sends requests/notifications to the server. Requires `mcp-session-id` header for subsequent requests after initialization. Server responds with JSON or initiates SSE stream.
+    - `GET /mcp`: Client initiates SSE stream for server-sent messages. Requires `mcp-session-id` header.
+    - `DELETE /mcp`: Client signals session termination. Requires `mcp-session-id` header.
+- **Session Management**: Each client connection establishes a session identified by the `mcp-session-id` header. The server maintains state per session.
+- **Security**: Robust origin checking is implemented via `originCheckMiddleware`. Configure `MCP_ALLOWED_ORIGINS` for production environments.
+
+### Running the Server
+
+- **Stdio**: `npm start` or `node dist/index.js`
+- **HTTP**: `MCP_TRANSPORT_TYPE=http npm start` or `MCP_TRANSPORT_TYPE=http node dist/index.js` (optionally set `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_ALLOWED_ORIGINS`, `MCP_LOG_LEVEL`).
+
+## Model Context Protocol (MCP) Overview (Spec: 2025-03-26)
+
+MCP provides a standardized way for LLMs (via host applications) to interact with external capabilities (tools, data) exposed by dedicated servers.
+
+### Core Concepts & Architecture
+
+- **Host:** Manages clients, LLM integration, security, and user consent (e.g., Claude Desktop, VS Code).
+- **Client:** Resides in the host, connects 1:1 to a server, handles protocol.
+- **Server:** Standalone process exposing capabilities (Resources, Tools, Prompts). Focuses on its domain, isolated from LLM/other servers.
+
+```mermaid
+graph LR
+    subgraph "Host Application Process"
+        H[Host]
+        C1[Client 1]
+        C2[Client 2]
+        H --> C1
+        H --> C2
+    end
+    subgraph "Server Process 1"
+        S1["MCP Server A<br>(e.g., Filesystem)"]
+        R1["Local Resource<br>e.g., Files"]
+        S1 <--> R1
+    end
+    subgraph "Server Process 2"
+        S2["MCP Server B<br>(e.g., API Wrapper)"]
+        R2["Remote Resource<br>e.g., Web API"]
+        S2 <--> R2
+    end
+    C1 <-->|MCP Protocol| S1
+    C2 <-->|MCP Protocol| S2
+```
+
+- **Key Principles:** Simplicity, Composability, Isolation, Progressive Features.
+
+### Protocol Basics
+
+- **Communication:** JSON-RPC 2.0 over a transport (Stdio, Streamable HTTP).
+- **Messages:** Requests (with `id`), Responses (`id` + `result`/`error`), Notifications (no `id`). Batches MUST be supported for receiving.
+- **Lifecycle:**
+    1.  **Initialization:** Client sends `initialize` (version, capabilities, clientInfo). Server responds (`initialize` response: agreed version, capabilities, serverInfo, instructions?). Client sends `initialized` notification.
+    2.  **Operation:** Message exchange based on negotiated capabilities.
+    3.  **Shutdown:** Transport disconnect.
+
+### Server Capabilities
+
+Servers expose functionality via:
+
+1.  **Resources:** (Currently none implemented in this server)
+    - **Purpose:** Expose data/content (files, DB records) as context.
+    - **Control:** Application-controlled.
+    - **ID:** Unique URI (e.g., `file:///path/to/doc.txt`).
+    - **Discovery:** `resources/list` (paginated), `resources/templates/list` (paginated).
+    - **Reading:** `resources/read` -> `ResourceContent` array (`text` or `blob`).
+    - **Updates (Optional):** `listChanged: true` -> `notifications/resources/list_changed`. `subscribe: true` -> `resources/subscribe`, `notifications/resources/updated`, **MUST handle `resources/unsubscribe` request**.
+
+2.  **Tools:** (Git operations)
+    - **Purpose:** Expose executable functions for LLM invocation (via client).
+    - **Control:** Model-controlled.
+    - **Definition:** `Tool` object (`name`, `description`, `inputSchema` (JSON Schema), `annotations?`). Annotations (`title`, `readOnlyHint`, etc.) are untrusted hints.
+    - **Discovery:** `tools/list` (paginated).
+    - **Invocation:** `tools/call` (`name`, `arguments`) -> `CallToolResult` (`content` array, `isError: boolean`). Execution errors reported via `isError: true`. **Rich schemas are crucial.**
+    - **Updates (Optional):** `listChanged: true` -> `notifications/tools/list_changed` (MUST send after dynamic changes).
+
+3.  **Prompts:** (Currently none implemented)
+    - **Purpose:** Reusable prompt templates/workflows (e.g., slash commands).
+    - **Control:** User-controlled.
+    - **Definition:** `Prompt` object (`name`, `description?`, `arguments?`).
+    - **Discovery:** `prompts/list` (paginated).
+    - **Usage:** `prompts/get` (`name`, `arguments`) -> `GetPromptResult` (`messages` array).
+    - **Updates (Optional):** `listChanged: true` -> `notifications/prompts/list_changed`.
+
+### Interacting with Client Capabilities
+
+- **Roots:** Client may provide filesystem roots (`file://`). Server receives list on init, updates via `notifications/roots/list_changed` (if supported). Servers SHOULD respect roots (especially important for a Git server).
+- **Sampling:** Server can request LLM completion via client using `sampling/createMessage`. Client SHOULD implement human-in-the-loop.
+
+### Server Utilities
+
+- **Logging:** `logging` capability -> `notifications/message` (RFC 5424 levels: `debug`, `info`, `notice`, `warning`, `error`, `critical`, `alert`, `emergency`). Client can send `logging/setLevel`.
+- **Pagination:** List operations use `cursor`/`nextCursor`.
+- **Completion:** `completions` capability -> `completion/complete`.
+- **Cancellation:** `notifications/cancelled` (best-effort).
+- **Ping:** `ping` request -> `{}` response.
+- **Progress:** `notifications/progress` (requires `_meta.progressToken` in original request).
+- **Configuration:** `configuration/get`, `configuration/set`.
+- **Back-pressure:** Clients debounce rapid notifications. Servers should aim for idempotency.
+
+### SDK Usage (TypeScript) - IMPORTANT
+
+- **High-Level SDK Abstractions (Strongly Recommended):**
+    - **Use `server.tool(name, description, zodSchemaShape, handler)`:** This is the **preferred and strongly recommended** way to define tools. It automatically handles:
+        - Registering the tool for `tools/list`.
+        - Generating the JSON Schema from the Zod shape.
+        - Validating incoming `tools/call` arguments against the schema.
+        - Routing the call to your handler with validated arguments.
+        - Formatting the `CallToolResult`.
+    - **Use `server.resource(regName, template, metadata, handler)`:** Similarly recommended for resources (if/when implemented).
+    - **Benefits:** Significantly reduces boilerplate, enforces type safety, simplifies protocol adherence.
+- **Low-Level SDK Handlers (AVOID unless absolutely necessary):**
+    - Manually using `server.setRequestHandler(SchemaObject, handler)` requires you to handle schema generation, argument validation, request routing, and response formatting yourself.
+    - **CRITICAL WARNING:** **Do NOT mix high-level (`server.tool`, `server.resource`) and low-level (`server.setRequestHandler`) approaches for the *same capability type* (e.g., tools).** The SDK's internal state management and type handling can become confused, leading to unexpected errors or incorrect behavior. Stick to one approach per capability type, **strongly preferring the high-level abstractions.**
+
+### Security Considerations
+
+- **Input Validation:** Use schemas (Zod), sanitize inputs (paths). **Crucial for Git commands to prevent command injection.**
+- **Access Control:** Least privilege, respect roots, implement auth if needed.
+- **Transport Security:** Use HTTPS, validate `Origin`, bind to `127.0.0.1` locally, consider MCP Auth Spec.
+- **Secrets Management:** Use env vars or secrets managers, avoid hardcoding/logging.
+- **Dependency Security:** Keep dependencies updated (`npm audit`).
+- **Rate Limiting:** Protect against abuse.
+
+## Core Utilities Integration
+
+### 1. Logging (`src/utils/logger.ts`)
+
+- **Purpose**: Structured logging compliant with MCP Spec (RFC 5424 levels). Logs to files (`logs/`) and can send `notifications/message` to connected clients supporting the `logging` capability.
+- **Levels**: `debug`(7), `info`(6), `notice`(5), `warning`(4), `error`(3), `crit`(2), `alert`(1), `emerg`(0).
+- **Usage**: Import the singleton `logger` instance. Pass a `context` object (`RequestContext`) for correlation.
+
+```typescript
+import { logger, McpLogLevel } from './src/utils/logger.js';
+import { RequestContext } from './src/utils/requestContext.js'; // Or OperationContext
+
+// Inside a function or handler
+const operationContext: RequestContext = /* ... get or create context ... */;
+
+logger.info("Processing request", operationContext); // Level 6
+logger.debug("Detailed step info", { ...operationContext, data: someData }); // Level 7
+logger.notice("Operation completed successfully.", operationContext); // Level 5
+logger.warning("Potential issue detected", operationContext); // Level 4 (Use warning, not warn)
+logger.error("An error occurred", new Error("Something failed"), operationContext); // Level 3 (Pass error object first)
+logger.crit("Critical system failure component", new Error("Details"), operationContext); // Level 2
+
+// Set log level dynamically (e.g., based on client request if supported)
+logger.setLevel('debug' as McpLogLevel);
+
+// Set MCP notification sender (called by server logic on connection)
+// logger.setMcpNotificationSender((level, data, loggerName) => { /* server.sendNotification logic */ });
+```
+
+- **Key Files**:
+  - `src/utils/logger.ts`: Logger implementation.
+  - `logs/`: Directory where JSON log files are stored (`combined.log`, `error.log`, etc.).
+
+### 2. Error Handling (`src/types-global/errors.ts`, `src/utils/errorHandler.ts`)
+
+- **Purpose**: Standardized error objects (`McpError`) and centralized handling (`ErrorHandler`). Automatically determines error codes based on type/patterns.
+- **Usage**:
+  - Use `ErrorHandler.tryCatch` to wrap operations that might fail.
+  - Throw `McpError` for specific, categorized errors using `BaseErrorCode`.
+  - `ErrorHandler` automatically logs errors (using the updated logger) with context and sanitized input.
+
+```typescript
+import { ErrorHandler } from './src/utils/errorHandler.js';
+import { McpError, BaseErrorCode } from './src/types-global/errors.js';
+import { RequestContext } from './src/utils/requestContext.js';
+
+async function performGitOperation(input: any, context: RequestContext) {
+  return await ErrorHandler.tryCatch(
+    async () => {
+      if (!input.path) { // Example validation
+        throw new McpError(BaseErrorCode.VALIDATION_ERROR, "Repository path is required", { context });
+      }
+      // ... perform git logic ...
+      const result = await someGitCommand(input);
+      return result;
+    },
+    {
+      operation: 'performGitOperation',
+      context: context,
+      input: input, // Input is automatically sanitized for logging
+      errorCode: BaseErrorCode.INTERNAL_ERROR, // Default code if unexpected error occurs
+      critical: false
+    }
+  );
+}
+```
+
+- **Key Files**:
+  - `src/types-global/errors.ts`: Defines `McpError` and `BaseErrorCode`.
+  - `src/utils/errorHandler.ts`: Provides `ErrorHandler.tryCatch`, `handleError`, `determineErrorCode`.
+
+### 3. Request Context (`src/utils/requestContext.ts`)
+
+- **Purpose**: Track and correlate operations related to a single request or workflow using a unique `requestId`.
+- **Usage**:
+  - Create context at the beginning of an operation using `requestContextService.createRequestContext`.
+  - Pass the context object down through function calls.
+  - Include the context object when logging or creating errors.
+
+```typescript
+import { requestContextService, RequestContext } from './src/utils/requestContext.js';
+import { logger } from './src/utils/logger.js';
+
+function handleIncomingRequest(requestData: any) {
+  const context: RequestContext = requestContextService.createRequestContext({
+    operation: 'HandleIncomingRequest',
+    initialData: requestData.id
+  });
+
+  logger.info("Received request", context);
+  processSubTask(requestData.payload, context);
+}
+
+function processSubTask(payload: any, parentContext: RequestContext) {
+  const subTaskContext = { ...parentContext, subOperation: 'ProcessSubTask' };
+  logger.debug("Processing sub-task", subTaskContext);
+  // ... logic ...
+}
+```
+
+- **Key Files**:
+  - `src/utils/requestContext.ts`: Defines `RequestContext` interface and `requestContextService`.
+
+### 4. ID Generation (`src/utils/idGenerator.ts`)
+
+- **Purpose**: Generate unique, prefixed IDs for different entity types and standard UUIDs.
+- **Usage**: Configure prefixes (if needed) and use `idGenerator.generateForEntity` or `generateUUID`.
+
+```typescript
+import { idGenerator, generateUUID } from './src/utils/idGenerator.js';
+
+// No specific entity prefixes needed for this server yet
+// idGenerator.setEntityPrefixes({ ... });
+
+const standardUuid = generateUUID(); // e.g., "123e4567-e89b-12d3-a456-426614174000"
+```
+
+- **Key Files**:
+  - `src/utils/idGenerator.ts`: `IdGenerator` class, `idGenerator` instance, `generateUUID`.
+
+### 5. Sanitization (`src/utils/sanitization.ts`)
+
+- **Purpose**: Clean and validate input data (paths, numbers, URLs, JSON) to prevent security issues. Also sanitizes objects for logging. **Crucial for path inputs to Git commands.**
+- **Usage**: Import the singleton `sanitization` instance or `sanitizeInputForLogging`.
+
+```typescript
+import { sanitization, sanitizeInputForLogging } from './src/utils/sanitization.js';
+
+const unsafePath = '../../etc/passwd';
+try {
+  // Use sanitizePath for repository paths provided by the client
+  const safePath = sanitization.sanitizePath(unsafePath);
+} catch (error) { /* Handle McpError */ }
+
+const sensitiveData = { user: 'admin', password: 'pwd', token: 'abc' };
+const safeLogData = sanitizeInputForLogging(sensitiveData);
+// safeLogData = { user: 'admin', password: '[REDACTED]', token: '[REDACTED]' }
+```
+
+- **Key Files**:
+  - `src/utils/sanitization.ts`: `Sanitization` class, `sanitization` instance, `sanitizeInputForLogging`.
+
+### 6. JSON Parsing (`src/utils/jsonParser.ts`)
+
+- **Purpose**: Parse potentially partial/incomplete JSON strings. Handles optional `<think>` blocks. (Less relevant for this server currently).
+- **Usage**: Import `jsonParser`. Use `Allow` constants for options.
+- **Key Files**:
+  - `src/utils/jsonParser.ts`: `JsonParser` class, `jsonParser` instance, `Allow` enum.
+
+### 7. Rate Limiting (`src/utils/rateLimiter.ts`)
+
+- **Purpose**: Implement rate limiting based on a key. (May be useful if tools call external services).
+- **Usage**: Import `rateLimiter`. Use `check`.
+- **Key Files**:
+  - `src/utils/rateLimiter.ts`: `RateLimiter` class, `rateLimiter` instance.
+
+### 8. Token Counting (`src/utils/tokenCounter.ts`)
+
+- **Purpose**: Estimate tokens using `tiktoken` (`gpt-4o` model). (Less relevant for this server currently).
+- **Usage**: Import `countTokens` or `countChatTokens`.
+- **Key Files**:
+  - `src/utils/tokenCounter.ts`: Provides `countTokens` and `countChatTokens`.
+
+## Adding New Features
+
+### Adding a Git Tool
+
+1.  **Directory**: `src/mcp-server/tools/yourNewGitTool/`
+2.  **Logic (`logic.ts`)**:
+    - Define Zod input schema (`YourToolInputSchema`).
+    - Infer TypeScript input type (`YourToolInput`).
+    - Define TypeScript output interface (`YourToolResult`).
+    - Implement the core logic function (`async function yourToolLogic(input: YourToolInput, context: RequestContext): Promise<YourToolResult>`) using `child_process.exec` to run the appropriate `git` command. **Sanitize all path inputs.** Parse the output and return the structured `YourToolResult`. Handle errors using `McpError`.
+3.  **Registration (`registration.ts`)**:
+    - Import necessary types, schemas, logic function, `McpServer`, `ErrorHandler`, `logger`.
+    - Create `async function registerYourNewTool(server: McpServer)`.
+    - Inside, call `server.tool(TOOL_NAME, TOOL_DESCRIPTION, YourToolInputSchema.shape, async (validatedArgs) => { ... })`.
+    - The handler should call your logic function, wrap the result in `TextContent` (using `JSON.stringify`), and return a `CallToolResult`. Handle errors appropriately, returning JSON in the error case too.
+4.  **Index (`index.ts`)**: Export the registration function.
+5.  **Server (`src/mcp-server/server.ts`)**: Import and call the registration function within `createMcpServerInstance`.
+
+## Key File Locations
+
+- **Main Entry**: `src/index.ts` (Initializes server, handles startup/shutdown)
+- **Server Setup**: `src/mcp-server/server.ts` (Handles transport logic (stdio/http), session management (http), registers tools)
+- **Configuration**: `src/config/index.ts` (Loads env vars, package info, initializes logger)
+- **Global Types**: `src/types-global/`
+- **Utilities**: `src/utils/` (Core helper modules: logger, error handler, context, etc.)
+- **Tools**: `src/mcp-server/tools/` (Contains subdirectories for each Git tool)
+- **Resources**: `src/mcp-server/resources/` (Currently empty)
+
+Remember to keep this cheatsheet updated as the codebase evolves!
