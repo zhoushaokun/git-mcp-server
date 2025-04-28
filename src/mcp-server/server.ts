@@ -23,6 +23,13 @@ import { registerGitCommitTool } from './tools/gitCommit/index.js';
 import { registerGitAddTool } from './tools/gitAdd/index.js';
 import { registerGitSetWorkingDirTool, initializeGitSetWorkingDirStateAccessors } from './tools/gitSetWorkingDir/index.js';
 import { registerGitClearWorkingDirTool, initializeGitClearWorkingDirStateAccessors } from './tools/gitClearWorkingDir/index.js';
+import { registerGitPullTool, initializeGitPullStateAccessors } from './tools/gitPull/index.js'; // Import git_pull
+import { registerGitPushTool, initializeGitPushStateAccessors } from './tools/gitPush/index.js'; // Import git_push
+import { registerGitCheckoutTool, initializeGitCheckoutStateAccessors } from './tools/gitCheckout/index.js'; // Import git_checkout
+import { registerGitLogTool, initializeGitLogStateAccessors } from './tools/gitLog/index.js'; // Import git_log
+import { registerGitDiffTool, initializeGitDiffStateAccessors } from './tools/gitDiff/index.js'; // Import git_diff
+import { registerGitResetTool, initializeGitResetStateAccessors } from './tools/gitReset/index.js'; // Import git_reset
+import { registerGitFetchTool, initializeGitFetchStateAccessors } from './tools/gitFetch/index.js'; // Import git_fetch
 import { initializeGitStatusStateAccessors } from './tools/gitStatus/index.js';
 import { initializeGitBranchListStateAccessors } from './tools/gitBranchList/index.js';
 import { initializeGitCommitStateAccessors } from './tools/gitCommit/index.js';
@@ -168,8 +175,15 @@ async function createMcpServerInstance(): Promise<McpServer> {
     await registerGitAddTool(server);
     await registerGitSetWorkingDirTool(server);
     await registerGitClearWorkingDirTool(server); // Register the git_clear_working_dir tool
+    await registerGitPullTool(server); // Register git_pull tool
+    await registerGitPushTool(server); // Register git_push tool
+    await registerGitCheckoutTool(server); // Register git_checkout tool
+    await registerGitLogTool(server); // Register git_log tool
+    await registerGitDiffTool(server); // Register git_diff tool
+    await registerGitResetTool(server); // Register git_reset tool
+    await registerGitFetchTool(server); // Register git_fetch tool
     // TODO: Register other Git tools here
-    logger.info('Git tools (status, branch_list, commit, add, set_working_dir, clear_working_dir) registered successfully', context);
+    logger.info('Git tools (status, branch_list, commit, add, set_working_dir, clear_working_dir, pull, push, checkout, log, diff, reset, fetch) registered successfully', context);
   } catch (err) {
     // Log and re-throw any errors during registration, as the server cannot function correctly without them.
     logger.error('Failed to register resources/tools', {
@@ -328,13 +342,19 @@ async function startTransport(): Promise<McpServer | void> {
   };
 
   // Initialize the state accessors for the tools that need them
-  // Initialize the state accessors for the tools that need them
   initializeGitSetWorkingDirStateAccessors(setWorkingDirectoryFn, getSessionIdFn);
   initializeGitClearWorkingDirStateAccessors(clearWorkingDirectoryFn, getSessionIdFn);
   initializeGitStatusStateAccessors(getWorkingDirectoryFn, getSessionIdFn);
   initializeGitBranchListStateAccessors(getWorkingDirectoryFn, getSessionIdFn);
   initializeGitCommitStateAccessors(getWorkingDirectoryFn, getSessionIdFn);
   initializeGitAddStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize add accessors
+  initializeGitPullStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize pull accessors
+  initializeGitPushStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize push accessors
+  initializeGitCheckoutStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize checkout accessors
+  initializeGitLogStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize log accessors
+  initializeGitDiffStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize diff accessors
+  initializeGitResetStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize reset accessors
+  initializeGitFetchStateAccessors(getWorkingDirectoryFn, getSessionIdFn); // Initialize fetch accessors
 
   // --- HTTP Transport Setup ---
   if (TRANSPORT_TYPE === 'http') {
