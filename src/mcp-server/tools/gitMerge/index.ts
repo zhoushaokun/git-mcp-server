@@ -1,5 +1,6 @@
 /**
- * @fileoverview Barrel file for the gitMerge tool.
+ * @fileoverview Barrel file for the git_merge tool.
+ * Exports the registration function and state accessor initialization function.
  */
 
 export { registerGitMergeTool, initializeGitMergeStateAccessors } from './registration.js';
