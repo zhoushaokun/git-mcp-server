@@ -1,18 +1,17 @@
-import { z } from 'zod';
-import { promisify } from 'util';
 import { exec } from 'child_process';
+import { promisify } from 'util';
+import { z } from 'zod';
+import { BaseErrorCode, McpError } from '../../../types-global/errors.js';
 import { logger } from '../../../utils/logger.js';
 import { RequestContext } from '../../../utils/requestContext.js';
-import { McpError, BaseErrorCode } from '../../../types-global/errors.js';
 import { sanitization } from '../../../utils/sanitization.js';
-import path from 'path'; // Import path module
 
 const execAsync = promisify(exec);
 
 // Define the input schema for the git_commit tool using Zod
 export const GitCommitInputSchema = z.object({
   path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the session's working directory if set via `git_set_working_dir`, otherwise defaults to the server's current working directory (`.`)."),
-  message: z.string().min(1).describe('Message for the commit'),
+  message: z.string().min(1).describe('Commit message. Follow Conventional Commits format: `type(scope): subject`. Example: `feat(api): add user signup endpoint`'),
   author: z.object({
     name: z.string().describe('Author name for the commit'),
     email: z.string().email().describe('Author email for the commit'),

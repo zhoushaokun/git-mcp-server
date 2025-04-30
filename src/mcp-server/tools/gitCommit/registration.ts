@@ -1,11 +1,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolResult, TextContent } from '@modelcontextprotocol/sdk/types.js';
-import { logger } from '../../../utils/logger.js';
 import { ErrorHandler } from '../../../utils/errorHandler.js';
+import { logger } from '../../../utils/logger.js';
 import { requestContextService } from '../../../utils/requestContext.js';
 // Import the result type along with the function and input schema
-import { commitGitChanges, GitCommitInputSchema, GitCommitInput, GitCommitResult } from './logic.js';
-import { McpError, BaseErrorCode } from '../../../types-global/errors.js'; // Import BaseErrorCode
+import { BaseErrorCode } from '../../../types-global/errors.js'; // Import BaseErrorCode
+import { commitGitChanges, GitCommitInput, GitCommitInputSchema, GitCommitResult } from './logic.js';
 
 // --- State Accessors ---
 /** Type definition for the function that gets the working directory for a session */
@@ -30,7 +30,28 @@ export function initializeGitCommitStateAccessors(getWdFn: GetWorkingDirectoryFn
 
 
 const TOOL_NAME = 'git_commit';
-const TOOL_DESCRIPTION = 'Commits staged changes to the Git repository index using the provided message. Supports optional author override, amending the previous commit (`amend: true`), and allowing empty commits (`allowEmpty: true`). Returns the commit result as a JSON object. IMPORTANT: Always use a full, absolute path for the repository.';
+const TOOL_DESCRIPTION = `Commits staged changes to the Git repository index with a descriptive message. Supports author override, amending, and empty commits. Returns a JSON result.
+
+**Commit Message Guidance:**
+Write clear, concise commit messages using the Conventional Commits format: \`type(scope): subject\`.
+- \`type\`: feat, fix, docs, style, refactor, test, chore, etc.
+- \`(scope)\`: Optional context (e.g., \`auth\`, \`ui\`, filename).
+- \`subject\`: Imperative, present tense description (e.g., "add login button", not "added login button").
+
+**Example Commit Message:**
+\`\`\`
+feat(auth): implement password reset endpoint
+
+Adds the /api/auth/reset-password endpoint to allow users
+to reset their password via an email link. Includes input
+validation and rate limiting.
+
+Closes #123 (if applicable).
+\`\`\`
+
+**Best Practice:** Commit related changes together in logical units. If you've modified multiple files for a single feature or fix, stage and commit them together with a message that describes the overall change.
+
+**Path Handling:** If the 'path' parameter is omitted or set to '.', the tool uses the working directory set by 'git_set_working_dir'. Providing a full, absolute path overrides this default and ensures explicitness.`;
 
 /**
  * Registers the git_commit tool with the MCP server.
