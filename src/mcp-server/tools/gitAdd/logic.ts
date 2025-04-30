@@ -83,13 +83,13 @@ export async function addGitFiles(
       } else {
         // Quote each file path individually
         filesArg = filesToStage.map(file => {
-          if (file.startsWith('-')) throw new Error('File paths cannot start with a dash.');
-          return `"${file.replace(/"/g, '\\"')}"`; // Escape quotes within path
+          const sanitizedFile = file.startsWith('-') ? `./${file}` : file; // Prefix with './' if it starts with a dash
+          return `"${sanitizedFile.replace(/"/g, '\\"')}"`; // Escape quotes within path
         }).join(' ');
       }
     } else { // Single string case
-      if (filesToStage.startsWith('-')) throw new Error('File paths cannot start with a dash.');
-      filesArg = `"${filesToStage.replace(/"/g, '\\"')}"`;
+      const sanitizedFile = filesToStage.startsWith('-') ? `./${filesToStage}` : filesToStage; // Prefix with './' if it starts with a dash
+      filesArg = `"${sanitizedFile.replace(/"/g, '\\"')}"`;
     }
   } catch (err) {
      logger.error('File path validation/quoting failed', { ...context, operation, files: filesToStage, error: err });
