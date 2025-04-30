@@ -117,13 +117,13 @@ export async function addGitFiles(
 
     logger.info(`${operation} executed successfully`, { ...context, operation, path: targetPath, files: filesToStage });
     const filesAddedDesc = Array.isArray(filesToStage) ? filesToStage.join(', ') : filesToStage;
-    // Use statusMessage
+    const reminder = "Remember to write clear, concise commit messages using the Conventional Commits format (e.g., 'feat(scope): subject').";
+    // Use statusMessage and add reminder
     return {
         success: true,
-        statusMessage: `Successfully staged: ${filesAddedDesc}`,
+        statusMessage: `Successfully staged: ${filesAddedDesc}. ${reminder}`,
         filesStaged: filesToStage
     };
-
   } catch (error: any) {
     logger.error(`Failed to execute git add command`, { ...context, operation, path: targetPath, error: error.message, stderr: error.stderr });
 
