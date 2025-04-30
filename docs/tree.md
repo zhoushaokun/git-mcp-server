@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-04-28 22:46:14
+Generated on: 2025-04-30 02:07:17
 
 
 ```
@@ -23,11 +23,15 @@ git-mcp-server
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
-    │   │   ├── gitBranchList
+    │   │   ├── gitBranch
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
     │   │   ├── gitCheckout
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitCherryPick
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
@@ -36,6 +40,10 @@ git-mcp-server
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
     │   │   ├── gitClearWorkingDir
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitClone
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
@@ -48,6 +56,10 @@ git-mcp-server
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
     │   │   ├── gitFetch
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitInit
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
@@ -64,6 +76,10 @@ git-mcp-server
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
     │   │   ├── gitPush
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitRebase
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
