@@ -11,6 +11,8 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server provid
 
 Built on the [`cyanheads/mcp-ts-template`](https://github.com/cyanheads/mcp-ts-template), this server follows a modular architecture:
 
+> **Note:** This version (v2.0.0) focuses on refactoring and updating the core Git tools based on the latest MCP SDK. MCP Resource capabilities are not implemented in this version. For resource access, please use [v1.2.4](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4).
+
 ```mermaid
 flowchart TB
     subgraph API["API Layer"]
@@ -219,7 +221,13 @@ The Git MCP Server provides a suite of tools for interacting with Git repositori
 
 ## Resources
 
-This server does not currently implement any MCP resources. Future versions may add resources for accessing file content, commit history, etc.
+**MCP Resources are not implemented in this version (v2.0.0).**
+
+This version focuses on the refactored Git tools implementation based on the latest `mcp-ts-template` and MCP SDK v1.10.2. Resource capabilities, previously available, have been temporarily removed during this major update.
+
+If you require MCP Resource access (e.g., for reading file content directly via the server), please use the stable **[v1.2.4 release](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4)**.
+
+Future development may reintroduce resource capabilities in a subsequent release.
 
 ## Development
 
