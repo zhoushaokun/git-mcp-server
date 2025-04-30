@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/git-mcp-server",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "An MCP (Model Context Protocol) server providing tools to interact with Git repositories. Enables LLMs and AI agents to perform Git operations like clone, commit, push, pull, branch, diff, log, status, and more via the MCP standard.",
   "type": "module",
   "license": "Apache-2.0",
@@ -17,19 +17,20 @@
     "node": ">=18.0.0"
   },
   "bin": {
-    "git-mcp-server": "./build/index.js"
+    "git-mcp-server": "./dist/index.js"
   },
   "files": [
-    "build"
+    "dist"
   ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
-    "prepare": "npm run build",
-    "watch": "tsc --watch",
-    "inspector": "npx @modelcontextprotocol/inspector build/index.js",
-    "clean": "ts-node scripts/clean.ts",
-    "tree": "ts-node scripts/tree.ts",
-    "rebuild": "npm run clean && npm run build"
+    "build": "tsc && node --loader ts-node/esm scripts/make-executable.ts dist/index.js",
+    "start": "node dist/index.js",
+    "start:stdio": "MCP_TRANSPORT_TYPE=stdio node dist/index.js",
+    "start:http": "MCP_TRANSPORT_TYPE=http node dist/index.js",
+    "rebuild": "ts-node --esm scripts/clean.ts && npm run build",
+    "tree": "ts-node --esm scripts/tree.ts",
+    "inspector": "npx @modelcontextprotocol/inspector dist/index.js",
+    "clean": "ts-node --esm scripts/clean.ts"
   },
   "publishConfig": {
     "access": "public"
