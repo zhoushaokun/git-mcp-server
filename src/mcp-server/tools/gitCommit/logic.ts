@@ -15,7 +15,7 @@ export const GitCommitInputSchema = z.object({
   author: z.object({
     name: z.string().describe('Author name for the commit'),
     email: z.string().email().describe('Author email for the commit'),
-  }).optional().describe('Author information for the commit'),
+  }).optional().describe('Overrides the commit author information (name and email). Use only when necessary (e.g., applying external patches).'),
   allowEmpty: z.boolean().default(false).describe('Allow creating empty commits'),
   amend: z.boolean().default(false).describe('Amend the previous commit instead of creating a new one'),
 });

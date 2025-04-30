@@ -18,7 +18,7 @@ export const GitPushInputSchema = z.object({
   forceWithLease: z.boolean().optional().default(false).describe("Force the push only if the remote ref is the expected value (`--force-with-lease`). Safer than --force."),
   setUpstream: z.boolean().optional().default(false).describe("Set the upstream tracking configuration (`-u` or `--set-upstream`)."),
   tags: z.boolean().optional().default(false).describe("Push all tags (`--tags`)."),
-  delete: z.boolean().optional().default(false).describe("Delete the remote branch (`--delete`). Requires `branch` to be specified."),
+  delete: z.boolean().optional().default(false).describe("Delete the remote branch (`--delete`). Requires `branch` to be specified. Use with caution, as deleting remote branches can affect collaborators."),
   // Add other relevant git push options as needed (e.g., --prune, --all)
 });
 

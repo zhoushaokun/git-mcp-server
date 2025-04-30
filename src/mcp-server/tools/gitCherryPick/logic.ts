@@ -13,7 +13,7 @@ export const GitCherryPickInputSchema = z.object({
   path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. If omitted, defaults to the path set by `git_set_working_dir` for the current session, or the server's CWD if no session path is set."),
   commitRef: z.string().min(1).describe("The commit reference(s) to cherry-pick (e.g., 'hash1', 'hash1..hash3', 'branchName~3..branchName')."),
   mainline: z.number().int().min(1).optional().describe("Specify the parent number (starting from 1) when cherry-picking a merge commit."),
-  strategy: z.enum(['recursive', 'resolve', 'ours', 'theirs', 'octopus', 'subtree']).optional().describe("Use the given merge strategy."),
+  strategy: z.enum(['recursive', 'resolve', 'ours', 'theirs', 'octopus', 'subtree']).optional().describe("Specifies the merge strategy to use."),
   noCommit: z.boolean().default(false).describe("Apply the changes but do not create a commit."),
   signoff: z.boolean().default(false).describe("Add a Signed-off-by line to the commit message."),
   // Add options for conflict handling? (e.g., --continue, --abort, --skip) - Maybe separate tool or mode?

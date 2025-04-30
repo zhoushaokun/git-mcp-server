@@ -30,7 +30,7 @@ export function initializeGitAddStateAccessors(getWdFn: GetWorkingDirectoryFn, g
 
 
 const TOOL_NAME = 'git_add';
-const TOOL_DESCRIPTION = 'Stages changes in the Git repository for the next commit by adding file contents to the index (staging area). Can stage specific files/patterns or all changes (default: \'.\'). Returns the result as a JSON object. IMPORTANT: Always use a full, absolute path for the repository.';
+const TOOL_DESCRIPTION = 'Stages changes in the Git repository for the next commit by adding file contents to the index (staging area). Can stage specific files/patterns or all changes (default: \'.\'). Returns the result as a JSON object.';
 
 /**
  * Registers the git_add tool with the MCP server.

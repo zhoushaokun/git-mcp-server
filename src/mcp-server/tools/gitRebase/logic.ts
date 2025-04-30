@@ -15,7 +15,7 @@ export const GitRebaseBaseSchema = z.object({
   upstream: z.string().min(1).optional().describe("The upstream branch or commit to rebase onto. Required for 'start' mode unless 'interactive' is true with default base."),
   branch: z.string().min(1).optional().describe("The branch to rebase. Defaults to the current branch if omitted."),
   interactive: z.boolean().default(false).describe("Perform an interactive rebase (`-i`). 'upstream' can be omitted to rebase current branch's tracked upstream or use fork-point."),
-  strategy: z.enum(['recursive', 'resolve', 'ours', 'theirs', 'octopus', 'subtree']).optional().describe("Use the given merge strategy during rebase."),
+  strategy: z.enum(['recursive', 'resolve', 'ours', 'theirs', 'octopus', 'subtree']).optional().describe("Specifies the merge strategy to use during rebase."),
   strategyOption: z.string().optional().describe("Pass a specific option to the merge strategy (e.g., 'ours', 'theirs' for recursive). Use with -X."),
   onto: z.string().min(1).optional().describe("Rebase onto a specific commit/branch instead of the upstream's base. Requires 'upstream' to be specified."),
   // TODO: Add options like --preserve-merges, --autosquash, --autostash?

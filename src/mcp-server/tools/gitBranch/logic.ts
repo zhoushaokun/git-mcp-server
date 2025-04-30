@@ -15,7 +15,7 @@ export const GitBranchBaseSchema = z.object({
   branchName: z.string().min(1).optional().describe("The name of the branch. Required for 'create', 'delete', 'rename' modes."),
   newBranchName: z.string().min(1).optional().describe("The new name for the branch. Required for 'rename' mode."),
   startPoint: z.string().min(1).optional().describe("Optional commit hash, tag, or existing branch name to start the new branch from. Used only in 'create' mode. Defaults to HEAD."),
-  force: z.boolean().default(false).describe("Force the operation. Use -D for delete, -M for rename, -f for create (if branch exists)."),
+  force: z.boolean().default(false).describe("Force the operation. Use -D for delete, -M for rename, -f for create (if branch exists). Use with caution, as forcing operations can lead to data loss."),
   all: z.boolean().default(false).describe("List both local and remote-tracking branches. Used only in 'list' mode."),
   remote: z.boolean().default(false).describe("Act on remote-tracking branches. Used with 'list' (-r) or 'delete' (-r)."),
 });
