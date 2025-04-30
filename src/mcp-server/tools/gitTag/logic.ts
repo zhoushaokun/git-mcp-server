@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { promisify } from 'util';
 import { exec } from 'child_process';
+import { promisify } from 'util';
+import { z } from 'zod';
+import { BaseErrorCode, McpError } from '../../../types-global/errors.js';
 import { logger } from '../../../utils/logger.js';
 import { RequestContext } from '../../../utils/requestContext.js';
-import { McpError, BaseErrorCode } from '../../../types-global/errors.js';
 import { sanitization } from '../../../utils/sanitization.js';
 
 const execAsync = promisify(exec);
@@ -13,7 +13,7 @@ const execAsync = promisify(exec);
 export const GitTagBaseSchema = z.object({
   path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. If omitted, defaults to the path set by `git_set_working_dir` for the current session, or the server's CWD if no session path is set."),
   mode: z.enum(['list', 'create', 'delete']).describe("The tag operation to perform: 'list' (show all tags), 'create' (add a new tag), 'delete' (remove a local tag)."),
-  tagName: z.string().min(1).optional().describe("The name for the tag. Required for 'create' and 'delete' modes. E.g., 'v1.0.0'."),
+  tagName: z.string().min(1).optional().describe("The name for the tag. Required for 'create' and 'delete' modes. e.g., 'v2.3.0'."),
   message: z.string().optional().describe("The annotation message for the tag. Required and used only when 'mode' is 'create' and 'annotate' is true."),
   commitRef: z.string().optional().describe("The commit hash, branch name, or other reference to tag. Used only in 'create' mode. Defaults to the current HEAD if omitted."),
   annotate: z.boolean().default(false).describe("If true, creates an annotated tag (-a flag) instead of a lightweight tag. Requires 'message' to be provided. Used only in 'create' mode."),
