@@ -18,7 +18,6 @@ import { ErrorHandler } from '../utils/errorHandler.js';
 import { logger } from '../utils/logger.js';
 import { requestContextService } from '../utils/requestContext.js';
 import { registerGitAddTool } from './tools/gitAdd/index.js'; // Import git_add
-// Removed: import { registerGitBranchListTool } from './tools/gitBranchList/index.js';
 import { initializeGitBranchStateAccessors, registerGitBranchTool } from './tools/gitBranch/index.js'; // Import git_branch
 import { initializeGitCheckoutStateAccessors, registerGitCheckoutTool } from './tools/gitCheckout/index.js'; // Import git_checkout
 import { initializeGitCherryPickStateAccessors, registerGitCherryPickTool } from './tools/gitCherryPick/index.js'; // Import git_cherry_pick
@@ -175,12 +174,12 @@ async function createMcpServerInstance(): Promise<McpServer> {
   // Capabilities inform the client about what features the server supports (e.g., logging).
   const server = new McpServer(
     { name: config.mcpServerName, version: config.mcpServerVersion },
-    { capabilities: { logging: {}, resources: { listChanged: true }, tools: { listChanged: true } } }
+    { capabilities: { logging: {}, tools: { listChanged: true } } }
   );
 
   try {
-    // Register all available resources and tools with the server instance.
-    // These functions typically call `server.registerResource()` or `server.registerTool()`.
+    // Register all available tools with the server instance.
+    // These functions typically call `server.tool()`.
     await registerGitAddTool(server); // Register git_add tool
     await registerGitBranchTool(server); // Added unified git_branch registration
     await registerGitCheckoutTool(server); // Register git_checkout tool
@@ -205,6 +204,7 @@ async function createMcpServerInstance(): Promise<McpServer> {
     await registerGitStatusTool(server); // Register git_status tool
     await registerGitTagTool(server); // Register git_tag tool
     logger.info('All Git tools registered successfully', context);
+
   } catch (err) {
     // Log and re-throw any errors during registration, as the server cannot function correctly without them.
     logger.error('Failed to register resources/tools', {
