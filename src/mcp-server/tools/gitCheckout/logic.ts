@@ -123,7 +123,8 @@ export async function checkoutGit(
     } else if (stderr.includes('Updated N path') || stdout.includes('Updated N path')) { // Checking out files
         message = `Restored path(s): ${input.branchOrPath}`;
         // Potentially list the files if input.branchOrPath was specific enough
-        filesRestored = input.branchOrPath.split(' ').filter(p => p.length > 0); // Simple split, might need refinement
+        // Assume input.branchOrPath contains file paths separated by newlines
+        filesRestored = input.branchOrPath.split('\n').filter(p => p.trim().length > 0); // Split by newline and filter out empty entries
         // Try to get current branch after file checkout
         try {
             const statusResult = await execAsync(`git -C "${targetPath}" branch --show-current`);
