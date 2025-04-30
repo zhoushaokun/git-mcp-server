@@ -2,7 +2,7 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.10.2-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.0.0-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-2.0.2-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/git-mcp-server/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/git-mcp-server?style=social)](https://github.com/cyanheads/git-mcp-server)
@@ -72,13 +72,17 @@ Implemented as an MCP server, it allows LLM agents and other compatible clients 
 
 ## Overview
 
-The Git MCP Server implements the Model Context Protocol (MCP), enabling standardized communication between LLMs and external systems through:
+**Empower your AI agents and development tools with seamless Git integration!**
 
-- **Clients**: Claude Desktop, IDEs, and other MCP-compatible clients.
-- **Servers**: This server provides tools for Git operations.
-- **LLM Agents**: AI models that leverage the server's Git capabilities.
+The Git MCP Server acts as a bridge, allowing applications (MCP Clients) that understand the Model Context Protocol (MCP) – like advanced AI assistants (LLMs), IDE extensions, or custom scripts – to interact directly and safely with local Git repositories.
 
-This server enables AI assistants and other MCP clients to interact with local Git repositories. It exposes specific Git commands as MCP tools, allowing for programmatic control over repository status checking, branching, staging, committing, fetching, pulling, pushing, and more.
+Instead of complex scripting or manual CLI, your tools can leverage this server to:
+
+- **Automate Git workflows**: Clone repositories, create branches, stage changes, commit work, push updates, and manage tags programmatically.
+- **Gain repository insights**: Check status, view logs, diff changes, and inspect Git objects without leaving the host application.
+- **Integrate Git into AI-driven development**: Enable LLMs to manage version control as part of their coding or refactoring tasks.
+
+Built on the robust `mcp-ts-template`, this server provides a standardized, secure, and efficient way to expose Git functionality via the MCP standard. It achieves this by securely executing the standard `git` command-line tool installed on the system using Node.js's `child_process` module, ensuring compatibility and leveraging the full power of Git.
 
 ## Features
 
@@ -95,6 +99,8 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 - **HTTP Transport Option**: Built-in Express server with SSE, session management, and CORS support.
 
 ### Git Operations
+
+- **Direct Git CLI Execution**: Interacts with Git by securely executing the standard `git` command-line tool via Node.js `child_process`, ensuring full compatibility and access to Git's features.
 
 - **Comprehensive Command Coverage**: Exposes a wide range of Git commands as MCP tools (see [Tools](#tools) section).
 - **Repository Interaction**: Supports status checking, branching, staging, committing, fetching, pulling, pushing, diffing, logging, resetting, tagging, and more.
