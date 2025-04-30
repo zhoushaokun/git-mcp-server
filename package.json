@@ -1,13 +1,20 @@
 {
   "name": "@cyanheads/git-mcp-server",
   "version": "2.0.0",
-  "description": "A Model Context Protocol server for Git integration",
+  "description": "An MCP (Model Context Protocol) server providing tools to interact with Git repositories. Enables LLMs and AI agents to perform Git operations like clone, commit, push, pull, branch, diff, log, status, and more via the MCP standard.",
   "type": "module",
   "license": "Apache-2.0",
   "author": "Casey Hand @cyanheads",
   "repository": {
     "type": "git",
     "url": "https://github.com/cyanheads/git-mcp-server"
+  },
+  "homepage": "https://github.com/cyanheads/git-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/cyanheads/git-mcp-server/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "bin": {
     "git-mcp-server": "./build/index.js"
@@ -49,13 +56,26 @@
   },
   "keywords": [
     "typescript",
-    "template",
     "MCP",
     "model-context-protocol",
-    "vibe-code",
     "LLM",
     "AI-integration",
-    "server"
+    "server",
+    "git",
+    "version-control",
+    "repository",
+    "commit",
+    "branch",
+    "diff",
+    "log",
+    "status",
+    "push",
+    "pull",
+    "clone",
+    "automation",
+    "devops",
+    "ai-agent",
+    "llm-tools"
   ],
   "devDependencies": {
     "@types/express": "^5.0.1"

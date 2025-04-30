@@ -7,7 +7,7 @@
 [![Status](https://img.shields.io/badge/Status-Development-orange.svg)](https://github.com/cyanheads/git-mcp-server/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/git-mcp-server?style=social)](https://github.com/cyanheads/git-mcp-server)
 
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server providing tools for programmatic interaction with Git repositories.
+An MCP (Model Context Protocol) server providing tools to interact with Git repositories. Enables LLMs and AI agents to perform Git operations like clone, commit, push, pull, branch, diff, log, status, and more via the MCP standard.
 
 Built on the [`cyanheads/mcp-ts-template`](https://github.com/cyanheads/mcp-ts-template), this server follows a modular architecture:
 
@@ -132,20 +132,20 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 
 Configure the server using environment variables. Create a `.env` file in the project root (copy from `.env.example`) or set them in your environment.
 
-| Variable               | Description                                                                                                   | Default             |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------- |
-| `MCP_TRANSPORT_TYPE`   | Transport mechanism: `stdio` or `http`.                                                                       | `stdio`             |
-| `MCP_HTTP_PORT`        | Port for the HTTP server (if `MCP_TRANSPORT_TYPE=http`). Retries next ports if busy.                          | `3000`              |
-| `MCP_HTTP_HOST`        | Host address for the HTTP server (if `MCP_TRANSPORT_TYPE=http`).                                              | `127.0.0.1`         |
-| `MCP_ALLOWED_ORIGINS`  | Comma-separated list of allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).                              | (none)              |
-| `MCP_SERVER_NAME`      | Name reported during MCP initialization.                                                                      | `git-mcp-server`    |
-| `MCP_SERVER_VERSION`   | Version reported during MCP initialization.                                                                   | (from package.json) |
-| `LOG_LEVEL`            | Logging level (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`).                      | `info`              |
-| `LOG_REDACT_PATTERNS`  | Comma-separated regex patterns for redacting sensitive data in logs.                                          | (predefined)        |
-| `LOG_FILE_PATH`        | Path for log file output. If unset, logs only to console.                                                     | (none)              |
-| `LOG_MAX_FILE_SIZE_MB` | Max size (MB) for log file rotation.                                                                          | `10`                |
-| `LOG_MAX_FILES`        | Max number of rotated log files to keep.                                                                      | `5`                 |
-| `LOG_ZIP_ARCHIVES`     | Compress rotated log files (`true`/`false`).                                                                  | `true`              |
+| Variable               | Description                                                                              | Default             |
+| ---------------------- | ---------------------------------------------------------------------------------------- | ------------------- |
+| `MCP_TRANSPORT_TYPE`   | Transport mechanism: `stdio` or `http`.                                                  | `stdio`             |
+| `MCP_HTTP_PORT`        | Port for the HTTP server (if `MCP_TRANSPORT_TYPE=http`). Retries next ports if busy.     | `3000`              |
+| `MCP_HTTP_HOST`        | Host address for the HTTP server (if `MCP_TRANSPORT_TYPE=http`).                         | `127.0.0.1`         |
+| `MCP_ALLOWED_ORIGINS`  | Comma-separated list of allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).         | (none)              |
+| `MCP_SERVER_NAME`      | Name reported during MCP initialization.                                                 | `git-mcp-server`    |
+| `MCP_SERVER_VERSION`   | Version reported during MCP initialization.                                              | (from package.json) |
+| `LOG_LEVEL`            | Logging level (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`). | `info`              |
+| `LOG_REDACT_PATTERNS`  | Comma-separated regex patterns for redacting sensitive data in logs.                     | (predefined)        |
+| `LOG_FILE_PATH`        | Path for log file output. If unset, logs only to console.                                | (none)              |
+| `LOG_MAX_FILE_SIZE_MB` | Max size (MB) for log file rotation.                                                     | `10`                |
+| `LOG_MAX_FILES`        | Max number of rotated log files to keep.                                                 | `5`                 |
+| `LOG_ZIP_ARCHIVES`     | Compress rotated log files (`true`/`false`).                                             | `true`              |
 
 ### MCP Client Settings
 
@@ -191,33 +191,33 @@ For a detailed file tree, run `npm run tree` or see [docs/tree.md](docs/tree.md)
 
 The Git MCP Server provides a suite of tools for interacting with Git repositories, callable via the Model Context Protocol.
 
-| Tool Name               | Description                                                                                                                      | Key Arguments                                                                                                    |
-| :---------------------- | :------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
-| `git_add`               | Stages specified files or patterns.                                                                                              | `path?`, `files?`                                                                                                |
-| `git_branch`            | Manages branches (list, create, delete, rename, show current).                                                                   | `path?`, `mode`, `branchName?`, `newBranchName?`, `startPoint?`, `force?`, `all?`, `remote?`                     |
-| `git_checkout`          | Switches branches or restores working tree files.                                                                                | `path?`, `branchOrPath`, `newBranch?`, `force?`                                                                  |
-| `git_cherry_pick`       | Applies changes introduced by existing commits.                                                                                  | `path?`, `commitRef`, `mainline?`, `strategy?`, `noCommit?`, `signoff?`                                          |
-| `git_clean`             | Removes untracked files. **Requires `force: true`**.                                                                             | `path?`, `force`, `dryRun?`, `directories?`, `ignored?`                                                          |
-| `git_clear_working_dir` | Clears the session-specific working directory.                                                                                   | (none)                                                                                                           |
-| `git_clone`             | Clones a repository into a specified absolute path.                                                                              | `repositoryUrl`, `targetPath`, `branch?`, `depth?`, `quiet?`                                                     |
-| `git_commit`            | Commits staged changes with a message.                                                                                           | `path?`, `message`, `author?`, `allowEmpty?`, `amend?`                                                           |
-| `git_diff`              | Shows changes between commits, working tree, etc.                                                                                | `path?`, `commit1?`, `commit2?`, `staged?`, `file?`                                                              |
-| `git_fetch`             | Downloads objects and refs from other repositories.                                                                              | `path?`, `remote?`, `prune?`, `tags?`, `all?`                                                                    |
-| `git_init`              | Initializes a new Git repository at the specified absolute path.                                                                 | `path`, `initialBranch?`, `bare?`, `quiet?`                                                                      |
-| `git_log`               | Shows commit logs.                                                                                                               | `path?`, `maxCount?`, `author?`, `since?`, `until?`, `branchOrFile?`                                             |
-| `git_merge`             | Merges the specified branch into the current branch.                                                                             | `path?`, `branch`, `commitMessage?`, `noFf?`, `squash?`, `abort?`                                                |
-| `git_pull`              | Fetches from and integrates with another repository or local branch.                                                             | `path?`, `remote?`, `branch?`, `rebase?`, `ffOnly?`                                                              |
-| `git_push`              | Updates remote refs using local refs.                                                                                            | `path?`, `remote?`, `branch?`, `remoteBranch?`, `force?`, `forceWithLease?`, `setUpstream?`, `tags?`, `delete?` |
-| `git_rebase`            | Reapplies commits on top of another base tip.                                                                                    | `path?`, `mode?`, `upstream?`, `branch?`, `interactive?`, `strategy?`, `strategyOption?`, `onto?`                |
-| `git_remote`            | Manages remote repositories (list, add, remove, show).                                                                           | `path?`, `mode`, `name?`, `url?`                                                                                 |
-| `git_reset`             | Resets current HEAD to a specified state. Supports soft, mixed, hard modes. **USE 'hard' WITH CAUTION**.                         | `path?`, `mode?`, `commit?`                                                                                      |
-| `git_set_working_dir`   | Sets the default working directory for the current session. Requires absolute path.                                              | `path`, `validateGitRepo?`                                                                                       |
-| `git_show`              | Shows information about Git objects (commits, tags, etc.).                                                                       | `path?`, `ref`, `filePath?`                                                                                      |
-| `git_stash`             | Manages stashed changes (list, apply, pop, drop, save).                                                                          | `path?`, `mode`, `stashRef?`, `message?`                                                                         |
-| `git_status`            | Gets repository status (branch, staged, modified, untracked files).                                                              | `path?`                                                                                                          |
-| `git_tag`               | Manages tags (list, create annotated/lightweight, delete).                                                                       | `path?`, `mode`, `tagName?`, `message?`, `commitRef?`, `annotate?`                                               |
+| Tool Name               | Description                                                                                              | Key Arguments                                                                                                   |
+| :---------------------- | :------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| `git_add`               | Stages specified files or patterns.                                                                      | `path?`, `files?`                                                                                               |
+| `git_branch`            | Manages branches (list, create, delete, rename, show current).                                           | `path?`, `mode`, `branchName?`, `newBranchName?`, `startPoint?`, `force?`, `all?`, `remote?`                    |
+| `git_checkout`          | Switches branches or restores working tree files.                                                        | `path?`, `branchOrPath`, `newBranch?`, `force?`                                                                 |
+| `git_cherry_pick`       | Applies changes introduced by existing commits.                                                          | `path?`, `commitRef`, `mainline?`, `strategy?`, `noCommit?`, `signoff?`                                         |
+| `git_clean`             | Removes untracked files. **Requires `force: true`**.                                                     | `path?`, `force`, `dryRun?`, `directories?`, `ignored?`                                                         |
+| `git_clear_working_dir` | Clears the session-specific working directory.                                                           | (none)                                                                                                          |
+| `git_clone`             | Clones a repository into a specified absolute path.                                                      | `repositoryUrl`, `targetPath`, `branch?`, `depth?`, `quiet?`                                                    |
+| `git_commit`            | Commits staged changes with a message.                                                                   | `path?`, `message`, `author?`, `allowEmpty?`, `amend?`                                                          |
+| `git_diff`              | Shows changes between commits, working tree, etc.                                                        | `path?`, `commit1?`, `commit2?`, `staged?`, `file?`                                                             |
+| `git_fetch`             | Downloads objects and refs from other repositories.                                                      | `path?`, `remote?`, `prune?`, `tags?`, `all?`                                                                   |
+| `git_init`              | Initializes a new Git repository at the specified absolute path.                                         | `path`, `initialBranch?`, `bare?`, `quiet?`                                                                     |
+| `git_log`               | Shows commit logs.                                                                                       | `path?`, `maxCount?`, `author?`, `since?`, `until?`, `branchOrFile?`                                            |
+| `git_merge`             | Merges the specified branch into the current branch.                                                     | `path?`, `branch`, `commitMessage?`, `noFf?`, `squash?`, `abort?`                                               |
+| `git_pull`              | Fetches from and integrates with another repository or local branch.                                     | `path?`, `remote?`, `branch?`, `rebase?`, `ffOnly?`                                                             |
+| `git_push`              | Updates remote refs using local refs.                                                                    | `path?`, `remote?`, `branch?`, `remoteBranch?`, `force?`, `forceWithLease?`, `setUpstream?`, `tags?`, `delete?` |
+| `git_rebase`            | Reapplies commits on top of another base tip.                                                            | `path?`, `mode?`, `upstream?`, `branch?`, `interactive?`, `strategy?`, `strategyOption?`, `onto?`               |
+| `git_remote`            | Manages remote repositories (list, add, remove, show).                                                   | `path?`, `mode`, `name?`, `url?`                                                                                |
+| `git_reset`             | Resets current HEAD to a specified state. Supports soft, mixed, hard modes. **USE 'hard' WITH CAUTION**. | `path?`, `mode?`, `commit?`                                                                                     |
+| `git_set_working_dir`   | Sets the default working directory for the current session. Requires absolute path.                      | `path`, `validateGitRepo?`                                                                                      |
+| `git_show`              | Shows information about Git objects (commits, tags, etc.).                                               | `path?`, `ref`, `filePath?`                                                                                     |
+| `git_stash`             | Manages stashed changes (list, apply, pop, drop, save).                                                  | `path?`, `mode`, `stashRef?`, `message?`                                                                        |
+| `git_status`            | Gets repository status (branch, staged, modified, untracked files).                                      | `path?`                                                                                                         |
+| `git_tag`               | Manages tags (list, create annotated/lightweight, delete).                                               | `path?`, `mode`, `tagName?`, `message?`, `commitRef?`, `annotate?`                                              |
 
-*Note: The `path` parameter for most tools defaults to the session's working directory if set via `git_set_working_dir`, otherwise it defaults to the server's CWD.*
+_Note: The `path` parameter for most tools defaults to the session's working directory if set via `git_set_working_dir`, otherwise it defaults to the server's CWD._
 
 ## Resources
 
