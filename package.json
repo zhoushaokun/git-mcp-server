@@ -1,13 +1,20 @@
 {
   "name": "@cyanheads/git-mcp-server",
-  "version": "1.2.4",
-  "description": "A Model Context Protocol server for Git integration",
+  "version": "2.0.0",
+  "description": "An MCP (Model Context Protocol) server providing tools to interact with Git repositories. Enables LLMs and AI agents to perform Git operations like clone, commit, push, pull, branch, diff, log, status, and more via the MCP standard.",
   "type": "module",
   "license": "Apache-2.0",
   "author": "Casey Hand @cyanheads",
   "repository": {
     "type": "git",
     "url": "https://github.com/cyanheads/git-mcp-server"
+  },
+  "homepage": "https://github.com/cyanheads/git-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/cyanheads/git-mcp-server/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "bin": {
     "git-mcp-server": "./build/index.js"
@@ -28,12 +35,49 @@
     "access": "public"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.8.0",
-    "dotenv": "^16.4.7",
-    "zod": "^3.24.2",
-    "@types/node": "^22.13.17",
+    "@modelcontextprotocol/sdk": "^1.10.2",
+    "@types/node": "^22.15.3",
+    "@types/sanitize-html": "^2.15.0",
+    "@types/validator": "13.15.0",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "ignore": "^7.0.4",
+    "openai": "^4.96.2",
+    "partial-json": "^0.1.7",
+    "sanitize-html": "^2.16.0",
+    "tiktoken": "^1.0.21",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.2",
-    "simple-git": "^3.27.0"
+    "typescript": "^5.8.3",
+    "validator": "13.15.0",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "yargs": "^17.7.2",
+    "zod": "^3.24.3"
+  },
+  "keywords": [
+    "typescript",
+    "MCP",
+    "model-context-protocol",
+    "LLM",
+    "AI-integration",
+    "server",
+    "git",
+    "version-control",
+    "repository",
+    "commit",
+    "branch",
+    "diff",
+    "log",
+    "status",
+    "push",
+    "pull",
+    "clone",
+    "automation",
+    "devops",
+    "ai-agent",
+    "llm-tools"
+  ],
+  "devDependencies": {
+    "@types/express": "^5.0.1"
   }
 }

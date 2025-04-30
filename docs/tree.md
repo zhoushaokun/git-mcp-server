@@ -1,42 +1,137 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-04-02 17:01:14
+Generated on: 2025-04-30 02:52:58
 
 
 ```
 git-mcp-server
 ├── docs
+    ├── new_git_tools_plan.md
     └── tree.md
 ├── logs
 ├── scripts
     ├── clean.ts
+    ├── make-executable.ts
     └── tree.ts
 ├── src
-    ├── resources
-    │   ├── descriptors.ts
-    │   ├── diff.ts
-    │   ├── file.ts
-    │   ├── history.ts
-    │   ├── index.ts
-    │   └── repository.ts
-    ├── services
-    │   ├── error-service.ts
-    │   └── git-service.ts
-    ├── tools
-    │   ├── advanced.ts
-    │   ├── branch.ts
-    │   ├── index.ts
-    │   ├── remote.ts
-    │   ├── repository.ts
-    │   └── workdir.ts
-    ├── types
-    │   └── git.ts
+    ├── config
+    │   └── index.ts
+    ├── mcp-server
+    │   ├── resources
+    │   ├── tools
+    │   │   ├── gitAdd
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitBranch
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitCheckout
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitCherryPick
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitClean
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitClearWorkingDir
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitClone
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitCommit
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitDiff
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitFetch
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitInit
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitLog
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitMerge
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitPull
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitPush
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitRebase
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitRemote
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitReset
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitSetWorkingDir
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitShow
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitStash
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   ├── gitStatus
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   └── gitTag
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   └── server.ts
+    ├── types-global
+    │   ├── errors.ts
+    │   ├── mcp.ts
+    │   └── tool.ts
     ├── utils
-    │   ├── global-settings.ts
-    │   └── validation.ts
-    ├── index.ts
-    └── server.ts
+    │   ├── errorHandler.ts
+    │   ├── idGenerator.ts
+    │   ├── index.ts
+    │   ├── jsonParser.ts
+    │   ├── logger.ts
+    │   ├── rateLimiter.ts
+    │   ├── requestContext.ts
+    │   ├── sanitization.ts
+    │   └── tokenCounter.ts
+    ├── .DS_Store
+    └── index.ts
+├── .clinerules
 ├── .env.example
+├── CHANGELOG.md
+├── Dockerfile
 ├── LICENSE
 ├── package-lock.json
 ├── package.json

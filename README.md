@@ -1,58 +1,17 @@
-# GIT MCP Server
+# Git MCP Server
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol](https://img.shields.io/badge/MCP-1.8.0-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-1.2.4-blue.svg)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
+[![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.10.2-green.svg)](https://modelcontextprotocol.io/)
+[![Version](https://img.shields.io/badge/Version-2.0.0-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Status](https://img.shields.io/badge/Status-Beta-orange.svg)]()
+[![Status](https://img.shields.io/badge/Status-Development-orange.svg)](https://github.com/cyanheads/git-mcp-server/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/git-mcp-server?style=social)](https://github.com/cyanheads/git-mcp-server)
 
-A Model Context Protocol (MCP) server that provides tools for interacting with Git repositories. This server allows AI assistants and LLM agents to manage repositories, branches, commits, and files through a standardized interface without requiring direct filesystem or command-line access. It exposes Git operations as MCP resources and tools, leveraging the `simple-git` library for core functionality while maintaining proper security boundaries.
+An MCP (Model Context Protocol) server providing tools to interact with Git repositories. Enables LLMs and AI agents to perform Git operations like clone, commit, push, pull, branch, diff, log, status, and more via the MCP standard.
 
-## Table of Contents
+Built on the [`cyanheads/mcp-ts-template`](https://github.com/cyanheads/mcp-ts-template), this server follows a modular architecture:
 
-- [Overview](#overview)
-  - [Architecture & Components](#architecture--components)
-- [Features](#features)
-  - [Resource Access](#resource-access)
-  - [Git Operations](#git-operations)
-- [Installation](#installation)
-  - [Prerequisites](#prerequisites)
-  - [Install from NPM](#install-from-npm)
-  - [Install from Source](#install-from-source)
-- [Usage](#usage)
-  - [Running the Server](#running-the-server)
-  - [Integration with Claude](#integration-with-claude)
-  - [Integration with Other MCP Clients](#integration-with-other-mcp-clients)
-- [Project Structure](#project-structure)
-- [Tools](#tools)
-  - [Repository Operations](#repository-operations)
-  - [Branch Operations](#branch-operations)
-  - [Working Directory Operations](#working-directory-operations)
-  - [Remote Operations](#remote-operations)
-  - [Advanced Operations](#advanced-operations)
-- [Resources](#resources)
-  - [Repository Resources](#repository-resources)
-- [Development](#development)
-  - [Build and Test](#build-and-test)
-- [License](#license)
-
-## Overview
-
-Key capabilities:
-
-- **Repository Management**: Initialize, clone, and check repository status
-- **Branch Operations**: Create, list, checkout, delete, and merge branches
-- **Working Directory**: Stage files, commit changes, create diffs
-- **Remote Operations**: Add remotes, fetch, pull, push
-- **Advanced Git Commands**: Manage tags, stash changes, cherry-pick, rebase
-
-### Architecture & Components
-
-Core system architecture:
-
-<details>
-<summary>Click to expand Mermaid diagram</summary>
+> **Note:** This version (v2.0.0) focuses on refactoring and updating the core Git tools based on the latest MCP SDK. MCP Resource capabilities are not implemented in this version. For resource access, please use [v1.2.4](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4).
 
 ```mermaid
 flowchart TB
@@ -60,151 +19,148 @@ flowchart TB
         direction LR
         MCP["MCP Protocol"]
         Val["Validation (Zod)"]
+        San["Sanitization"]
 
-        MCP --> Val
+        MCP --> Val --> San
     end
 
-    subgraph Core["Core Services"]
+    subgraph Core["Core Components"]
         direction LR
-        GitService["Git Service (simple-git)"]
-        ErrorService["Error Service"]
+        Config["Configuration"]
+        Logger["Logging System"]
+        Error["Error Handling"]
+        Server["MCP Server (SDK)"]
 
-        GitService <--> ErrorService
+        Config --> Server
+        Logger --> Server
+        Error --> Server
     end
 
-    subgraph Resources["Resource Layer"]
+    subgraph Implementation["Implementation Layer"]
         direction LR
-        Repo["Repository Resources"]
-        Diff["Diff Resources"]
-        File["File Resources"]
-        History["History Resources"]
+        Tool["Tools (Git Logic)"]
+        Util["Utilities"]
 
-        Repo <--> Diff
-        Repo <--> File
-        Repo <--> History
+        Tool --> Server
+        Util --> Tool
     end
 
-    subgraph Tools["Tool Layer"]
-        direction LR
-        RepoTools["Repository Tools"]
-        BranchTools["Branch Tools"]
-        WorkdirTools["Working Directory Tools"]
-        RemoteTools["Remote Tools"]
-        AdvancedTools["Advanced Tools"]
-
-        RepoTools <--> BranchTools
-        BranchTools <--> WorkdirTools
-        WorkdirTools <--> RemoteTools
-        RemoteTools <--> AdvancedTools
-    end
-
-    Val --> GitService
-    GitService --> Resources
-    GitService --> Tools
+    San --> Config
+    San --> Server
 
     classDef layer fill:#2d3748,stroke:#4299e1,stroke-width:3px,rx:5,color:#fff
     classDef component fill:#1a202c,stroke:#a0aec0,stroke-width:2px,rx:3,color:#fff
-    classDef api fill:#3182ce,stroke:#90cdf4,stroke-width:2px,rx:3,color:#fff
-    classDef core fill:#319795,stroke:#81e6d9,stroke-width:2px,rx:3,color:#fff
-    classDef resource fill:#2f855a,stroke:#9ae6b4,stroke-width:2px,rx:3,color:#fff
-    classDef tool fill:#805ad5,stroke:#d6bcfa,stroke-width:2px,rx:3,color:#fff
-
-    class API,Core,Resources,Tools layer
-    class MCP,Val api
-    class GitService,ErrorService core
-    class Repo,Diff,File,History resource
-    class RepoTools,BranchTools,WorkdirTools,RemoteTools,AdvancedTools tool
+    class API,Core,Implementation layer
+    class MCP,Val,San,Config,Logger,Error,Server,Tool,Util component
 ```
 
-</details>
+Implemented as an MCP server, it allows LLM agents and other compatible clients to interact with local Git repositories using standardized commands.
 
-Core Components:
+> **Developer Note**: This repository includes a [.clinerules](.clinerules) file that serves as a developer cheat sheet for your LLM coding agent with quick reference for the codebase patterns, file locations, and code snippets.
 
-- **MCP Server (`server.ts`)**: Uses the `@modelcontextprotocol/sdk` to create a server exposing resources and tools.
-- **Git Service (`services/git-service.ts`)**: Abstraction layer over the `simple-git` library providing clean interfaces for Git operations.
-- **Resources (`resources/`)**: Expose Git data (like status, logs, file content) through MCP resources with consistent URI templates.
-- **Tools (`tools/`)**: Expose Git actions (like commit, push, pull) through MCP tools with well-defined input schemas (validated using Zod).
-- **Error Handling (`services/error-service.ts`)**: Standardized error handling and reporting for Git and MCP operations.
-- **Entry Point (`index.ts`)**: Initializes and starts the server, connecting it to the standard I/O transport.
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Project Structure](#project-structure)
+- [Tools](#tools)
+- [Resources](#resources)
+- [Development](#development)
+- [License](#license)
+
+## Overview
+
+The Git MCP Server implements the Model Context Protocol (MCP), enabling standardized communication between LLMs and external systems through:
+
+- **Clients**: Claude Desktop, IDEs, and other MCP-compatible clients.
+- **Servers**: This server provides tools for Git operations.
+- **LLM Agents**: AI models that leverage the server's Git capabilities.
+
+This server enables AI assistants and other MCP clients to interact with local Git repositories. It exposes specific Git commands as MCP tools, allowing for programmatic control over repository status checking, branching, staging, committing, fetching, pulling, pushing, and more.
 
 ## Features
 
-### Resource Access
+### Core Utilities (from Template)
 
-Expose Git repository information through MCP resources:
+Leverages the robust utilities provided by the `mcp-ts-template`:
 
-- **Repository Information**: Access basic Git repository information including current branch, status, and reference details
-- **Repository Branches**: List all branches in the repository with current branch indicator
-- **Repository Remotes**: List all configured remote repositories with their URLs
-- **Repository Tags**: List all tags in the repository with their references
-- **File Content**: Access content of specific files at a given Git reference
-- **Directory Listing**: View lists of files and directories at a specific path and reference
-- **Diffs**: Get differences between references, unstaged changes, or staged changes
-- **Commit History**: View detailed commit logs with author, date, and message information
-- **File Blame**: See line-by-line attribution showing which commit last modified each line
-- **Commit Details**: Access detailed information about specific commits including diff changes
+- **Logging**: Structured, configurable logging (file rotation, console, MCP notifications) with sensitive data redaction.
+- **Error Handling**: Centralized error processing, standardized error types (`McpError`), and automatic logging.
+- **Configuration**: Environment variable loading (`dotenv`).
+- **Input Validation/Sanitization**: Uses `zod` for schema validation and custom sanitization logic (crucial for paths).
+- **Request Context**: Tracking and correlation of operations via unique request IDs.
+- **Type Safety**: Strong typing enforced by TypeScript and Zod schemas.
+- **HTTP Transport Option**: Built-in Express server with SSE, session management, and CORS support.
 
 ### Git Operations
 
-Execute Git commands through MCP tools:
-
-- **Repository Operations**: Initialize repositories, clone from remotes, check repository status
-- **Branch Operations**: Create branches, list branches, checkout, delete branches, merge
-- **Working Directory Operations**: Stage files, unstage files, commit changes, create diffs
-- **Remote Operations**: Add remotes, list remotes, fetch, pull, push
-- **Advanced Operations**: Manage tags, stash changes, cherry-pick commits, rebase branches, reset, clean
+- **Comprehensive Command Coverage**: Exposes a wide range of Git commands as MCP tools (see [Tools](#tools) section).
+- **Repository Interaction**: Supports status checking, branching, staging, committing, fetching, pulling, pushing, diffing, logging, resetting, tagging, and more.
+- **Working Directory Management**: Allows setting and clearing a session-specific working directory for context persistence across multiple Git operations.
+- **Safety Features**: Includes checks and requires explicit confirmation for potentially destructive operations like `git clean` and `git reset --hard`.
 
 ## Installation
 
 ### Prerequisites
 
-- Node.js 16 or higher
-- Git installed and available in the PATH
-
-### Install from NPM
-
-```bash
-npm install -g @cyanheads/git-mcp-server
-```
+- [Node.js (v18+)](https://nodejs.org/)
+- [npm](https://www.npmjs.com/) (comes with Node.js)
+- [Git](https://git-scm.com/) installed and accessible in the system PATH.
 
 ### Install from Source
 
-```bash
-git clone https://github.com/cyanheads/git-mcp-server.git
-cd git-mcp-server
-npm install
-npm run build
-```
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/cyanheads/git-mcp-server.git
+    cd git-mcp-server
+    ```
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Build the project:
+    ```bash
+    npm run build
+    ```
+    This compiles the TypeScript code to JavaScript in the `build/` directory and makes the entry point executable.
 
-## Usage
+## Configuration
 
-### Running the Server
+### Environment Variables
 
-If installed globally via NPM:
+Configure the server using environment variables. Create a `.env` file in the project root (copy from `.env.example`) or set them in your environment.
 
-```bash
-git-mcp-server
-```
+| Variable               | Description                                                                              | Default             |
+| ---------------------- | ---------------------------------------------------------------------------------------- | ------------------- |
+| `MCP_TRANSPORT_TYPE`   | Transport mechanism: `stdio` or `http`.                                                  | `stdio`             |
+| `MCP_HTTP_PORT`        | Port for the HTTP server (if `MCP_TRANSPORT_TYPE=http`). Retries next ports if busy.     | `3000`              |
+| `MCP_HTTP_HOST`        | Host address for the HTTP server (if `MCP_TRANSPORT_TYPE=http`).                         | `127.0.0.1`         |
+| `MCP_ALLOWED_ORIGINS`  | Comma-separated list of allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).         | (none)              |
+| `MCP_SERVER_NAME`      | Name reported during MCP initialization.                                                 | `git-mcp-server`    |
+| `MCP_SERVER_VERSION`   | Version reported during MCP initialization.                                              | (from package.json) |
+| `LOG_LEVEL`            | Logging level (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`). | `info`              |
+| `LOG_REDACT_PATTERNS`  | Comma-separated regex patterns for redacting sensitive data in logs.                     | (predefined)        |
+| `LOG_FILE_PATH`        | Path for log file output. If unset, logs only to console.                                | (none)              |
+| `LOG_MAX_FILE_SIZE_MB` | Max size (MB) for log file rotation.                                                     | `10`                |
+| `LOG_MAX_FILES`        | Max number of rotated log files to keep.                                                 | `5`                 |
+| `LOG_ZIP_ARCHIVES`     | Compress rotated log files (`true`/`false`).                                             | `true`              |
 
-If running from source:
+### MCP Client Settings
 
-```bash
-node build/index.js
-```
-
-The server communicates through stdin/stdout using the Model Context Protocol, making it compatible with any MCP client.
-
-### Integration with Claude
-
-Add to your Claude configuration file (e.g., `cline_mcp_settings.json` or `claude_desktop_config.json`):
+Add to your MCP client settings (e.g., `cline_mcp_settings.json`):
 
 ```json
 {
   "mcpServers": {
     "git": {
-      "command": "git-mcp-server", // Or the full path to build/index.js if not installed globally
-      "args": [],
-      "env": {},
+      "command": "node", // Use node to run the script
+      "args": ["/path/to/your/git-mcp-server/build/index.js"], // Absolute path to the built entry point
+      "env": {
+        // "MCP_TRANSPORT_TYPE": "http", // Optional: if using http
+        // "MCP_HTTP_PORT": "3001"      // Optional: if using http and non-default port
+      },
       "disabled": false,
       "autoApprove": [] // Configure auto-approval rules if desired
     }
@@ -212,172 +168,97 @@ Add to your Claude configuration file (e.g., `cline_mcp_settings.json` or `claud
 }
 ```
 
-### Integration with Other MCP Clients
-
-Use the MCP inspector to test the server:
-
-```bash
-# If installed globally
-npx @modelcontextprotocol/inspector git-mcp-server
-
-# If running from source
-npx @modelcontextprotocol/inspector build/index.js
-```
-
 ## Project Structure
 
-The codebase follows a modular structure:
+The codebase follows a modular structure within the `src/` directory:
 
 ```
-git-mcp-server/
-├── src/
-│   ├── index.ts           # Entry point: Initializes and starts the server
-│   ├── server.ts          # Core MCP server implementation and setup
-│   ├── resources/         # MCP Resource implementations
-│   │   ├── descriptors.ts # Resource URI templates and descriptions
-│   │   ├── diff.ts        # Diff-related resources (staged, unstaged, commit)
-│   │   ├── file.ts        # File content and directory listing resources
-│   │   ├── history.ts     # Commit history and blame resources
-│   │   ├── index.ts       # Aggregates and registers all resources
-│   │   └── repository.ts  # Repository info, branches, remotes, tags resources
-│   ├── services/          # Core logic and external integrations
-│   │   ├── error-service.ts # Centralized error handling utilities
-│   │   └── git-service.ts   # Abstraction layer for simple-git operations
-│   ├── tools/             # MCP Tool implementations
-│   │   ├── advanced.ts    # Advanced Git tools (tag, stash, cherry-pick, rebase, log, show)
-│   │   ├── branch.ts      # Branch management tools (list, create, checkout, delete, merge)
-│   │   ├── index.ts       # Aggregates and registers all tools
-│   │   ├── remote.ts      # Remote interaction tools (add, list, fetch, pull, push)
-│   │   ├── repository.ts  # Repository level tools (init, clone, status)
-│   │   └── workdir.ts     # Working directory tools (add, reset, commit, diff, reset-commit, clean)
-│   ├── types/             # TypeScript type definitions
-│   │   └── git.ts         # Custom types related to Git operations
-│   └── utils/             # Shared utility functions
-│       ├── global-settings.ts # Manages global working directory setting
-│       └── validation.ts  # Input validation schemas (Zod) and helpers
-├── build/                 # Compiled JavaScript output
-├── docs/                  # Documentation files
-├── logs/                  # Log files (if any)
-├── scripts/               # Helper scripts for development (e.g., clean, tree)
-├── .env.example           # Example environment variables
-├── .gitignore             # Git ignore rules
-├── LICENSE                # Project license file
-├── package.json           # Project metadata and dependencies
-├── package-lock.json      # Lockfile for dependencies
-├── README.md              # This file
-└── tsconfig.json          # TypeScript compiler configuration
+src/
+├── index.ts           # Entry point: Initializes and starts the server
+├── config/            # Configuration loading (env vars, package info)
+│   └── index.ts
+├── mcp-server/        # Core MCP server logic and capability registration
+│   ├── server.ts      # Server setup, transport handling, tool registration
+│   ├── resources/     # MCP Resource implementations (currently none)
+│   └── tools/         # MCP Tool implementations (subdirs per tool)
+├── types-global/      # Shared TypeScript type definitions
+└── utils/             # Common utility functions (logger, error handler, etc.)
 ```
+
+For a detailed file tree, run `npm run tree` or see [docs/tree.md](docs/tree.md).
 
 ## Tools
 
-Git MCP Server provides a comprehensive suite of tools for Git operations:
+The Git MCP Server provides a suite of tools for interacting with Git repositories, callable via the Model Context Protocol.
 
-### Repository Operations
+| Tool Name               | Description                                                                                              | Key Arguments                                                                                                   |
+| :---------------------- | :------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| `git_add`               | Stages specified files or patterns.                                                                      | `path?`, `files?`                                                                                               |
+| `git_branch`            | Manages branches (list, create, delete, rename, show current).                                           | `path?`, `mode`, `branchName?`, `newBranchName?`, `startPoint?`, `force?`, `all?`, `remote?`                    |
+| `git_checkout`          | Switches branches or restores working tree files.                                                        | `path?`, `branchOrPath`, `newBranch?`, `force?`                                                                 |
+| `git_cherry_pick`       | Applies changes introduced by existing commits.                                                          | `path?`, `commitRef`, `mainline?`, `strategy?`, `noCommit?`, `signoff?`                                         |
+| `git_clean`             | Removes untracked files. **Requires `force: true`**.                                                     | `path?`, `force`, `dryRun?`, `directories?`, `ignored?`                                                         |
+| `git_clear_working_dir` | Clears the session-specific working directory.                                                           | (none)                                                                                                          |
+| `git_clone`             | Clones a repository into a specified absolute path.                                                      | `repositoryUrl`, `targetPath`, `branch?`, `depth?`, `quiet?`                                                    |
+| `git_commit`            | Commits staged changes with a message.                                                                   | `path?`, `message`, `author?`, `allowEmpty?`, `amend?`                                                          |
+| `git_diff`              | Shows changes between commits, working tree, etc.                                                        | `path?`, `commit1?`, `commit2?`, `staged?`, `file?`                                                             |
+| `git_fetch`             | Downloads objects and refs from other repositories.                                                      | `path?`, `remote?`, `prune?`, `tags?`, `all?`                                                                   |
+| `git_init`              | Initializes a new Git repository at the specified absolute path.                                         | `path`, `initialBranch?`, `bare?`, `quiet?`                                                                     |
+| `git_log`               | Shows commit logs.                                                                                       | `path?`, `maxCount?`, `author?`, `since?`, `until?`, `branchOrFile?`                                            |
+| `git_merge`             | Merges the specified branch into the current branch.                                                     | `path?`, `branch`, `commitMessage?`, `noFf?`, `squash?`, `abort?`                                               |
+| `git_pull`              | Fetches from and integrates with another repository or local branch.                                     | `path?`, `remote?`, `branch?`, `rebase?`, `ffOnly?`                                                             |
+| `git_push`              | Updates remote refs using local refs.                                                                    | `path?`, `remote?`, `branch?`, `remoteBranch?`, `force?`, `forceWithLease?`, `setUpstream?`, `tags?`, `delete?` |
+| `git_rebase`            | Reapplies commits on top of another base tip.                                                            | `path?`, `mode?`, `upstream?`, `branch?`, `interactive?`, `strategy?`, `strategyOption?`, `onto?`               |
+| `git_remote`            | Manages remote repositories (list, add, remove, show).                                                   | `path?`, `mode`, `name?`, `url?`                                                                                |
+| `git_reset`             | Resets current HEAD to a specified state. Supports soft, mixed, hard modes. **USE 'hard' WITH CAUTION**. | `path?`, `mode?`, `commit?`                                                                                     |
+| `git_set_working_dir`   | Sets the default working directory for the current session. Requires absolute path.                      | `path`, `validateGitRepo?`                                                                                      |
+| `git_show`              | Shows information about Git objects (commits, tags, etc.).                                               | `path?`, `ref`, `filePath?`                                                                                     |
+| `git_stash`             | Manages stashed changes (list, apply, pop, drop, save).                                                  | `path?`, `mode`, `stashRef?`, `message?`                                                                        |
+| `git_status`            | Gets repository status (branch, staged, modified, untracked files).                                      | `path?`                                                                                                         |
+| `git_tag`               | Manages tags (list, create annotated/lightweight, delete).                                               | `path?`, `mode`, `tagName?`, `message?`, `commitRef?`, `annotate?`                                              |
 
-| Tool         | Description                                                                                      |
-| ------------ | ------------------------------------------------------------------------------------------------ |
-| `git_init`   | Initialize a new Git repository at the specified path with options for bare repositories.        |
-| `git_clone`  | Clone a Git repository from a remote URL to a local path with branch and depth options.          |
-| `git_status` | Get the current status of a Git repository including working directory and staging area changes. |
-
-### Branch Operations
-
-| Tool                | Description                                                                                    |
-| ------------------- | ---------------------------------------------------------------------------------------------- |
-| `git_branch_list`   | List all branches in a repository with options to include remote branches.                     |
-| `git_branch_create` | Create a new branch with options for specifying the starting point and automatic checkout.     |
-| `git_checkout`      | Checkout a branch, tag, or commit with options to create a new branch during checkout.         |
-| `git_branch_delete` | Delete a branch with options for force deletion of unmerged branches.                          |
-| `git_merge`         | Merge a branch into the current branch with customizable commit messages and merge strategies. |
-
-### Working Directory Operations
-
-| Tool                | Description                                                                                     |
-| ------------------- | ----------------------------------------------------------------------------------------------- |
-| `git_add`           | Stage files for commit with support for individual files or entire directories.                 |
-| `git_reset`         | Unstage files from the staging area with options for specific files or all staged changes.      |
-| `git_commit`        | Commit staged changes with customizable commit messages, author information, and amend options. |
-| `git_diff_unstaged` | Get a diff of all unstaged changes in the working directory with options for specific files.    |
-| `git_diff_staged`   | Get a diff of all staged changes in the index with options for specific files.                  |
-| `git_reset_commit`  | Reset the repository to a specific reference with options for hard, soft, or mixed mode.        |
-| `git_clean`         | Remove untracked files from the working tree with options for directories and force cleaning.   |
-
-### Remote Operations
-
-| Tool              | Description                                                                                  |
-| ----------------- | -------------------------------------------------------------------------------------------- |
-| `git_remote_add`  | Add a new remote repository with a name and URL.                                             |
-| `git_remote_list` | List all configured remote repositories and their URLs.                                      |
-| `git_fetch`       | Fetch updates from a remote repository with options for specific branches.                   |
-| `git_pull`        | Pull changes from a remote repository with options for rebase strategy.                      |
-| `git_push`        | Push local changes to a remote repository with options for force push and upstream tracking. |
-
-### Advanced Operations
-
-| Tool               | Description                                                                               |
-| ------------------ | ----------------------------------------------------------------------------------------- |
-| `git_tag_create`   | Create a new tag with options for annotated tags with messages.                           |
-| `git_tag_list`     | List all tags in the repository with their references.                                    |
-| `git_stash_create` | Stash changes in the working directory with options for untracked files and descriptions. |
-| `git_stash_list`   | List all stashes in the repository with their descriptions.                               |
-| `git_stash_apply`  | Apply a stashed change without removing it from the stash list.                           |
-| `git_stash_pop`    | Apply a stashed change and remove it from the stash list.                                 |
-| `git_cherry_pick`  | Apply changes from specific commits to the current branch.                                |
-| `git_rebase`       | Rebase the current branch onto another branch with interactive mode options.              |
-| `git_log`          | Get commit history with customizable output format and depth.                             |
-| `git_show`         | Show detailed information about a specific commit including diff changes.                 |
+_Note: The `path` parameter for most tools defaults to the session's working directory if set via `git_set_working_dir`, otherwise it defaults to the server's CWD._
 
 ## Resources
 
-Git MCP Server exposes Git data through standard MCP resources:
+**MCP Resources are not implemented in this version (v2.0.0).**
 
-### Repository Resources
+This version focuses on the refactored Git tools implementation based on the latest `mcp-ts-template` and MCP SDK v1.10.2. Resource capabilities, previously available, have been temporarily removed during this major update.
 
-| Resource                                                    | Description                                                                              |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `git://repo/{repoPath}/info`                                | Basic Git repository information including current branch, status, and reference details |
-| `git://repo/{repoPath}/branches`                            | List of all branches in the repository with current branch indicator                     |
-| `git://repo/{repoPath}/remotes`                             | List of all configured remote repositories with their URLs                               |
-| `git://repo/{repoPath}/tags`                                | List of all tags in the repository with their references                                 |
-| `git://repo/{repoPath}/file/{filePath}?ref={ref}`           | Returns the content of a specific file at a given Git reference                          |
-| `git://repo/{repoPath}/ls/{dirPath}?ref={ref}`              | Returns a list of files and directories at a specific path and reference                 |
-| `git://repo/{repoPath}/diff/{fromRef}/{toRef}?path={path}`  | Returns a diff between two Git references (commits, branches, tags)                      |
-| `git://repo/{repoPath}/diff-unstaged?path={path}`           | Returns a diff of all unstaged changes in the working directory                          |
-| `git://repo/{repoPath}/diff-staged?path={path}`             | Returns a diff of all staged changes in the index                                        |
-| `git://repo/{repoPath}/log?maxCount={maxCount}&file={file}` | Returns the commit history log with author, date, and message details                    |
-| `git://repo/{repoPath}/blame/{filePath}`                    | Returns line-by-line attribution showing which commit last modified each line            |
-| `git://repo/{repoPath}/commit/{commitHash}`                 | Returns detailed information about a specific commit including diff changes              |
+If you require MCP Resource access (e.g., for reading file content directly via the server), please use the stable **[v1.2.4 release](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4)**.
+
+Future development may reintroduce resource capabilities in a subsequent release.
 
 ## Development
 
 ### Build and Test
 
 ```bash
-# Build the project
+# Build the project (compile TS to JS in build/ and make executable)
 npm run build
 
-# Watch for changes and rebuild automatically
+# Watch for changes and recompile automatically
 npm run watch
 
-# Test the server locally using the MCP inspector tool
+# Test the server locally using the MCP inspector tool (stdio transport)
 npm run inspector
 
-# Clean build artifacts
+# Clean build artifacts (runs scripts/clean.ts)
 npm run clean
 
-# Generate a file tree representation for documentation
+# Generate a file tree representation for documentation (runs scripts/tree.ts)
 npm run tree
 
-# Clean and rebuild the project completely
+# Clean build artifacts and then rebuild the project
 npm run rebuild
 ```
 
 ## License
 
-Apache License 2.0 - See [LICENSE](LICENSE) for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ---
 
 <div align="center">
-Built with the Model Context Protocol
+Built with the <a href="https://modelcontextprotocol.io/">Model Context Protocol</a>
 </div>
