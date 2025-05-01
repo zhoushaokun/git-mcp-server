@@ -1,7 +1,9 @@
 import { z } from 'zod';
-import { RequestContext } from '../../../utils/requestContext.js';
-import { logger } from '../../../utils/logger.js';
-import { McpError, BaseErrorCode } from '../../../types-global/errors.js';
+// Import utils from barrel (RequestContext from ../utils/internal/requestContext.js)
+import { RequestContext } from '../../../utils/index.js';
+// Import utils from barrel (logger from ../utils/internal/logger.js)
+import { BaseErrorCode, McpError } from '../../../types-global/errors.js'; // Keep direct import for types-global
+import { logger } from '../../../utils/index.js';
 
 // Define the Zod schema for input validation (no arguments needed)
 export const GitClearWorkingDirInputSchema = z.object({});

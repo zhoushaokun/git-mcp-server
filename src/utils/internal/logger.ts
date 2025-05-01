@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import winston from 'winston';
 import TransportStream from 'winston-transport';
-import { config } from '../config/index.js'; // Import config for logger name
+// Removed config import to break circular dependency
 
 /**
  * Supported logging levels based on RFC 5424 Syslog severity levels used by MCP.
@@ -224,7 +224,8 @@ class Logger {
             }
         }
         try {
-             this.mcpNotificationSender(level, mcpDataPayload, config.mcpServerName);
+             // Use a placeholder or omit server name if config is not available here
+             this.mcpNotificationSender(level, mcpDataPayload /*, config.mcpServerName */);
         } catch (sendError) {
             // Log failure to send MCP notification to file log
             this.winstonLogger!.error("Failed to send MCP log notification", {
@@ -312,7 +313,5 @@ class Logger {
 // Export singleton instance
 export const logger = Logger.getInstance();
 
-// Initialize logger on import (can be configured later via setLevel/setMcpNotificationSender)
-// Read initial level from env var or default to 'info'
-const initialLogLevel = (process.env.MCP_LOG_LEVEL as McpLogLevel) || 'info';
-logger.initialize(initialLogLevel);
+// DO NOT initialize logger on import anymore. Initialization must be done explicitly
+// by the application entry point (e.g., src/index.ts) after config is loaded.

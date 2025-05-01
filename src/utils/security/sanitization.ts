@@ -1,8 +1,8 @@
 import path from 'path';
 import sanitizeHtml from 'sanitize-html';
 import validator from 'validator';
-import { BaseErrorCode, McpError } from '../types-global/errors.js';
-import { logger } from './logger.js';
+import { BaseErrorCode, McpError } from '../../types-global/errors.js'; // Direct import for types-global
+import { logger } from '../index.js'; // logger (./utils/internal/logger.js)
 
 /**
  * Options for path sanitization

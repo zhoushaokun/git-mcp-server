@@ -1,10 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolResult, TextContent } from '@modelcontextprotocol/sdk/types.js';
-import { ErrorHandler } from '../../../utils/errorHandler.js';
-import { logger } from '../../../utils/logger.js';
-import { requestContextService } from '../../../utils/requestContext.js';
+// Import utils from barrel (ErrorHandler from ../utils/internal/errorHandler.js)
+import { ErrorHandler } from '../../../utils/index.js';
+// Import utils from barrel (logger from ../utils/internal/logger.js)
+import { logger } from '../../../utils/index.js';
+// Import utils from barrel (requestContextService from ../utils/internal/requestContext.js)
+import { requestContextService } from '../../../utils/index.js';
 import { GitCloneInputSchema, gitCloneLogic, GitCloneInput, GitCloneResult } from './logic.js';
-import { BaseErrorCode } from '../../../types-global/errors.js';
+import { BaseErrorCode } from '../../../types-global/errors.js'; // Keep direct import for types-global
 
 const TOOL_NAME = 'git_clone';
 const TOOL_DESCRIPTION = 'Clones a Git repository from a given URL into a specified absolute directory path. Supports cloning specific branches and setting clone depth.';

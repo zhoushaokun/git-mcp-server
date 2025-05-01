@@ -1,16 +1,30 @@
 #!/usr/bin/env node
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'; // Import McpServer type
-import { config, environment } from "./config/index.js";
-import { initializeAndStartServer } from "./mcp-server/server.js"; // Updated import
-import { logger } from "./utils/logger.js";
-// Import the service instance instead of the standalone function
-import { requestContextService } from "./utils/requestContext.js";
+console.log(">>> index.ts: Top of file"); // DEBUG LOG 1
+
+import http from 'http'; // Import http module
+console.log(">>> index.ts: Imported http"); // DEBUG LOG 2
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+console.log(">>> index.ts: Imported McpServer"); // DEBUG LOG 3
+import { config, environment, logLevel } from "./config/index.js"; // Import logLevel from config
+console.log(">>> index.ts: Imported config, environment, logLevel"); // DEBUG LOG 4
+import { initializeAndStartServer } from "./mcp-server/server.js";
+console.log(">>> index.ts: Imported initializeAndStartServer"); // DEBUG LOG 5
+// Import utils from barrel
+import { logger, McpLogLevel } from './utils/index.js'; // Import McpLogLevel type
+// Import utils from barrel
+import { requestContextService } from './utils/index.js';
 
 /**
- * The main MCP server instance.
+ * The main MCP server instance (used for stdio transport).
  * @type {McpServer | undefined}
  */
-let server: McpServer | undefined;
+let mcpServerInstance: McpServer | undefined;
+
+/**
+ * The main HTTP server instance (used for http transport).
+ * @type {http.Server | undefined}
+ */
+let httpServerInstance: http.Server | undefined;
 
 /**
  * Gracefully shuts down the main MCP server.
@@ -19,23 +33,50 @@ let server: McpServer | undefined;
  * @param signal - The signal or event name that triggered the shutdown (e.g., "SIGTERM", "uncaughtException").
  */
 const shutdown = async (signal: string) => {
-  // Define context for the shutdown operation
+  const transportType = (process.env.MCP_TRANSPORT_TYPE || 'stdio').toLowerCase();
   const shutdownContext = {
     operation: 'Shutdown',
     signal,
+    transport: transportType,
   };
 
   logger.info(`Received ${signal}. Starting graceful shutdown...`, shutdownContext);
 
   try {
-    // Close the main MCP server
-    if (server) {
-      logger.info("Closing main MCP server...", shutdownContext);
-      await server.close();
-      logger.info("Main MCP server closed successfully", shutdownContext);
-    } else {
-      logger.warning("Server instance not found during shutdown.", shutdownContext);
+    let closePromise: Promise<void> = Promise.resolve();
+
+    if (transportType === 'stdio') {
+      // Close the main MCP server instance for stdio
+      if (mcpServerInstance) {
+        logger.info("Closing main MCP server (stdio)...", shutdownContext);
+        closePromise = mcpServerInstance.close();
+      } else {
+        logger.warning("Stdio MCP server instance not found during shutdown.", shutdownContext);
+      }
+    } else if (transportType === 'http') {
+      // Close the main HTTP server listener for http
+      if (httpServerInstance) {
+        logger.info("Closing main HTTP server listener...", shutdownContext);
+        closePromise = new Promise((resolve, reject) => {
+          httpServerInstance!.close((err) => {
+            if (err) {
+              logger.error("Error closing HTTP server listener", { ...shutdownContext, error: err.message });
+              reject(err);
+            } else {
+              logger.info("Main HTTP server listener closed successfully", shutdownContext);
+              resolve();
+            }
+          });
+        });
+      } else {
+        logger.warning("HTTP server instance not found during shutdown.", shutdownContext);
+      }
+      // Note: Individual session transports (StreamableHTTPServerTransport) are closed
+      // when the client disconnects or sends a DELETE request, managed in httpTransport.ts.
     }
+
+    // Wait for the appropriate server/listener to close
+    await closePromise;
 
     logger.info("Graceful shutdown completed successfully", shutdownContext);
     process.exit(0);
@@ -56,7 +97,25 @@ const shutdown = async (signal: string) => {
  * and registers signal handlers for graceful shutdown and error handling.
  */
 const start = async () => {
-  // Create application-level request context using the service instance
+  console.log(">>> index.ts: Entering start() function"); // DEBUG LOG 6
+  // --- Initialize Logger FIRST ---
+  console.log(">>> index.ts: Preparing to initialize logger"); // DEBUG LOG 7
+  // Define valid MCP log levels based on the logger's type definition
+  const validMcpLogLevels: McpLogLevel[] = ['debug', 'info', 'notice', 'warning', 'error', 'crit', 'alert', 'emerg'];
+  let validatedMcpLogLevel: McpLogLevel = 'info'; // Default to 'info'
+  if (validMcpLogLevels.includes(logLevel as McpLogLevel)) {
+    validatedMcpLogLevel = logLevel as McpLogLevel;
+  } else {
+    // Use console.warn as logger isn't ready yet
+    console.warn(`Invalid MCP_LOG_LEVEL "${logLevel}" found in config. Defaulting to "info".`);
+  }
+  // Initialize the logger singleton instance with the validated level.
+  logger.initialize(validatedMcpLogLevel);
+  console.log(">>> index.ts: logger.initialize() called"); // DEBUG LOG 8
+  // Now it's safe to use the logger.
+
+  // --- Start Application ---
+  console.log(">>> index.ts: Preparing to start application logic"); // DEBUG LOG 9
   const transportType = (process.env.MCP_TRANSPORT_TYPE || 'stdio').toLowerCase();
   const startupContext = requestContextService.createRequestContext({
     operation: `ServerStartup_${transportType}`, // Include transport in operation name
@@ -71,23 +130,25 @@ const start = async () => {
     // Initialize the server instance and start the selected transport
     logger.debug("Initializing and starting MCP server transport", startupContext);
 
-    // Start the server transport. For stdio, this returns the server instance.
-    // For http, it sets up the listener and returns void (or potentially the http.Server).
-    // We only need to store the instance for stdio shutdown.
-    const potentialServerInstance = await initializeAndStartServer();
-    if (transportType === 'stdio' && potentialServerInstance instanceof McpServer) {
-        server = potentialServerInstance; // Store only for stdio
+    // Start the server transport. This returns the McpServer instance for stdio
+    // or the http.Server instance for http.
+    const serverOrHttpInstance = await initializeAndStartServer();
+
+    if (transportType === 'stdio' && serverOrHttpInstance instanceof McpServer) {
+        mcpServerInstance = serverOrHttpInstance; // Store McpServer for stdio shutdown
+        logger.debug("Stored McpServer instance for stdio transport.", startupContext);
+    } else if (transportType === 'http' && serverOrHttpInstance instanceof http.Server) {
+        httpServerInstance = serverOrHttpInstance; // Store http.Server for http shutdown
+        logger.debug("Stored http.Server instance for http transport.", startupContext);
     } else {
-        // For HTTP, server instances are managed per-session in server.ts
-        // The main http server listener keeps the process alive.
-        // Shutdown for HTTP needs to handle closing the main http server.
-        // We might need to return the httpServer from initializeAndStartServer if
-        // we want to close it explicitly here during shutdown.
-        // For now, we don't store anything globally for HTTP transport.
+        // This case should ideally not happen if initializeAndStartServer works correctly
+        logger.warning("initializeAndStartServer did not return the expected instance type.", {
+            ...startupContext,
+            instanceType: typeof serverOrHttpInstance
+        });
     }
 
-
-    // If initializeAndStartServer failed, it would have thrown an error,
+    // If initializeAndStartServer failed internally, it would have thrown an error,
     // and execution would jump to the outer catch block.
 
     logger.info(`${config.mcpServerName} is running with ${transportType} transport`, {

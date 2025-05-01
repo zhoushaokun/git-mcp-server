@@ -1,11 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolResult, TextContent } from '@modelcontextprotocol/sdk/types.js';
-import { logger } from '../../../utils/logger.js';
-import { ErrorHandler } from '../../../utils/errorHandler.js';
-import { requestContextService } from '../../../utils/requestContext.js';
+import { BaseErrorCode } from '../../../types-global/errors.js'; // Direct import for types-global
+import { ErrorHandler, logger, requestContextService } from '../../../utils/index.js'; // logger (./utils/internal/logger.js), ErrorHandler (./utils/internal/errorHandler.js), requestContextService (./utils/internal/requestContext.js)
 // Import the result type along with the function and input schema
-import { getGitStatus, GitStatusInputSchema, GitStatusInput, GitStatusResult } from './logic.js';
-import { McpError, BaseErrorCode } from '../../../types-global/errors.js'; // Import BaseErrorCode
+import { getGitStatus, GitStatusInput, GitStatusInputSchema, GitStatusResult } from './logic.js';
 
 // --- State Accessors ---
 /** Type definition for the function that gets the working directory for a session */

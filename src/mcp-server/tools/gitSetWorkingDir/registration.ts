@@ -1,11 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolResult, TextContent } from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod';
-import { ErrorHandler } from '../../../utils/errorHandler.js';
-import { logger } from '../../../utils/logger.js';
-import { requestContextService, RequestContext } from '../../../utils/requestContext.js';
-import { GitSetWorkingDirInputSchema, gitSetWorkingDirLogic, GitSetWorkingDirInput } from './logic.js';
-import { BaseErrorCode, McpError } from '../../../types-global/errors.js';
+import { BaseErrorCode } from '../../../types-global/errors.js'; // Direct import for types-global
+import { ErrorHandler, logger, requestContextService } from '../../../utils/index.js'; // ErrorHandler (./utils/internal/errorHandler.js), logger (./utils/internal/logger.js), requestContextService & RequestContext (./utils/internal/requestContext.js)
+import { GitSetWorkingDirInput, GitSetWorkingDirInputSchema, gitSetWorkingDirLogic } from './logic.js';
 
 // --- State Accessors ---
 // These functions need to be provided by the server setup layer (server.ts)

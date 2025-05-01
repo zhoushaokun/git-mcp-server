@@ -1,6 +1,5 @@
-import { BaseErrorCode, McpError } from '../types-global/errors.js';
-import { logger } from './logger.js';
-import { sanitizeInputForLogging } from './sanitization.js'; // Updated import
+import { BaseErrorCode, McpError } from '../../types-global/errors.js'; // Direct import for types-global
+import { logger, sanitizeInputForLogging } from '../index.js'; // Logger (./internal/logger.js) & sanitizeInputForLogging (./security/sanitization.js)
 
 /**
  * Generic error context interface
@@ -150,6 +149,27 @@ export class ErrorHandler {
     if (error instanceof McpError) {
       return error.code;
     }
+    // Check if it's a standard Error to safely access properties
+    if (error instanceof Error) {
+      const errorName = error.name || 'Error';
+      const errorMessage = error.message;
+
+      // Check if the error type has a direct mapping
+      if (errorName in ERROR_TYPE_MAPPINGS) {
+        return ERROR_TYPE_MAPPINGS[errorName as keyof typeof ERROR_TYPE_MAPPINGS];
+      }
+
+      // Check for common error patterns
+      for (const pattern of COMMON_ERROR_PATTERNS) {
+        const regex = pattern.pattern instanceof RegExp
+          ? pattern.pattern
+          : new RegExp(pattern.pattern, 'i');
+
+        if (regex.test(errorMessage) || regex.test(errorName)) {
+          return pattern.errorCode;
+        }
+      }
+    }
     
     const errorName = getErrorName(error);
     const errorMessage = getErrorMessage(error);
@@ -203,7 +223,7 @@ export class ErrorHandler {
         errorCode: error.code,
         requestId: context?.requestId,
         input: input ? sanitizeInputForLogging(input) : undefined,
-        stack: includeStack ? error.stack : undefined,
+        stack: includeStack ? error.stack : undefined, // McpError has stack
         critical,
         ...context
       });
@@ -220,11 +240,11 @@ export class ErrorHandler {
     
     // Log the error with consistent format
     logger.error(`Error ${operation}`, {
-      error: error instanceof Error ? error.message : String(error),
+      error: getErrorMessage(error), // Use helper function
       errorType: getErrorName(error),
       input: sanitizedInput,
       requestId: context?.requestId,
-      stack: includeStack && error instanceof Error ? error.stack : undefined,
+      stack: includeStack && error instanceof Error ? error.stack : undefined, // Only include stack if it's an Error
       critical,
       ...context
     });
@@ -239,9 +259,10 @@ export class ErrorHandler {
       ? options.errorMapper(error)
       : new McpError(
           errorCode,
-          `Error ${operation}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          `Error ${operation}: ${getErrorMessage(error)}`, // Use helper function
           {
             originalError: getErrorName(error),
+            ...(error instanceof McpError ? error.details : {}), // Preserve details if it was McpError
             ...context
           }
         );
@@ -309,7 +330,7 @@ export class ErrorHandler {
       return {
         code: error.code,
         message: error.message,
-        details: error.details || {}
+        details: error.details || {} // McpError has details
       };
     }
     
@@ -317,7 +338,7 @@ export class ErrorHandler {
       return {
         code: ErrorHandler.determineErrorCode(error),
         message: error.message,
-        details: { errorType: error.name }
+        details: { errorType: error.name } // Standard Error has name
       };
     }
     

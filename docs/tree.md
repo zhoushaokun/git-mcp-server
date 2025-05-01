@@ -1,12 +1,11 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-04-30 05:18:23
+Generated on: 2025-05-01 16:47:43
 
 
 ```
 git-mcp-server
 ├── docs
-    ├── new_git_tools_plan.md
     └── tree.md
 ├── logs
 ├── scripts

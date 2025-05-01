@@ -1,11 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolResult, TextContent } from '@modelcontextprotocol/sdk/types.js';
-import { ErrorHandler } from '../../../utils/errorHandler.js';
-import { logger } from '../../../utils/logger.js';
-import { requestContextService } from '../../../utils/requestContext.js';
+import { BaseErrorCode } from '../../../types-global/errors.js'; // Direct import for types-global
+import { ErrorHandler, logger, requestContextService } from '../../../utils/index.js'; // ErrorHandler (./utils/internal/errorHandler.js), logger (./utils/internal/logger.js), requestContextService (./utils/internal/requestContext.js)
 // Import the final schema and types for handler logic
 // Import the BASE schema separately for registration shape
-import { BaseErrorCode } from '../../../types-global/errors.js';
 import { GitTagBaseSchema, GitTagInput, gitTagLogic, GitTagResult } from './logic.js';
 
 // --- State Accessors ---

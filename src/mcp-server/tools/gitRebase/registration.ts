@@ -1,10 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolResult, TextContent } from '@modelcontextprotocol/sdk/types.js';
-import { logger } from '../../../utils/logger.js';
-import { ErrorHandler } from '../../../utils/errorHandler.js';
-import { requestContextService } from '../../../utils/requestContext.js';
-import { gitRebaseLogic, GitRebaseInputSchema, GitRebaseInput, GitRebaseResult, GitRebaseBaseSchema } from './logic.js';
-import { McpError, BaseErrorCode } from '../../../types-global/errors.js';
+// Import utils from barrel (logger from ../utils/internal/logger.js)
+import { logger } from '../../../utils/index.js';
+// Import utils from barrel (ErrorHandler from ../utils/internal/errorHandler.js)
+import { ErrorHandler } from '../../../utils/index.js';
+// Import utils from barrel (requestContextService from ../utils/internal/requestContext.js)
+import { BaseErrorCode } from '../../../types-global/errors.js'; // Keep direct import for types-global
+import { requestContextService } from '../../../utils/index.js';
+import { GitRebaseBaseSchema, GitRebaseInput, gitRebaseLogic, GitRebaseResult } from './logic.js';
 
 // --- State Accessors ---
 export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | undefined;

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OperationContext } from "../utils/requestContext.js"; // Updated import
+import { OperationContext } from '../utils/index.js'; // OperationContext (./utils/internal/requestContext.js)
 import { McpToolResult } from './mcp.js'; // Renamed McpToolResponse to McpToolResult
 
 /**

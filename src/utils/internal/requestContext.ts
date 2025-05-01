@@ -1,5 +1,4 @@
-import { logger } from './logger.js';
-import { generateUUID } from './idGenerator.js'; // Import generateUUID
+import { generateUUID, logger } from '../index.js'; // logger (./internal/logger.js), generateUUID (./security/idGenerator.js)
 // Removed incorrect import: import { RequestContext } from './rateLimiter.js';
 
 /**

@@ -1,10 +1,8 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { z } from 'zod';
-import { BaseErrorCode, McpError } from '../../../types-global/errors.js';
-import { logger } from '../../../utils/logger.js';
-import { RequestContext } from '../../../utils/requestContext.js';
-import { sanitization } from '../../../utils/sanitization.js';
+import { BaseErrorCode, McpError } from '../../../types-global/errors.js'; // Direct import for types-global
+import { logger, RequestContext, sanitization } from '../../../utils/index.js'; // Logger (./utils/internal/logger.js) & RequestContext (./utils/internal/requestContext.js) & sanitization (./utils/security/sanitization.js)
 
 const execAsync = promisify(exec);
 

@@ -1,10 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolResult, TextContent } from '@modelcontextprotocol/sdk/types.js';
-import { ErrorHandler } from '../../../utils/errorHandler.js';
-import { logger } from '../../../utils/logger.js';
-import { requestContextService } from '../../../utils/requestContext.js';
-import { GitInitInputSchema, gitInitLogic, GitInitInput, GitInitResult } from './logic.js';
-import { BaseErrorCode } from '../../../types-global/errors.js';
+// Import utils from barrel (ErrorHandler from ../utils/internal/errorHandler.js)
+import { ErrorHandler } from '../../../utils/index.js';
+// Import utils from barrel (logger from ../utils/internal/logger.js)
+import { logger } from '../../../utils/index.js';
+// Import utils from barrel (requestContextService from ../utils/internal/requestContext.js)
+import { BaseErrorCode } from '../../../types-global/errors.js'; // Keep direct import for types-global
+import { requestContextService } from '../../../utils/index.js';
+import { GitInitInput, GitInitInputSchema, gitInitLogic, GitInitResult } from './logic.js';
 
 const TOOL_NAME = 'git_init';
 const TOOL_DESCRIPTION = 'Initializes a new Git repository at the specified absolute path. Can optionally set the initial branch name and create a bare repository.';

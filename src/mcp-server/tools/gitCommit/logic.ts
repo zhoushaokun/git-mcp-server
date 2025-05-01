@@ -1,10 +1,13 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { z } from 'zod';
-import { BaseErrorCode, McpError } from '../../../types-global/errors.js';
-import { logger } from '../../../utils/logger.js';
-import { RequestContext } from '../../../utils/requestContext.js';
-import { sanitization } from '../../../utils/sanitization.js';
+import { BaseErrorCode, McpError } from '../../../types-global/errors.js'; // Keep direct import for types-global
+// Import utils from barrel (logger from ../utils/internal/logger.js)
+import { logger } from '../../../utils/index.js';
+// Import utils from barrel (RequestContext from ../utils/internal/requestContext.js)
+import { RequestContext } from '../../../utils/index.js';
+// Import utils from barrel (sanitization from ../utils/security/sanitization.js)
+import { sanitization } from '../../../utils/index.js';
 
 const execAsync = promisify(exec);
 

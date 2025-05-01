@@ -1,10 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolResult, TextContent } from '@modelcontextprotocol/sdk/types.js';
-import { ErrorHandler } from '../../../utils/errorHandler.js';
-import { logger } from '../../../utils/logger.js';
-import { requestContextService } from '../../../utils/requestContext.js';
+// Import utils from barrel (ErrorHandler from ../utils/internal/errorHandler.js)
+import { ErrorHandler } from '../../../utils/index.js';
+// Import utils from barrel (logger from ../utils/internal/logger.js)
+import { logger } from '../../../utils/index.js';
+// Import utils from barrel (requestContextService from ../utils/internal/requestContext.js)
+import { requestContextService } from '../../../utils/index.js';
 // Import the result type along with the function and input schema
-import { BaseErrorCode } from '../../../types-global/errors.js'; // Import BaseErrorCode
+import { BaseErrorCode } from '../../../types-global/errors.js'; // Keep direct import for types-global
 import { commitGitChanges, GitCommitInput, GitCommitInputSchema, GitCommitResult } from './logic.js';
 
 // --- State Accessors ---
