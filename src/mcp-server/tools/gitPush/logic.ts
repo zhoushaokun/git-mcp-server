@@ -13,10 +13,10 @@ const execAsync = promisify(exec);
 
 // Define the input schema for the git_push tool using Zod
 export const GitPushInputSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the session's working directory if set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   remote: z.string().optional().describe("The remote repository to push to (e.g., 'origin'). Defaults to the tracked upstream or 'origin'."),
-  branch: z.string().optional().describe("The local branch to push. Defaults to the current branch."),
-  remoteBranch: z.string().optional().describe("The remote branch to push to. Defaults to the same name as the local branch."),
+  branch: z.string().optional().describe("The local branch to push (e.g., 'main', 'feat/new-login'). Defaults to the current branch."),
+  remoteBranch: z.string().optional().describe("The remote branch to push to (e.g., 'main', 'develop'). Defaults to the same name as the local branch."),
   force: z.boolean().optional().default(false).describe("Force the push (use with caution: `--force-with-lease` is generally safer)."),
   forceWithLease: z.boolean().optional().default(false).describe("Force the push only if the remote ref is the expected value (`--force-with-lease`). Safer than --force."),
   setUpstream: z.boolean().optional().default(false).describe("Set the upstream tracking configuration (`-u` or `--set-upstream`)."),
@@ -194,7 +194,7 @@ export async function pushGitChanges(
       throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`, { context, operation, originalError: error });
     }
     if (errorMessage.includes('resolve host') || errorMessage.includes('Could not read from remote repository') || errorMessage.includes('Connection timed out')) {
-      throw new McpError(BaseErrorCode.NETWORK_ERROR, `Failed to connect to remote repository. Error: ${errorMessage}`, { context, operation, originalError: error });
+      throw new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, `Failed to connect to remote repository. Error: ${errorMessage}`, { context, operation, originalError: error });
     }
     if (errorMessage.includes('rejected') || errorMessage.includes('failed to push some refs')) {
        // This might be caught here if execAsync throws due to non-zero exit code on rejection

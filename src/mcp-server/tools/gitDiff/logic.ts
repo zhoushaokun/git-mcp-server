@@ -13,7 +13,7 @@ const execAsync = promisify(exec);
 
 // Define the base input schema without refinement
 const GitDiffInputBaseSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the session's working directory if set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   commit1: z.string().optional().describe("First commit, branch, or ref for comparison. If omitted, compares against the working tree or index (depending on 'staged')."),
   commit2: z.string().optional().describe("Second commit, branch, or ref for comparison. If omitted, compares commit1 against the working tree or index."),
   staged: z.boolean().optional().default(false).describe("Show diff of changes staged for the next commit (compares index against HEAD). Overrides commit1/commit2 if true."),

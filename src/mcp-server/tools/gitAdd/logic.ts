@@ -13,7 +13,7 @@ const execAsync = promisify(exec);
 
 // Define the input schema for the git_add tool using Zod
 export const GitAddInputSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the session's working directory if set via `git_set_working_dir`, otherwise defaults to the server's current working directory (`.`)."),
+  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   files: z.union([
     z.string().min(1),
     z.array(z.string().min(1))

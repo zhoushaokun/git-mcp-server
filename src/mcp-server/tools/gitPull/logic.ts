@@ -13,9 +13,9 @@ const execAsync = promisify(exec);
 
 // Define the input schema for the git_pull tool using Zod
 export const GitPullInputSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the session's working directory if set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   remote: z.string().optional().describe("The remote repository to pull from (e.g., 'origin'). Defaults to the tracked upstream or 'origin'."),
-  branch: z.string().optional().describe("The remote branch to pull. Defaults to the current branch's upstream."),
+  branch: z.string().optional().describe("The remote branch to pull (e.g., 'main'). Defaults to the current branch's upstream."),
   rebase: z.boolean().optional().default(false).describe("Use 'git pull --rebase' instead of merge."),
   ffOnly: z.boolean().optional().default(false).describe("Use '--ff-only' to only allow fast-forward merges."),
   // Add other relevant git pull options as needed (e.g., --prune, --tags, --depth)
@@ -148,7 +148,7 @@ export async function pullGitChanges(
       throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`, { context, operation, originalError: error });
     }
     if (errorMessage.includes('resolve host') || errorMessage.includes('Could not read from remote repository')) {
-      throw new McpError(BaseErrorCode.NETWORK_ERROR, `Failed to connect to remote repository. Error: ${errorMessage}`, { context, operation, originalError: error });
+      throw new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, `Failed to connect to remote repository. Error: ${errorMessage}`, { context, operation, originalError: error });
     }
     if (errorMessage.includes('merge conflict') || errorMessage.includes('fix conflicts')) {
        // This might be caught here if execAsync throws due to non-zero exit code during conflict

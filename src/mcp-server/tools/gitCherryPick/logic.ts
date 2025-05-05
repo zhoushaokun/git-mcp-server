@@ -13,7 +13,7 @@ const execAsync = promisify(exec);
 
 // Define the input schema for the git_cherry-pick tool using Zod
 export const GitCherryPickInputSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. If omitted, defaults to the path set by `git_set_working_dir` for the current session, or the server's CWD if no session path is set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   commitRef: z.string().min(1).describe("The commit reference(s) to cherry-pick (e.g., 'hash1', 'hash1..hash3', 'branchName~3..branchName')."),
   mainline: z.number().int().min(1).optional().describe("Specify the parent number (starting from 1) when cherry-picking a merge commit."),
   strategy: z.enum(['recursive', 'resolve', 'ours', 'theirs', 'octopus', 'subtree']).optional().describe("Specifies the merge strategy to use."),

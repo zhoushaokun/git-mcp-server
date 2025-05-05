@@ -24,12 +24,12 @@ export type CommitEntry = z.infer<typeof CommitEntrySchema>;
 
 // Define the input schema for the git_log tool using Zod
 export const GitLogInputSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the session's working directory if set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   maxCount: z.number().int().positive().optional().describe("Limit the number of commits to output."),
   author: z.string().optional().describe("Limit commits to those matching the specified author pattern."),
   since: z.string().optional().describe("Show commits more recent than a specific date (e.g., '2 weeks ago', '2023-01-01')."),
   until: z.string().optional().describe("Show commits older than a specific date."),
-  branchOrFile: z.string().optional().describe("Show logs for a specific branch, tag, or file path."),
+  branchOrFile: z.string().optional().describe("Show logs for a specific branch (e.g., 'main'), tag, or file path (e.g., 'src/utils/logger.ts')."),
   // Note: We use a fixed pretty format for reliable parsing. Custom formats are not directly supported via input.
 });
 
@@ -125,7 +125,10 @@ export async function logGitHistory(
     const commitRecords = stdout.split(RECORD_SEP).filter(record => record.trim() !== ''); // Split records and remove empty ones
 
     for (const record of commitRecords) {
-      const fields = record.split(FIELD_SEP);
+      const trimmedRecord = record.trim(); // Trim leading/trailing whitespace (like newlines)
+      if (!trimmedRecord) continue; // Skip empty records after trimming
+
+      const fields = trimmedRecord.split(FIELD_SEP); // Split the trimmed record
       if (fields.length >= 5) { // Need at least hash, name, email, timestamp, subject
         try {
           const commitEntry: CommitEntry = {

@@ -12,7 +12,7 @@ export type ResetMode = z.infer<typeof ResetModeEnum>;
 
 // Define the input schema for the git_reset tool using Zod
 export const GitResetInputSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the session's working directory if set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   mode: ResetModeEnum.optional().default('mixed').describe("Reset mode: 'soft' (reset HEAD only), 'mixed' (reset HEAD and index, default), 'hard' (reset HEAD, index, and working tree - USE WITH CAUTION), 'merge', 'keep'."),
   commit: z.string().optional().describe("Commit, branch, or ref to reset to. Defaults to HEAD (useful for unstaging with 'mixed' mode)."),
   // file: z.string().optional().describe("If specified, reset only this file in the index (unstaging). Mode must be 'mixed' or omitted."), // Git reset [<mode>] [<tree-ish>] [--] <paths>… is complex, handle separately if needed

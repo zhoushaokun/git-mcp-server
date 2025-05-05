@@ -9,7 +9,7 @@ const execAsync = promisify(exec);
 // Define the input schema for the git_show tool using Zod
 // No refinements needed here, so we don't need a separate BaseSchema
 export const GitShowInputSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. If omitted, defaults to the path set by `git_set_working_dir` for the current session, or the server's CWD if no session path is set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   ref: z.string().min(1).describe("The object reference (commit hash, tag name, branch name, HEAD, etc.) to show."),
   filePath: z.string().optional().describe("Optional specific file path within the ref to show (e.g., show a file's content at a specific commit). If provided, use the format '<ref>:<filePath>'."),
   // format: z.string().optional().describe("Optional format string for the output"), // Consider adding later

@@ -13,7 +13,7 @@ const execAsync = promisify(exec);
 
 // Define the BASE input schema for the git_rebase tool using Zod
 export const GitRebaseBaseSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. If omitted, defaults to the path set by `git_set_working_dir` for the current session, or the server's CWD if no session path is set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   mode: z.enum(['start', 'continue', 'abort', 'skip']).default('start').describe("Rebase operation mode: 'start' (initiate rebase), 'continue', 'abort', 'skip' (manage ongoing rebase)."),
   upstream: z.string().min(1).optional().describe("The upstream branch or commit to rebase onto. Required for 'start' mode unless 'interactive' is true with default base."),
   branch: z.string().min(1).optional().describe("The branch to rebase. Defaults to the current branch if omitted."),

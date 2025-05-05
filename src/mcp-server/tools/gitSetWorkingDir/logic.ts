@@ -9,7 +9,7 @@ const execAsync = promisify(exec);
 
 // Define the Zod schema for input validation
 export const GitSetWorkingDirInputSchema = z.object({
-  path: z.string().min(1, "Path cannot be empty.").describe("The absolute path to set as the default working directory for the current session."),
+  path: z.string().min(1, "Path cannot be empty.").describe("The absolute path to set as the default working directory for the current session. Set this before using other git_* tools."),
   validateGitRepo: z.boolean().default(true).describe("Whether to validate that the path is a Git repository"),
 });
 

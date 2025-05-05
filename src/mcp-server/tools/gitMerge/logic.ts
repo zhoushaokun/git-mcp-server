@@ -1,20 +1,20 @@
-import { z } from 'zod';
-import { promisify } from 'util';
 import { exec } from 'child_process';
+import { promisify } from 'util';
+import { z } from 'zod';
 // Import utils from barrel (logger from ../utils/internal/logger.js)
 import { logger } from '../../../utils/index.js';
 // Import utils from barrel (RequestContext from ../utils/internal/requestContext.js)
+import { BaseErrorCode, McpError } from '../../../types-global/errors.js'; // Keep direct import for types-global
 import { RequestContext } from '../../../utils/index.js';
-import { McpError, BaseErrorCode } from '../../../types-global/errors.js'; // Keep direct import for types-global
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
-import { sanitization } from '../../../utils/index.js';
 import path from 'path'; // Import path module
+import { sanitization } from '../../../utils/index.js';
 
 const execAsync = promisify(exec);
 
 // Define the input schema for the git_merge tool
 export const GitMergeInputSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the session's working directory if set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   branch: z.string().min(1).describe('The name of the branch to merge into the current branch.'),
   commitMessage: z.string().optional().describe('Commit message to use for the merge commit (if required, e.g., not fast-forward).'),
   noFf: z.boolean().default(false).describe('Create a merge commit even when the merge resolves as a fast-forward (`--no-ff`).'),

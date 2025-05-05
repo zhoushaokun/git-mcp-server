@@ -13,11 +13,11 @@ const execAsync = promisify(exec);
 
 // Define the BASE input schema for the git_branch tool using Zod
 export const GitBranchBaseSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. If omitted, defaults to the path set by `git_set_working_dir` for the current session, or the server's CWD if no session path is set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   mode: z.enum(['list', 'create', 'delete', 'rename', 'show-current']).describe("The branch operation to perform: 'list', 'create', 'delete', 'rename', 'show-current'."),
-  branchName: z.string().min(1).optional().describe("The name of the branch. Required for 'create', 'delete', 'rename' modes."),
-  newBranchName: z.string().min(1).optional().describe("The new name for the branch. Required for 'rename' mode."),
-  startPoint: z.string().min(1).optional().describe("Optional commit hash, tag, or existing branch name to start the new branch from. Used only in 'create' mode. Defaults to HEAD."),
+  branchName: z.string().min(1).optional().describe("The name of the branch (e.g., 'feat/new-login', 'main'). Required for 'create', 'delete', 'rename' modes."),
+  newBranchName: z.string().min(1).optional().describe("The new name for the branch (e.g., 'fix/typo-in-readme'). Required for 'rename' mode."),
+  startPoint: z.string().min(1).optional().describe("Optional commit hash, tag, or existing branch name (e.g., 'main', 'v1.0.0', 'commit-hash') to start the new branch from. Used only in 'create' mode. Defaults to HEAD."),
   force: z.boolean().default(false).describe("Force the operation. Use -D for delete, -M for rename, -f for create (if branch exists). Use with caution, as forcing operations can lead to data loss."),
   all: z.boolean().default(false).describe("List both local and remote-tracking branches. Used only in 'list' mode."),
   remote: z.boolean().default(false).describe("Act on remote-tracking branches. Used with 'list' (-r) or 'delete' (-r)."),
@@ -158,13 +158,21 @@ export async function gitBranchLogic(
           .map(line => {
             const isCurrent = line.startsWith('* ');
             const trimmedLine = line.replace(/^\*?\s+/, ''); // Remove leading '*' and spaces
+            // Determine isRemote based on the raw trimmed line BEFORE splitting
+            const isRemote = trimmedLine.startsWith('remotes/');
             const parts = trimmedLine.split(/\s+/);
-            const name = parts[0];
-            const isRemote = name.startsWith('remotes/');
+            const name = parts[0]; // This might be 'remotes/origin/main' or just 'main'
             const commitHash = parts[1] || undefined; // Verbose gives hash
             const commitSubject = parts.slice(2).join(' ') || undefined; // Verbose gives subject
 
-            return { name, isCurrent, isRemote, commitHash, commitSubject };
+            // Return the correct name (without 'remotes/' prefix if it was remote) and the isRemote flag
+            return {
+                 name: isRemote ? name.split('/').slice(2).join('/') : name, // e.g., 'origin/main' or 'main'
+                 isCurrent,
+                 isRemote, // Use the flag determined before splitting
+                 commitHash,
+                 commitSubject
+             };
           });
 
         const currentBranch = branches.find(b => b.isCurrent)?.name;

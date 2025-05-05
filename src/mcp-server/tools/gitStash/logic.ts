@@ -8,7 +8,7 @@ const execAsync = promisify(exec);
 
 // Define the BASE input schema for the git_stash tool using Zod
 export const GitStashBaseSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. If omitted, defaults to the path set by `git_set_working_dir` for the current session, or the server's CWD if no session path is set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   mode: z.enum(['list', 'apply', 'pop', 'drop', 'save']).describe("The stash operation to perform: 'list', 'apply', 'pop', 'drop', 'save'."),
   stashRef: z.string().optional().describe("Stash reference (e.g., 'stash@{1}'). Required for 'apply', 'pop', 'drop' modes."),
   message: z.string().optional().describe("Optional descriptive message used only for 'save' mode."),

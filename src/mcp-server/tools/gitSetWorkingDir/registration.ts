@@ -8,23 +8,32 @@ import { GitSetWorkingDirInput, GitSetWorkingDirInputSchema, gitSetWorkingDirLog
 // These functions need to be provided by the server setup layer (server.ts)
 // to allow the tool registration to interact with the session-specific state.
 
+/** Type definition for the function that gets the working directory for a session */
+export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | undefined;
 /** Type definition for the function that sets the working directory for a session */
 export type SetWorkingDirectoryFn = (sessionId: string | undefined, path: string) => void;
 /** Type definition for the function that gets the session ID from the context */
 export type GetSessionIdFn = (context: Record<string, any>) => string | undefined;
 
+let _getWorkingDirectory: GetWorkingDirectoryFn | undefined; // Added getter
 let _setWorkingDirectory: SetWorkingDirectoryFn | undefined;
 let _getSessionId: GetSessionIdFn | undefined;
 
 /**
  * Initializes the state accessors needed by the tool registration.
  * This should be called once during server setup.
- * @param setFn - Function to set the working directory for a session.
- * @param getFn - Function to get the session ID from context.
+ * @param getWdFn - Function to get the working directory for a session.
+ * @param setWdFn - Function to set the working directory for a session.
+ * @param getSidFn - Function to get the session ID from context.
  */
-export function initializeGitSetWorkingDirStateAccessors(setFn: SetWorkingDirectoryFn, getFn: GetSessionIdFn): void {
-  _setWorkingDirectory = setFn;
-  _getSessionId = getFn;
+export function initializeGitSetWorkingDirStateAccessors(
+  getWdFn: GetWorkingDirectoryFn, // Added getter parameter
+  setWdFn: SetWorkingDirectoryFn,
+  getSidFn: GetSessionIdFn
+): void {
+  _getWorkingDirectory = getWdFn; // Store getter
+  _setWorkingDirectory = setWdFn;
+  _getSessionId = getSidFn;
   logger.info('State accessors initialized for git_set_working_dir tool registration.');
 }
 
@@ -39,8 +48,9 @@ const TOOL_DESCRIPTION = "Sets the default working directory for the current ses
  * @throws {Error} If state accessors are not initialized.
  */
 export async function registerGitSetWorkingDirTool(server: McpServer): Promise<void> {
-  if (!_setWorkingDirectory || !_getSessionId) {
-    throw new Error('State accessors for git_set_working_dir must be initialized before registration.');
+  // Check all required accessors
+  if (!_getWorkingDirectory || !_setWorkingDirectory || !_getSessionId) {
+    throw new Error('State accessors (getWD, setWD, getSID) for git_set_working_dir must be initialized before registration.');
   }
 
   try {
@@ -61,11 +71,18 @@ export async function registerGitSetWorkingDirTool(server: McpServer): Promise<v
           _setWorkingDirectory!(sessionId, path); // Non-null assertion
         };
 
-        // Enhance context with session ID and the setter function
+        // Define the session-specific getter function (needed by logic?)
+        // If the logic needs the current WD, pass the getter too. Assuming it might.
+        const getWorkingDirectoryForSession = () => {
+          return _getWorkingDirectory!(sessionId); // Non-null assertion
+        };
+
+        // Enhance context with session ID and the getter/setter functions
         const logicContext = {
           ...requestContext,
           sessionId: sessionId,
-          setWorkingDirectory: setWorkingDirectoryForSession,
+          getWorkingDirectory: getWorkingDirectoryForSession, // Pass getter
+          setWorkingDirectory: setWorkingDirectoryForSession, // Pass setter
         };
 
         return await ErrorHandler.tryCatch<CallToolResult>(

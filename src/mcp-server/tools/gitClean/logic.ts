@@ -14,7 +14,7 @@ const execAsync = promisify(exec);
 // Define the input schema for the git_clean tool using Zod
 // No refinements needed here, but the 'force' check is critical in the logic
 export const GitCleanInputSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. If omitted, defaults to the path set by `git_set_working_dir` for the current session, or the server's CWD if no session path is set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the local Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   force: z.boolean().describe("REQUIRED confirmation to run the command. Must be explicitly set to true to perform the clean operation. If false or omitted, the command will not run."),
   dryRun: z.boolean().default(false).describe("Show what would be deleted without actually deleting (-n flag)."),
   directories: z.boolean().default(false).describe("Remove untracked directories in addition to files (-d flag)."),

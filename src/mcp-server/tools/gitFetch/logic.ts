@@ -13,7 +13,7 @@ const execAsync = promisify(exec);
 
 // Define the input schema for the git_fetch tool using Zod
 export const GitFetchInputSchema = z.object({
-  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the session's working directory if set."),
+  path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   remote: z.string().optional().describe("The remote repository to fetch from (e.g., 'origin'). If omitted, fetches from 'origin' or the default configured remote."),
   prune: z.boolean().optional().default(false).describe("Before fetching, remove any remote-tracking references that no longer exist on the remote."),
   tags: z.boolean().optional().default(false).describe("Fetch all tags from the remote (in addition to whatever else is fetched)."),
@@ -126,7 +126,7 @@ export async function fetchGitRemote(
       throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`, { context, operation, originalError: error });
     }
     if (errorMessage.includes('resolve host') || errorMessage.includes('Could not read from remote repository') || errorMessage.includes('Connection timed out')) {
-      throw new McpError(BaseErrorCode.NETWORK_ERROR, `Failed to connect to remote repository '${input.remote || 'default'}'. Error: ${errorMessage}`, { context, operation, originalError: error });
+      throw new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, `Failed to connect to remote repository '${input.remote || 'default'}'. Error: ${errorMessage}`, { context, operation, originalError: error });
     }
     if (errorMessage.includes('fatal: ') && errorMessage.includes('couldn\'t find remote ref')) {
         throw new McpError(BaseErrorCode.NOT_FOUND, `Remote ref not found. Error: ${errorMessage}`, { context, operation, originalError: error });
