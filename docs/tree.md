@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-05-01 16:47:43
+Generated on: 2025-05-05 21:01:59
 
 
 ```
@@ -109,21 +109,33 @@ git-mcp-server
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
+    │   ├── transports
+    │   │   ├── authentication
+    │   │   │   └── authMiddleware.ts
+    │   │   ├── httpTransport.ts
+    │   │   └── stdioTransport.ts
     │   └── server.ts
     ├── types-global
-    │   ├── errors.ts
-    │   ├── mcp.ts
-    │   └── tool.ts
+    │   └── errors.ts
     ├── utils
-    │   ├── errorHandler.ts
-    │   ├── idGenerator.ts
-    │   ├── index.ts
-    │   ├── jsonParser.ts
-    │   ├── logger.ts
-    │   ├── rateLimiter.ts
-    │   ├── requestContext.ts
-    │   ├── sanitization.ts
-    │   └── tokenCounter.ts
+    │   ├── internal
+    │   │   ├── errorHandler.ts
+    │   │   ├── index.ts
+    │   │   ├── logger.ts
+    │   │   └── requestContext.ts
+    │   ├── metrics
+    │   │   ├── index.ts
+    │   │   └── tokenCounter.ts
+    │   ├── parsing
+    │   │   ├── dateParser.ts
+    │   │   ├── index.ts
+    │   │   └── jsonParser.ts
+    │   ├── security
+    │   │   ├── idGenerator.ts
+    │   │   ├── index.ts
+    │   │   ├── rateLimiter.ts
+    │   │   └── sanitization.ts
+    │   └── index.ts
     ├── .DS_Store
     └── index.ts
 ├── .clinerules

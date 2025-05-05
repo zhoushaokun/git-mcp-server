@@ -11,51 +11,6 @@ An MCP (Model Context Protocol) server providing tools to interact with Git repo
 
 Built on the [`cyanheads/mcp-ts-template`](https://github.com/cyanheads/mcp-ts-template), this server follows a modular architecture:
 
-> **Note:** This version (v2.0.0) focuses on refactoring and updating the core Git tools based on the latest MCP SDK. MCP Resource capabilities are not implemented in this version. For resource access, please use [v1.2.4](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4).
-
-```mermaid
-flowchart TB
-    subgraph API["API Layer"]
-        direction LR
-        MCP["MCP Protocol"]
-        Val["Validation (Zod)"]
-        San["Sanitization"]
-
-        MCP --> Val --> San
-    end
-
-    subgraph Core["Core Components"]
-        direction LR
-        Config["Configuration"]
-        Logger["Logging System"]
-        Error["Error Handling"]
-        Server["MCP Server (SDK)"]
-
-        Config --> Server
-        Logger --> Server
-        Error --> Server
-    end
-
-    subgraph Implementation["Implementation Layer"]
-        direction LR
-        Tool["Tools (Git Logic)"]
-        Util["Utilities"]
-
-        Tool --> Server
-        Util --> Tool
-    end
-
-    San --> Config
-    San --> Server
-
-    classDef layer fill:#2d3748,stroke:#4299e1,stroke-width:3px,rx:5,color:#fff
-    classDef component fill:#1a202c,stroke:#a0aec0,stroke-width:2px,rx:3,color:#fff
-    class API,Core,Implementation layer
-    class MCP,Val,San,Config,Logger,Error,Server,Tool,Util component
-```
-
-Implemented as an MCP server, it allows LLM agents and other compatible clients to interact with local Git repositories using standardized commands.
-
 > **Developer Note**: This repository includes a [.clinerules](.clinerules) file that serves as a developer cheat sheet for your LLM coding agent with quick reference for the codebase patterns, file locations, and code snippets.
 
 ## Table of Contents
@@ -234,6 +189,8 @@ This version focuses on the refactored Git tools implementation based on the lat
 If you require MCP Resource access (e.g., for reading file content directly via the server), please use the stable **[v1.2.4 release](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4)**.
 
 Future development may reintroduce resource capabilities in a subsequent release.
+
+> **Note:** This version (v2.0.0) focuses on refactoring and updating the core Git tools based on the latest MCP SDK. MCP Resource capabilities are not implemented in this version. For resource access, please use [v1.2.4](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4).
 
 ## Development
 
