@@ -1,87 +1,198 @@
 /**
- * @fileoverview Main entry point for the MCP (Model Context Protocol) server.
- * This file sets up the server instance, registers resources and tools,
- * and orchestrates the connection to the appropriate transport layer (stdio or HTTP).
+ * Main entry point for the MCP (Model Context Protocol) server.
+ * This file orchestrates the server's lifecycle:
+ * 1. Initializes the core McpServer instance with its identity and capabilities.
+ * 2. Registers available resources and tools, making them discoverable and usable by clients.
+ * 3. Selects and starts the appropriate communication transport (stdio or Streamable HTTP)
+ *    based on configuration.
+ * 4. Handles top-level error management during startup.
+ *
+ * MCP Specification References:
+ * - Lifecycle: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/lifecycle.mdx
+ * - Overview (Capabilities): https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/index.mdx
+ * - Transports: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx
  */
 
-import http from 'http'; // Import http module
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+// Import validated configuration and environment details.
 import { config, environment } from '../config/index.js';
-// Import utils from the main barrel file
-import { ErrorHandler, logger, requestContextService } from '../utils/index.js';
-// Import transport functions
-import { startHttpTransport } from './transports/httpTransport.js';
-import { connectStdioTransport } from './transports/stdioTransport.js';
+// Import core utilities: ErrorHandler, logger, requestContextService.
+import { ErrorHandler, logger, requestContextService, RequestContext } from '../utils/index.js'; // Added RequestContext
 
-// --- Import Tool Registrations ---
-import { registerGitAddTool } from './tools/gitAdd/index.js';
-import { registerGitBranchTool } from './tools/gitBranch/index.js';
-import { registerGitCheckoutTool } from './tools/gitCheckout/index.js';
-import { registerGitCherryPickTool } from './tools/gitCherryPick/index.js';
-import { registerGitCleanTool } from './tools/gitClean/index.js';
-import { registerGitClearWorkingDirTool } from './tools/gitClearWorkingDir/index.js';
-import { registerGitCloneTool } from './tools/gitClone/index.js';
-import { registerGitCommitTool } from './tools/gitCommit/index.js';
-import { registerGitDiffTool } from './tools/gitDiff/index.js';
-import { registerGitFetchTool } from './tools/gitFetch/index.js';
-import { registerGitInitTool } from './tools/gitInit/index.js';
-import { registerGitLogTool } from './tools/gitLog/index.js';
-import { registerGitMergeTool } from './tools/gitMerge/index.js';
-import { registerGitPullTool } from './tools/gitPull/index.js';
-import { registerGitPushTool } from './tools/gitPush/index.js';
-import { registerGitRebaseTool } from './tools/gitRebase/index.js';
-import { registerGitRemoteTool } from './tools/gitRemote/index.js';
-import { registerGitResetTool } from './tools/gitReset/index.js';
-import { registerGitSetWorkingDirTool } from './tools/gitSetWorkingDir/index.js';
-import { registerGitShowTool } from './tools/gitShow/index.js';
-import { registerGitStashTool } from './tools/gitStash/index.js';
-import { registerGitStatusTool } from './tools/gitStatus/index.js';
-import { registerGitTagTool } from './tools/gitTag/index.js';
+// Import registration AND state initialization functions for ALL Git tools (assuming pattern)
+import { registerGitAddTool, initializeGitAddStateAccessors } from './tools/gitAdd/index.js';
+import { registerGitBranchTool, initializeGitBranchStateAccessors } from './tools/gitBranch/index.js';
+import { registerGitCheckoutTool, initializeGitCheckoutStateAccessors } from './tools/gitCheckout/index.js'; // Assumed initializer
+import { registerGitCherryPickTool, initializeGitCherryPickStateAccessors } from './tools/gitCherryPick/index.js'; // Assumed initializer
+import { registerGitCleanTool, initializeGitCleanStateAccessors } from './tools/gitClean/index.js'; // Assumed initializer
+import { registerGitClearWorkingDirTool, initializeGitClearWorkingDirStateAccessors } from './tools/gitClearWorkingDir/index.js'; // Assumed initializer
+import { registerGitCloneTool } from './tools/gitClone/index.js'; // Removed initializer import
+import { registerGitCommitTool, initializeGitCommitStateAccessors } from './tools/gitCommit/index.js'; // Assumed initializer
+import { registerGitDiffTool, initializeGitDiffStateAccessors } from './tools/gitDiff/index.js'; // Assumed initializer
+import { registerGitFetchTool, initializeGitFetchStateAccessors } from './tools/gitFetch/index.js';
+import { registerGitInitTool, initializeGitInitStateAccessors } from './tools/gitInit/index.js'; // Added initializer import
+import { registerGitLogTool, initializeGitLogStateAccessors } from './tools/gitLog/index.js'; // Assumed initializer
+import { registerGitMergeTool, initializeGitMergeStateAccessors } from './tools/gitMerge/index.js'; // Assumed initializer
+import { registerGitPullTool, initializeGitPullStateAccessors } from './tools/gitPull/index.js';
+import { registerGitPushTool, initializeGitPushStateAccessors } from './tools/gitPush/index.js';
+import { registerGitRebaseTool, initializeGitRebaseStateAccessors } from './tools/gitRebase/index.js'; // Assumed initializer
+import { registerGitRemoteTool, initializeGitRemoteStateAccessors } from './tools/gitRemote/index.js'; // Assumed initializer
+import { registerGitResetTool, initializeGitResetStateAccessors } from './tools/gitReset/index.js'; // Assumed initializer
+import { registerGitSetWorkingDirTool, initializeGitSetWorkingDirStateAccessors } from './tools/gitSetWorkingDir/index.js';
+import { registerGitShowTool, initializeGitShowStateAccessors } from './tools/gitShow/index.js'; // Assumed initializer
+import { registerGitStashTool, initializeGitStashStateAccessors } from './tools/gitStash/index.js'; // Assumed initializer
+import { registerGitStatusTool, initializeGitStatusStateAccessors } from './tools/gitStatus/index.js'; // Assumed initializer
+import { registerGitTagTool, initializeGitTagStateAccessors } from './tools/gitTag/index.js'; // Assumed initializer
 
-// --- Configuration Constants ---
 
-/**
- * Determines the transport type for the MCP server based on the MCP_TRANSPORT_TYPE environment variable.
- * Defaults to 'stdio' if the variable is not set. Converts the value to lowercase.
- * @constant {string} TRANSPORT_TYPE - The transport type ('stdio' or 'http').
- */
-const TRANSPORT_TYPE = (process.env.MCP_TRANSPORT_TYPE || 'stdio').toLowerCase();
+// Import transport setup functions AND state accessors
+import {
+  startHttpTransport,
+  getHttpSessionWorkingDirectory,
+  setHttpSessionWorkingDirectory
+} from './transports/httpTransport.js';
+import {
+  connectStdioTransport,
+  getStdioWorkingDirectory,
+  setStdioWorkingDirectory
+} from './transports/stdioTransport.js';
 
 
 /**
  * Creates and configures a new instance of the McpServer.
- * This function encapsulates the server setup, including setting the server name,
- * version, capabilities, and registering all defined resources and tools.
- * It's designed to be called either once for the stdio transport or potentially
- * multiple times for stateless handling in the HTTP transport (though currently
- * used once per session in HTTP).
  *
- * @async
- * @returns {Promise<McpServer>} A promise that resolves with the fully configured McpServer instance.
- * @throws {Error} Throws an error if the registration of any resource or tool fails.
+ * This function is central to defining the server's identity and functionality
+ * as presented to connecting clients during the MCP initialization phase.
+ *
+ * MCP Spec Relevance:
+ * - Server Identity (`serverInfo`): The `name` and `version` provided here are part
+ *   of the `ServerInformation` object returned in the `InitializeResult` message,
+ *   allowing clients to identify the server they are connected to.
+ * - Capabilities Declaration: The `capabilities` object declares the features this
+ *   server supports, enabling clients to tailor their interactions.
+ *   - `logging: {}`: Indicates the server can receive `logging/setLevel` requests
+ *     and may send `notifications/message` log messages (handled by the logger utility).
+ *   - `resources: { listChanged: true }`: Signals that the server supports dynamic
+ *     resource lists and will send `notifications/resources/list_changed` if the
+ *     available resources change after initialization. (Currently no resources registered)
+ *   - `tools: { listChanged: true }`: Signals support for dynamic tool lists and
+ *     `notifications/tools/list_changed`.
+ * - Resource/Tool Registration: This function calls specific registration functions
+ *   (e.g., `registerGitAdd`) which use SDK methods (`server.resource`, `server.tool`)
+ *   to make capabilities available for discovery (`resources/list`, `tools/list`) and
+ *   invocation (`resources/read`, `tools/call`).
+ *
+ * Design Note: This factory function is used to create server instances. For the 'stdio'
+ * transport, it's called once. For the 'http' transport, it's passed to `startHttpTransport`
+ * and called *per session* to ensure session isolation.
+ *
+ * @returns {Promise<McpServer>} A promise resolving with the configured McpServer instance.
+ * @throws {Error} If any resource or tool registration fails.
  */
+// Removed sessionId parameter, it will be retrieved from context within tool handlers
 async function createMcpServerInstance(): Promise<McpServer> {
   const context = { operation: 'createMcpServerInstance' };
   logger.info('Initializing MCP server instance', context);
 
-  // Configure the request context service for associating logs/traces with specific requests or operations.
+  // Configure the request context service (used for correlating logs/errors).
   requestContextService.configure({
     appName: config.mcpServerName,
     appVersion: config.mcpServerVersion,
     environment,
   });
 
-  // Instantiate the core McpServer with its identity and declared capabilities.
-  // Capabilities inform the client about what features the server supports (e.g., logging).
+  // Instantiate the core McpServer using the SDK.
+  // Provide server identity (name, version) and declare supported capabilities.
+  // Note: Resources capability declared, but none are registered currently.
+  logger.debug('Instantiating McpServer with capabilities', { ...context, serverInfo: { name: config.mcpServerName, version: config.mcpServerVersion }, capabilities: { logging: {}, resources: { listChanged: true }, tools: { listChanged: true } } });
   const server = new McpServer(
-    { name: config.mcpServerName, version: config.mcpServerVersion },
-    // Declare capabilities. listChanged: true informs client that tool/resource lists can change dynamically.
-    { capabilities: { logging: {}, tools: { listChanged: true } } } // Removed resources capability as none are registered
+    { name: config.mcpServerName, version: config.mcpServerVersion }, // ServerInformation part of InitializeResult
+    { capabilities: { logging: {}, resources: { listChanged: true }, tools: { listChanged: true } } } // Declared capabilities
   );
 
+  // --- Define Unified State Accessor Functions ---
+  // These functions abstract away the transport type to get/set session state.
+
+  /** Gets the session ID from the tool's execution context. */
+  const getSessionIdFromContext = (toolContext: Record<string, any>): string | undefined => {
+    // The RequestContext created by the tool registration wrapper should contain the sessionId.
+    return (toolContext as RequestContext)?.sessionId;
+  };
+
+  /** Gets the working directory based on transport type and session ID. */
+  const getWorkingDirectory = (sessionId: string | undefined): string | undefined => {
+    if (config.mcpTransportType === 'http') {
+      if (!sessionId) {
+        logger.warning('Attempted to get HTTP working directory without session ID', { ...context, caller: 'getWorkingDirectory' });
+        return undefined;
+      }
+      return getHttpSessionWorkingDirectory(sessionId);
+    } else {
+      // For stdio, there's only one implicit session, ID is not needed.
+      return getStdioWorkingDirectory();
+    }
+  };
+
+  /** Sets the working directory based on transport type and session ID. */
+  const setWorkingDirectory = (sessionId: string | undefined, dir: string): void => {
+    if (config.mcpTransportType === 'http') {
+      if (!sessionId) {
+        logger.error('Attempted to set HTTP working directory without session ID', { ...context, caller: 'setWorkingDirectory', dir });
+        // Optionally throw an error or just log
+        return;
+      }
+      setHttpSessionWorkingDirectory(sessionId, dir);
+    } else {
+      // For stdio, set the single session's directory.
+      setStdioWorkingDirectory(dir);
+    }
+  };
+
+  // --- Initialize Tool State Accessors BEFORE Registration ---
+  // Pass the defined unified accessor functions to the initializers.
+  logger.debug('Initializing state accessors for tools...', context);
   try {
-    // Register all available tools with the server instance.
-    // These functions typically call `server.tool()`.
+    // Call initializers for all tools that likely need state access.
+    // If an initializer doesn't exist, the import would have failed earlier (or build will fail).
+    initializeGitAddStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitBranchStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitCheckoutStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitCherryPickStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitCleanStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitClearWorkingDirStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    // initializeGitCloneStateAccessors(getWorkingDirectory, getSessionIdFromContext); // Removed call
+    initializeGitCommitStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitDiffStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitFetchStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitInitStateAccessors(getWorkingDirectory, getSessionIdFromContext); // Added call
+    initializeGitLogStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitMergeStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitPullStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitPushStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitRebaseStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitRemoteStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitResetStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitSetWorkingDirStateAccessors(getWorkingDirectory, setWorkingDirectory, getSessionIdFromContext); // Special case
+    initializeGitShowStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitStashStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitStatusStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitTagStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    logger.debug('State accessors initialized successfully.', context);
+  } catch (initError) {
+      // Catch errors specifically during initialization phase
+      logger.error('Failed during state accessor initialization', {
+        ...context,
+        error: initError instanceof Error ? initError.message : String(initError),
+        stack: initError instanceof Error ? initError.stack : undefined,
+      });
+      throw initError; // Re-throw to prevent server starting incorrectly
+  }
+
+
+  try {
+    // Register all defined Git tools. These calls populate the server's
+    // internal registry, making them available via MCP methods like 'tools/list'.
+    logger.debug('Registering Git tools...', context);
     await registerGitAddTool(server);
     await registerGitBranchTool(server);
     await registerGitCheckoutTool(server);
@@ -105,15 +216,16 @@ async function createMcpServerInstance(): Promise<McpServer> {
     await registerGitStashTool(server);
     await registerGitStatusTool(server);
     await registerGitTagTool(server);
-    logger.info('All Git tools registered successfully', context);
-
+    // Add calls to register other resources/tools here if needed in the future.
+    logger.info('Git tools registered successfully', context);
   } catch (err) {
-    // Log and re-throw any errors during registration, as the server cannot function correctly without them.
-    logger.error('Failed to register tools', {
+    // Registration is critical; log and re-throw errors.
+    logger.error('Failed to register resources/tools', {
       ...context,
       error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined, // Include stack for debugging
     });
-    throw err; // Propagate the error to the caller.
+    throw err; // Propagate error to prevent server starting with incomplete capabilities.
   }
 
   return server;
@@ -121,62 +233,90 @@ async function createMcpServerInstance(): Promise<McpServer> {
 
 
 /**
- * Sets up and starts the MCP transport layer based on the `TRANSPORT_TYPE` constant.
- * Delegates the actual transport setup and connection logic to specific functions
- * imported from the `transports/` directory.
+ * Selects, sets up, and starts the appropriate MCP transport layer based on configuration.
+ * This function acts as the bridge between the core server logic and the communication channel.
  *
- * @async
- * @returns {Promise<McpServer | http.Server>} For 'stdio' transport, returns the `McpServer` instance. For 'http' transport, returns the running `http.Server` instance.
- * @throws {Error} Throws an error if the transport type is unsupported, or if server creation/connection fails.
+ * MCP Spec Relevance:
+ * - Transport Selection: Reads `config.mcpTransportType` ('stdio' or 'http') to determine
+ *   which transport mechanism defined in the MCP specification to use.
+ * - Transport Connection: Calls dedicated functions (`connectStdioTransport` or `startHttpTransport`)
+ *   which handle the specifics of establishing communication according to the chosen
+ *   transport's rules (e.g., stdin/stdout handling for 'stdio', HTTP server setup and
+ *   endpoint handling for 'http').
+ * - Server Instance Lifecycle:
+ *   - For 'stdio', creates a single `McpServer` instance for the lifetime of the process.
+ *   - For 'http', passes the `createMcpServerInstance` factory function to `startHttpTransport`,
+ *     allowing the HTTP transport to create a new, isolated server instance for each client session,
+ *     aligning with the stateful session management described in the Streamable HTTP spec.
+ *
+ * @returns {Promise<McpServer | void>} Resolves with the McpServer instance for 'stdio', or void for 'http'.
+ * @throws {Error} If the configured transport type is unsupported or if transport setup fails.
  */
-async function startTransport(): Promise<McpServer | http.Server> {
-  const context = { operation: 'startTransport', transport: TRANSPORT_TYPE };
-  logger.info(`Starting transport: ${TRANSPORT_TYPE}`, context);
+async function startTransport(): Promise<McpServer | void> {
+  // Determine the transport type from the validated configuration.
+  const transportType = config.mcpTransportType;
+  const context = { operation: 'startTransport', transport: transportType };
+  logger.info(`Starting transport: ${transportType}`, context);
 
   // --- HTTP Transport Setup ---
-  if (TRANSPORT_TYPE === 'http') {
-    // Delegate to the HTTP transport setup function.
-    // Pass the server instance factory function.
-    // Capture and return the http.Server instance.
-    const httpServer = await startHttpTransport(createMcpServerInstance, context);
-    return httpServer;
+  if (transportType === 'http') {
+    logger.debug('Delegating to startHttpTransport...', context);
+    // For HTTP, the transport layer manages its own lifecycle and potentially multiple sessions.
+    // We pass the factory function to allow the HTTP transport to create server instances as needed (per session).
+    await startHttpTransport(createMcpServerInstance, context);
+    // The HTTP server runs indefinitely, listening for connections, so this function returns void.
+    return;
   }
 
   // --- Stdio Transport Setup ---
-  if (TRANSPORT_TYPE === 'stdio') {
-    // Create a single server instance for the stdio process.
+  if (transportType === 'stdio') {
+    logger.debug('Creating single McpServer instance for stdio transport...', context);
+    // For stdio, there's typically one persistent connection managed by a parent process.
+    // Create a single McpServer instance for the entire process lifetime.
     const server = await createMcpServerInstance();
-    // Delegate connection to the Stdio transport function.
+    logger.debug('Delegating to connectStdioTransport...', context);
+    // Connect the server instance to the stdio transport handler.
     await connectStdioTransport(server, context);
-    // Return the server instance, as it might be needed by the calling process.
+    // Return the server instance; the caller (main entry point) might hold onto it.
     return server;
   }
 
   // --- Unsupported Transport ---
-  // If TRANSPORT_TYPE is neither 'http' nor 'stdio'.
-  logger.fatal(`Unsupported transport type configured: ${TRANSPORT_TYPE}`, context);
-  throw new Error(`Unsupported transport type: ${TRANSPORT_TYPE}. Must be 'stdio' or 'http'.`);
+  // This case should theoretically not be reached due to config validation, but acts as a safeguard.
+  logger.fatal(`Unsupported transport type configured: ${transportType}`, context);
+  throw new Error(`Unsupported transport type: ${transportType}. Must be 'stdio' or 'http'.`);
 }
 
 /**
- * Main application entry point.
- * Calls `startTransport` to initialize and start the MCP server based on the
- * configured transport type. Handles top-level errors during startup.
+ * Main application entry point. Initializes and starts the MCP server.
  *
- * @async
- * @export
- * @returns {Promise<McpServer | http.Server>} Resolves with the McpServer instance if using stdio, or the http.Server instance if using http. Rejects on critical startup failure.
+ * MCP Spec Relevance:
+ * - Orchestrates the server startup sequence, culminating in a server ready to accept
+ *   connections and process MCP messages according to the chosen transport's rules.
+ * - Implements top-level error handling for critical startup failures, ensuring the
+ *   process exits appropriately if it cannot initialize correctly.
+ *
+ * @returns {Promise<void | McpServer>} Resolves upon successful startup (void for http, McpServer for stdio). Rejects on critical failure.
  */
-export async function initializeAndStartServer(): Promise<McpServer | http.Server> {
+export async function initializeAndStartServer(): Promise<void | McpServer> {
+  const context = { operation: 'initializeAndStartServer' };
+  logger.info('MCP Server initialization sequence started.', context);
   try {
-    // Start the appropriate transport (stdio or http).
-    return await startTransport();
+    // Initiate the transport setup based on configuration.
+    const result = await startTransport();
+    logger.info('MCP Server initialization sequence completed successfully.', context);
+    return result;
   } catch (err) {
-    // Log fatal errors during the server startup process.
-    logger.fatal('Failed to initialize and start MCP server', { error: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined });
-    // Use the global error handler for critical failures.
-    ErrorHandler.handleError(err, { operation: 'initializeAndStartServer', critical: true });
-    // Exit the process with an error code to signal failure.
+    // Catch any errors that occurred during server instance creation or transport setup.
+    logger.fatal('Critical error during MCP server initialization.', {
+      ...context,
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    // Use the centralized error handler for consistent critical error reporting.
+    ErrorHandler.handleError(err, { ...context, critical: true });
+    // Exit the process with a non-zero code to indicate failure.
+    logger.info('Exiting process due to critical initialization error.', context);
     process.exit(1);
   }
 }

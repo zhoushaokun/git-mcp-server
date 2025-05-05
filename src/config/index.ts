@@ -33,12 +33,22 @@ export const config = {
   logLevel: process.env.MCP_LOG_LEVEL || "info", // Use MCP_LOG_LEVEL consistently
   /** The runtime environment (e.g., "development", "production"). Defaults to "development". */
   environment: process.env.NODE_ENV || "development",
+  /** The communication transport type ('stdio' or 'http'). Defaults to 'stdio'. */
+  mcpTransportType: process.env.MCP_TRANSPORT_TYPE || "stdio",
+  /** Port for the HTTP transport. Defaults to 3000. */
+  mcpHttpPort: parseInt(process.env.MCP_HTTP_PORT || "3000", 10),
+  /** Host for the HTTP transport. Defaults to '127.0.0.1'. */
+  mcpHttpHost: process.env.MCP_HTTP_HOST || "127.0.0.1",
+  /** Allowed origins for HTTP transport (comma-separated). */
+  mcpAllowedOrigins: process.env.MCP_ALLOWED_ORIGINS?.split(',') || [],
   /** Security-related configurations. */
   security: {
     // Placeholder for security settings
     // Example: authRequired: process.env.AUTH_REQUIRED === 'true'
     /** Indicates if authentication is required for server operations. */
     authRequired: false,
+    /** Secret key for signing/verifying authentication tokens (required if authRequired is true). */
+    mcpAuthSecretKey: process.env.MCP_AUTH_SECRET_KEY || '', // Default to empty string, validation should happen elsewhere
   }
   // Note: mcpClient configuration is now loaded separately from mcp-config.json
 };

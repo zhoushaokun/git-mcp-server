@@ -1,18 +1,10 @@
 #!/usr/bin/env node
-console.log(">>> index.ts: Top of file"); // DEBUG LOG 1
-
-import http from 'http'; // Import http module
-console.log(">>> index.ts: Imported http"); // DEBUG LOG 2
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-console.log(">>> index.ts: Imported McpServer"); // DEBUG LOG 3
+import http from 'http'; // Import http module
 import { config, environment, logLevel } from "./config/index.js"; // Import logLevel from config
-console.log(">>> index.ts: Imported config, environment, logLevel"); // DEBUG LOG 4
 import { initializeAndStartServer } from "./mcp-server/server.js";
-console.log(">>> index.ts: Imported initializeAndStartServer"); // DEBUG LOG 5
 // Import utils from barrel
-import { logger, McpLogLevel } from './utils/index.js'; // Import McpLogLevel type
-// Import utils from barrel
-import { requestContextService } from './utils/index.js';
+import { logger, McpLogLevel, requestContextService } from './utils/index.js'; // Import McpLogLevel type
 
 /**
  * The main MCP server instance (used for stdio transport).
@@ -97,9 +89,7 @@ const shutdown = async (signal: string) => {
  * and registers signal handlers for graceful shutdown and error handling.
  */
 const start = async () => {
-  console.log(">>> index.ts: Entering start() function"); // DEBUG LOG 6
   // --- Initialize Logger FIRST ---
-  console.log(">>> index.ts: Preparing to initialize logger"); // DEBUG LOG 7
   // Define valid MCP log levels based on the logger's type definition
   const validMcpLogLevels: McpLogLevel[] = ['debug', 'info', 'notice', 'warning', 'error', 'crit', 'alert', 'emerg'];
   let validatedMcpLogLevel: McpLogLevel = 'info'; // Default to 'info'
@@ -111,11 +101,9 @@ const start = async () => {
   }
   // Initialize the logger singleton instance with the validated level.
   logger.initialize(validatedMcpLogLevel);
-  console.log(">>> index.ts: logger.initialize() called"); // DEBUG LOG 8
   // Now it's safe to use the logger.
 
   // --- Start Application ---
-  console.log(">>> index.ts: Preparing to start application logic"); // DEBUG LOG 9
   const transportType = (process.env.MCP_TRANSPORT_TYPE || 'stdio').toLowerCase();
   const startupContext = requestContextService.createRequestContext({
     operation: `ServerStartup_${transportType}`, // Include transport in operation name
