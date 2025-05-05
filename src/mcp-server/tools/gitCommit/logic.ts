@@ -81,8 +81,15 @@ export async function commitGitChanges(
   }
 
   try {
+    // Escape message for shell safety
+    const escapeShellArg = (arg: string): string => {
+      // Escape backslashes first, then other special chars
+      return arg.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+    };
+    const escapedMessage = escapeShellArg(input.message);
+
     // Construct the git commit command using the resolved targetPath
-    let command = `git -C "${targetPath}" commit -m "${input.message.replace(/"/g, '\\"')}"`; // Escape double quotes
+    let command = `git -C "${targetPath}" commit -m "${escapedMessage}"`;
 
     if (input.allowEmpty) {
       command += ' --allow-empty';
@@ -91,12 +98,15 @@ export async function commitGitChanges(
       command += ' --amend --no-edit';
     }
     if (input.author) {
-      // Use -c flags to override author for this commit
-      command = `git -C "${targetPath}" -c user.name="${input.author.name.replace(/"/g, '\\"')}" -c user.email="${input.author.email.replace(/"/g, '\\"')}" commit -m "${input.message.replace(/"/g, '\\"')}"`;
+      // Escape author details as well
+      const escapedAuthorName = escapeShellArg(input.author.name);
+      const escapedAuthorEmail = escapeShellArg(input.author.email); // Email typically safe, but escape anyway
+      // Use -c flags to override author for this commit, using the already escaped message
+      command = `git -C "${targetPath}" -c user.name="${escapedAuthorName}" -c user.email="${escapedAuthorEmail}" commit -m "${escapedMessage}"`;
     }
-    // Append common flags
-    if (input.allowEmpty) command += ' --allow-empty';
-    if (input.amend) command += ' --amend --no-edit';
+    // Append common flags (ensure they are appended to the potentially modified command from author block)
+    if (input.allowEmpty && !command.includes(' --allow-empty')) command += ' --allow-empty';
+    if (input.amend && !command.includes(' --amend')) command += ' --amend --no-edit'; // Avoid double adding if author block modified command
 
     // Append signing flag if configured via GIT_SIGN_COMMITS env var
     if (config.gitSignCommits) {
@@ -123,14 +133,22 @@ export async function commitGitChanges(
       if (isSigningError && input.forceUnsignedOnFailure) {
         logger.warning('Initial commit attempt failed due to signing error. Retrying without signing as forceUnsignedOnFailure=true.', { ...context, operation, initialError: initialErrorMessage });
 
-        // Construct command *without* -S flag
-        let unsignedCommand = `git -C "${targetPath}" commit -m "${input.message.replace(/"/g, '\\"')}"`;
+        // Construct command *without* -S flag, using escaped message/author
+        const escapeShellArg = (arg: string): string => {
+          return arg.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+        };
+        const escapedMessage = escapeShellArg(input.message);
+        let unsignedCommand = `git -C "${targetPath}" commit -m "${escapedMessage}"`;
+
         if (input.allowEmpty) unsignedCommand += ' --allow-empty';
         if (input.amend) unsignedCommand += ' --amend --no-edit';
         if (input.author) {
-           unsignedCommand = `git -C "${targetPath}" -c user.name="${input.author.name.replace(/"/g, '\\"')}" -c user.email="${input.author.email.replace(/"/g, '\\"')}" commit -m "${input.message.replace(/"/g, '\\"')}"`;
-           if (input.allowEmpty) unsignedCommand += ' --allow-empty';
-           if (input.amend) unsignedCommand += ' --amend --no-edit';
+           const escapedAuthorName = escapeShellArg(input.author.name);
+           const escapedAuthorEmail = escapeShellArg(input.author.email);
+           unsignedCommand = `git -C "${targetPath}" -c user.name="${escapedAuthorName}" -c user.email="${escapedAuthorEmail}" commit -m "${escapedMessage}"`;
+           // Re-append common flags if author block overwrote command
+           if (input.allowEmpty && !unsignedCommand.includes(' --allow-empty')) unsignedCommand += ' --allow-empty';
+           if (input.amend && !unsignedCommand.includes(' --amend')) unsignedCommand += ' --amend --no-edit';
         }
 
         logger.debug(`Executing unsigned fallback command: ${unsignedCommand}`, { ...context, operation });

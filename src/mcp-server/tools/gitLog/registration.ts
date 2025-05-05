@@ -34,7 +34,7 @@ export function initializeGitLogStateAccessors(getWdFn: GetWorkingDirectoryFn, g
 
 
 const TOOL_NAME = 'git_log';
-const TOOL_DESCRIPTION = "Shows commit logs for the repository. Supports limiting count, filtering by author, date range, and specific branch/file. Returns a list of commit objects.";
+const TOOL_DESCRIPTION = "Shows commit logs for the repository. Supports limiting count, filtering by author, date range, and specific branch/file. Returns a list of commit objects by default. Can optionally show signature verification status (`showSignature: true`), which returns raw text output instead of JSON.";
 
 /**
  * Registers the git_log tool with the MCP server.

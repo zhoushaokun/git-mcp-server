@@ -30,7 +30,8 @@ export const GitLogInputSchema = z.object({
   since: z.string().optional().describe("Show commits more recent than a specific date (e.g., '2 weeks ago', '2023-01-01')."),
   until: z.string().optional().describe("Show commits older than a specific date."),
   branchOrFile: z.string().optional().describe("Show logs for a specific branch (e.g., 'main'), tag, or file path (e.g., 'src/utils/logger.ts')."),
-  // Note: We use a fixed pretty format for reliable parsing. Custom formats are not directly supported via input.
+  showSignature: z.boolean().optional().default(false).describe("Show signature verification status for commits. Returns raw output instead of parsed JSON."),
+  // Note: We use a fixed pretty format for reliable parsing unless showSignature is true.
 });
 
 // Infer the TypeScript type from the Zod schema
@@ -85,12 +86,24 @@ export async function logGitHistory(
   }
 
   try {
-    // Construct the git log command
-    // Use a specific format for reliable parsing
-    let command = `git -C "${targetPath}" log ${GIT_LOG_FORMAT}`;
+    let command: string;
+    let isRawOutput = false; // Flag to indicate if we should parse or return raw
 
-    if (input.maxCount) {
-      command += ` -n ${input.maxCount}`;
+    if (input.showSignature) {
+      isRawOutput = true;
+      command = `git -C "${targetPath}" log --show-signature`;
+      logger.info('Show signature requested, returning raw output.', { ...context, operation });
+      // Append other filters if provided
+      if (input.maxCount) command += ` -n ${input.maxCount}`;
+      if (input.author) command += ` --author="${input.author.replace(/[`"$&;*()|<>]/g, '')}"`;
+      if (input.since) command += ` --since="${input.since.replace(/[`"$&;*()|<>]/g, '')}"`;
+      if (input.until) command += ` --until="${input.until.replace(/[`"$&;*()|<>]/g, '')}"`;
+      if (input.branchOrFile) command += ` ${input.branchOrFile.replace(/[`"$&;*()|<>]/g, '')}`;
+
+    } else {
+      // Construct the git log command with the fixed format for parsing
+      command = `git -C "${targetPath}" log ${GIT_LOG_FORMAT}`;
+      if (input.maxCount) command += ` -n ${input.maxCount}`;
     }
     if (input.author) {
       // Basic sanitization for author string
@@ -117,10 +130,22 @@ export async function logGitHistory(
 
     if (stderr) {
       // Log stderr as warning, as git log might sometimes use it for non-fatal info
-      logger.warning(`Git log stderr: ${stderr}`, { ...context, operation });
+      // Exception: If showing signature, stderr about allowedSignersFile is expected, treat as info
+      if (isRawOutput && stderr.includes('allowedSignersFile needs to be configured')) {
+        logger.info(`Git log stderr (signature verification note): ${stderr.trim()}`, { ...context, operation });
+      } else {
+        logger.warning(`Git log stderr: ${stderr.trim()}`, { ...context, operation });
+      }
     }
 
-    // Parse the output
+    // If raw output was requested, return it directly
+    if (isRawOutput) {
+      const message = `Raw log output (showSignature=true):\n${stdout}`;
+      logger.info(`${operation} completed successfully (raw output).`, { ...context, operation, path: targetPath });
+      return { success: true, commits: [], message: message };
+    }
+
+    // Otherwise, parse the structured output
     const commits: CommitEntry[] = [];
     const commitRecords = stdout.split(RECORD_SEP).filter(record => record.trim() !== ''); // Split records and remove empty ones
 
