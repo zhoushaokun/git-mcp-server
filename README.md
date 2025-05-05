@@ -15,16 +15,9 @@ Built on the [`cyanheads/mcp-ts-template`](https://github.com/cyanheads/mcp-ts-t
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Verified Commits (GPG/SSH Signing)](#verified-commits-gpgssh-signing)
-- [Project Structure](#project-structure)
-- [Tools](#tools)
-- [Resources](#resources)
-- [Development](#development)
-- [License](#license)
+| [Overview](#overview) | [Features](#features) | [Installation](#installation) |
+| [Configuration](#configuration) | [Project Structure](#project-structure) |
+| [Tools](#tools) | [Resources](#resources) | [Development](#development) | [License](#license) |
 
 ## Overview
 
@@ -61,7 +54,7 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 - **Repository Interaction**: Supports status checking, branching, staging, committing, fetching, pulling, pushing, diffing, logging, resetting, tagging, and more.
 - **Working Directory Management**: Allows setting and clearing a session-specific working directory for context persistence across multiple Git operations.
 - **Safety Features**: Includes checks and requires explicit confirmation for potentially destructive operations like `git clean` and `git reset --hard`.
-- **Commit Signing**: Supports GPG or SSH signing for verified commits, controlled via the `GIT_SIGN_COMMITS` environment variable and server-side Git configuration (see [Verified Commits](#verified-commits-gpgssh-signing)). Includes an option to fall back to unsigned commits on signing failure.
+- **Commit Signing**: Supports GPG or SSH signing for verified commits, controlled via the `GIT_SIGN_COMMITS` environment variable and server-side Git configuration. Includes an optional tool parameter to fall back to unsigned commits on signing failure.
 
 ## Installation
 
@@ -70,7 +63,13 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 - [Node.js (>=18.0.0)](https://nodejs.org/)
 - [npm](https://www.npmjs.com/) (comes with Node.js)
 - [Git](https://git-scm.com/) installed and accessible in the system PATH.
-- (Optional) GPG or SSH setup for commit signing (see below).
+
+### Install via npm
+
+1.  Install the package globally:
+    ```bash
+    npm install git-mcp-server
+    ```
 
 ### Install from Source
 
@@ -85,7 +84,7 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
     ```
 3.  Build the project:
     ```bash
-    npm run build
+    npm run build (or `npm run rebuild`)
     ```
     This compiles the TypeScript code to JavaScript in the `dist/` directory and makes the entry point executable.
 
@@ -103,8 +102,6 @@ Configure the server using environment variables. Create a `.env` file in the pr
 | `MCP_ALLOWED_ORIGINS` | Comma-separated list of allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).                                                      | (none)      |
 | `MCP_LOG_LEVEL`       | Logging level (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`). Inherited from template.                     | `info`      |
 | `GIT_SIGN_COMMITS`    | Set to `"true"` to enable signing attempts for commits made by the `git_commit` tool. Requires server-side Git/key setup (see below). | `false`     |
-
-\*(Note: `MCP_SERVER_NAME` and `MCP_SERVER_VERSION` are derived from `package.json`).
 
 ### MCP Client Settings
 
@@ -128,61 +125,6 @@ Add to your MCP client settings (e.g., `cline_mcp_settings.json`):
   }
 }
 ```
-
-## Verified Commits (GPG/SSH Signing)
-
-To sign your commits made via the `git_commit` tool on platforms like GitHub (resulting in a "Verified" badge), commit signing must be enabled and configured **on the machine where the `git-mcp-server` process runs**.
-
-**Configuration Steps (on Server Machine):**
-
-1.  **Enable Signing in Server (Optional):** Start the `git-mcp-server` with the environment variable `GIT_SIGN_COMMITS=true`. This tells the server to add the `-S` flag to `git commit` commands, explicitly requesting a signature. If this is `false` or unset (default), the `-S` flag is not added, and signing relies solely on Git's automatic signing configuration (step 2, if `commit.gpgsign=true` is set).
-
-2.  **Configure Git for Signing Method (SSH Recommended):** Choose **one** of the following methods and configure Git accordingly on the server:
-
-    - **Method A: GPG Signing**
-
-      - **Generate/Import GPG Key:** Ensure a GPG key pair exists for the desired committer email. See [GitHub Docs: Generating a new GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key).
-      - **Add Public Key to GitHub:** Add the GPG public key to the GitHub account associated with the committer email. See [GitHub Docs: Adding a new GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-new-gpg-key-to-your-github-account).
-      - **Configure Git:**
-        ```bash
-        # Tell Git which GPG key to use
-        git config --global user.signingkey YOUR_GPG_KEY_ID
-        # Ensure Git user email matches the GPG key email
-        git config --global user.email "your_email@example.com"
-        # Optional: Enable automatic signing for ALL commits (if not using GIT_SIGN_COMMITS=true)
-        # git config --global commit.gpgsign true
-        # Ensure Git knows how to find the gpg program if needed
-        # git config --global gpg.program /path/to/gpg
-        ```
-      - **Handle Passphrase (Crucial for Autonomy):** GPG often requires a passphrase. For non-interactive server use (when `-S` is used or `commit.gpgsign` is true), you **must** configure `gpg-agent` to cache the passphrase (e.g., by editing `~/.gnupg/gpg-agent.conf` and priming the cache). See the `.clinerules` file or GnuPG documentation for details.
-
-    - **Method B: SSH Signing (Recommended for Autonomy)**
-      - **Generate/Import SSH Key:** Ensure an SSH key pair exists (e.g., `~/.ssh/id_ed25519`). Ed25519 keys are recommended. Using a key _without_ a passphrase simplifies autonomous operation. See [GitHub Docs: Generating a new SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent).
-      - **Add Public Key to GitHub as _Signing Key_:** Add the SSH _public_ key (`~/.ssh/id_ed25519.pub`) to your GitHub account specifically in the "SSH Signing Keys" section (this is different from authentication keys).
-      - **Configure Git:**
-        ```bash
-        # Set Git to use SSH format for signing
-        git config --global gpg.format ssh
-        # Tell Git which SSH key to use for signing (path to the PRIVATE key)
-        git config --global user.signingkey /path/to/your/ssh_private_key # e.g., ~/.ssh/id_ed25519
-        # Ensure Git user email matches the GitHub account email
-        git config --global user.email "your_email@example.com"
-        # Optional: Enable automatic signing for ALL commits (if not using GIT_SIGN_COMMITS=true)
-        # git config --global commit.gpgsign true
-        ```
-      - **Handle Passphrase:** If your SSH key has a passphrase, you'll need `ssh-agent` running and configured to cache the passphrase non-interactively. Keys without passphrases avoid this complexity but are less secure if the private key file is compromised.
-
-3.  **Commit:** Use the `git_commit` tool.
-    - If `GIT_SIGN_COMMITS=true` was set when starting the server, the tool adds `-S`. Git will then attempt to sign using the configured method (`gpg.format`, `user.signingkey`).
-    - If `GIT_SIGN_COMMITS=false` (or unset), the tool does _not_ add `-S`. Signing will _only_ occur if `commit.gpgsign=true` is set in the Git config.
-    - **Fallback on Failure:** If signing is attempted (due to `GIT_SIGN_COMMITS=true`) but fails (e.g., key not found, agent issue), the commit operation will **fail by default**. To allow the commit to proceed _unsigned_ in case of signing failure, pass the optional parameter `forceUnsignedOnFailure: true` when calling the `git_commit` tool. The success message will indicate if signing was skipped.
-
-**Troubleshooting:**
-
-- If signing fails, check the `git-mcp-server` logs for errors from `git commit` itself, which might include details from `gpg` or `ssh`.
-- Ensure the `user.email` in the Git config (global or local) matches the email associated with the GPG/SSH key _and_ the email verified on your GitHub account.
-- Verify the correct public key (GPG or SSH) is added to the correct section on GitHub.
-- Double-check agent (`gpg-agent`/`ssh-agent`) configuration if using passphrases.
 
 ## Project Structure
 
