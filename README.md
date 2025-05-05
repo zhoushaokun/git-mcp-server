@@ -194,7 +194,8 @@ src/
 ├── config/            # Configuration loading (env vars, package info)
 │   └── index.ts
 ├── mcp-server/        # Core MCP server logic and capability registration
-│   ├── server.ts      # Server setup, transport handling, tool registration
+│   ├── server.ts      # Server setup, capability registration
+│   ├── transports/    # Transport handling (stdio, http)
 │   ├── resources/     # MCP Resource implementations (currently none)
 │   └── tools/         # MCP Tool implementations (subdirs per tool)
 ├── types-global/      # Shared TypeScript type definitions
