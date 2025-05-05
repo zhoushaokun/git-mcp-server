@@ -8,6 +8,8 @@ import { logger } from '../../../utils/index.js';
 import { RequestContext } from '../../../utils/index.js';
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from '../../../utils/index.js';
+// Import config to check signing flag
+import { config } from '../../../config/index.js';
 
 const execAsync = promisify(exec);
 
@@ -21,6 +23,7 @@ export const GitCommitInputSchema = z.object({
   }).optional().describe('Overrides the commit author information (name and email). Use only when necessary (e.g., applying external patches).'),
   allowEmpty: z.boolean().default(false).describe('Allow creating empty commits'),
   amend: z.boolean().default(false).describe('Amend the previous commit instead of creating a new one'),
+  forceUnsignedOnFailure: z.boolean().default(false).describe('If true and signing is enabled but fails, attempt the commit without signing instead of failing.'),
 });
 
 // Infer the TypeScript type from the Zod schema
@@ -88,18 +91,76 @@ export async function commitGitChanges(
       command += ' --amend --no-edit';
     }
     if (input.author) {
-      // Ensure author details are properly escaped if needed, though exec usually handles this
+      // Use -c flags to override author for this commit
       command = `git -C "${targetPath}" -c user.name="${input.author.name.replace(/"/g, '\\"')}" -c user.email="${input.author.email.replace(/"/g, '\\"')}" commit -m "${input.message.replace(/"/g, '\\"')}"`;
-      if (input.allowEmpty) command += ' --allow-empty';
-      if (input.amend) command += ' --amend --no-edit';
+    }
+    // Append common flags
+    if (input.allowEmpty) command += ' --allow-empty';
+    if (input.amend) command += ' --amend --no-edit';
+
+    // Append signing flag if configured via GIT_SIGN_COMMITS env var
+    if (config.gitSignCommits) {
+      command += ' -S'; // Add signing flag (-S)
+      logger.info('Signing enabled via GIT_SIGN_COMMITS=true, adding -S flag.', { ...context, operation });
     }
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing initial command attempt: ${command}`, { ...context, operation });
 
-    const { stdout, stderr } = await execAsync(command);
+    let stdout: string;
+    let stderr: string;
+    let commitResult: GitCommitResult | undefined;
 
+    try {
+      // Initial attempt (potentially with -S flag)
+      const execResult = await execAsync(command);
+      stdout = execResult.stdout;
+      stderr = execResult.stderr;
+
+    } catch (error: any) {
+      const initialErrorMessage = error.stderr || error.message || '';
+      const isSigningError = initialErrorMessage.includes('gpg failed to sign') || initialErrorMessage.includes('signing failed');
+
+      if (isSigningError && input.forceUnsignedOnFailure) {
+        logger.warning('Initial commit attempt failed due to signing error. Retrying without signing as forceUnsignedOnFailure=true.', { ...context, operation, initialError: initialErrorMessage });
+
+        // Construct command *without* -S flag
+        let unsignedCommand = `git -C "${targetPath}" commit -m "${input.message.replace(/"/g, '\\"')}"`;
+        if (input.allowEmpty) unsignedCommand += ' --allow-empty';
+        if (input.amend) unsignedCommand += ' --amend --no-edit';
+        if (input.author) {
+           unsignedCommand = `git -C "${targetPath}" -c user.name="${input.author.name.replace(/"/g, '\\"')}" -c user.email="${input.author.email.replace(/"/g, '\\"')}" commit -m "${input.message.replace(/"/g, '\\"')}"`;
+           if (input.allowEmpty) unsignedCommand += ' --allow-empty';
+           if (input.amend) unsignedCommand += ' --amend --no-edit';
+        }
+
+        logger.debug(`Executing unsigned fallback command: ${unsignedCommand}`, { ...context, operation });
+
+        try {
+          // Retry commit without signing
+          const fallbackResult = await execAsync(unsignedCommand);
+          stdout = fallbackResult.stdout;
+          stderr = fallbackResult.stderr;
+          // Add a note to the status message indicating signing was skipped
+          commitResult = {
+            success: true,
+            statusMessage: `Commit successful (unsigned, signing failed): ${stdout.trim()}`, // Default message, hash parsed below
+            commitHash: undefined // Will be parsed below
+          };
+        } catch (fallbackError: any) {
+          // If the unsigned commit *also* fails, re-throw that error
+          logger.error('Unsigned fallback commit attempt also failed.', { ...context, operation, fallbackError: fallbackError.message, stderr: fallbackError.stderr });
+          throw fallbackError; // Re-throw the error from the unsigned attempt
+        }
+
+      } else {
+        // If it wasn't a signing error, or forceUnsignedOnFailure is false, re-throw the original error
+        throw error;
+      }
+    }
+
+    // Process result (either from initial attempt or fallback)
     // Check stderr first for common non-error messages
-    if (stderr) {
+    if (stderr && !commitResult) { // Don't overwrite fallback message if stderr also exists
       if (stderr.includes('nothing to commit, working tree clean') || stderr.includes('no changes added to commit')) {
          const msg = stderr.includes('nothing to commit') ? 'Nothing to commit, working tree clean.' : 'No changes added to commit.';
          logger.info(msg, { ...context, operation, path: targetPath });
@@ -120,19 +181,19 @@ export async function commitGitChanges(
         logger.warning('Could not parse commit hash from stdout', { ...context, operation, stdout });
     }
 
-    // Use statusMessage
-    const statusMsg = commitHash
+    // Use statusMessage, potentially using the one set during fallback
+    const finalStatusMsg = commitResult?.statusMessage || (commitHash
         ? `Commit successful: ${commitHash}`
-        : `Commit successful (stdout: ${stdout.trim()})`;
+        : `Commit successful (stdout: ${stdout.trim()})`);
 
-    logger.info(`${operation} executed successfully`, { ...context, operation, path: targetPath, commitHash });
+    logger.info(`${operation} executed successfully`, { ...context, operation, path: targetPath, commitHash, signed: !commitResult }); // Log if it was signed (not fallback)
     return {
         success: true,
-        statusMessage: statusMsg,
+        statusMessage: finalStatusMsg, // Use potentially modified message
         commitHash: commitHash
     };
 
-  } catch (error: any) {
+  } catch (error: any) { // This catch block now primarily handles non-signing errors or errors from the fallback attempt
     logger.error(`Failed to execute git commit command`, { ...context, operation, path: targetPath, error: error.message, stderr: error.stderr });
 
     const errorMessage = error.stderr || error.message || '';

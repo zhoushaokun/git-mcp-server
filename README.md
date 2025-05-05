@@ -1,7 +1,7 @@
 # Git MCP Server
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.10.2-green.svg)](https://modelcontextprotocol.io/)
+[![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.11.0-green.svg)](https://modelcontextprotocol.io/)
 [![Version](https://img.shields.io/badge/Version-2.0.2-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/git-mcp-server/issues)
@@ -19,6 +19,7 @@ Built on the [`cyanheads/mcp-ts-template`](https://github.com/cyanheads/mcp-ts-t
 - [Features](#features)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Verified Commits (GPG/SSH Signing)](#verified-commits-gpgssh-signing)
 - [Project Structure](#project-structure)
 - [Tools](#tools)
 - [Resources](#resources)
@@ -56,19 +57,20 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 ### Git Operations
 
 - **Direct Git CLI Execution**: Interacts with Git by securely executing the standard `git` command-line tool via Node.js `child_process`, ensuring full compatibility and access to Git's features.
-
 - **Comprehensive Command Coverage**: Exposes a wide range of Git commands as MCP tools (see [Tools](#tools) section).
 - **Repository Interaction**: Supports status checking, branching, staging, committing, fetching, pulling, pushing, diffing, logging, resetting, tagging, and more.
 - **Working Directory Management**: Allows setting and clearing a session-specific working directory for context persistence across multiple Git operations.
 - **Safety Features**: Includes checks and requires explicit confirmation for potentially destructive operations like `git clean` and `git reset --hard`.
+- **Commit Signing**: Supports GPG or SSH signing for verified commits, controlled via the `GIT_SIGN_COMMITS` environment variable and server-side Git configuration (see [Verified Commits](#verified-commits-gpgssh-signing)). Includes an option to fall back to unsigned commits on signing failure.
 
 ## Installation
 
 ### Prerequisites
 
-- [Node.js (v18+)](https://nodejs.org/)
+- [Node.js (>=18.0.0)](https://nodejs.org/)
 - [npm](https://www.npmjs.com/) (comes with Node.js)
 - [Git](https://git-scm.com/) installed and accessible in the system PATH.
+- (Optional) GPG or SSH setup for commit signing (see below).
 
 ### Install from Source
 
@@ -85,7 +87,7 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
     ```bash
     npm run build
     ```
-    This compiles the TypeScript code to JavaScript in the `build/` directory and makes the entry point executable.
+    This compiles the TypeScript code to JavaScript in the `dist/` directory and makes the entry point executable.
 
 ## Configuration
 
@@ -93,20 +95,16 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 
 Configure the server using environment variables. Create a `.env` file in the project root (copy from `.env.example`) or set them in your environment.
 
-| Variable               | Description                                                                              | Default             |
-| ---------------------- | ---------------------------------------------------------------------------------------- | ------------------- |
-| `MCP_TRANSPORT_TYPE`   | Transport mechanism: `stdio` or `http`.                                                  | `stdio`             |
-| `MCP_HTTP_PORT`        | Port for the HTTP server (if `MCP_TRANSPORT_TYPE=http`). Retries next ports if busy.     | `3000`              |
-| `MCP_HTTP_HOST`        | Host address for the HTTP server (if `MCP_TRANSPORT_TYPE=http`).                         | `127.0.0.1`         |
-| `MCP_ALLOWED_ORIGINS`  | Comma-separated list of allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).         | (none)              |
-| `MCP_SERVER_NAME`      | Name reported during MCP initialization.                                                 | `git-mcp-server`    |
-| `MCP_SERVER_VERSION`   | Version reported during MCP initialization.                                              | (from package.json) |
-| `LOG_LEVEL`            | Logging level (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`). | `info`              |
-| `LOG_REDACT_PATTERNS`  | Comma-separated regex patterns for redacting sensitive data in logs.                     | (predefined)        |
-| `LOG_FILE_PATH`        | Path for log file output. If unset, logs only to console.                                | (none)              |
-| `LOG_MAX_FILE_SIZE_MB` | Max size (MB) for log file rotation.                                                     | `10`                |
-| `LOG_MAX_FILES`        | Max number of rotated log files to keep.                                                 | `5`                 |
-| `LOG_ZIP_ARCHIVES`     | Compress rotated log files (`true`/`false`).                                             | `true`              |
+| Variable              | Description                                                                                                                           | Default     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `MCP_TRANSPORT_TYPE`  | Transport mechanism: `stdio` or `http`.                                                                                               | `stdio`     |
+| `MCP_HTTP_PORT`       | Port for the HTTP server (if `MCP_TRANSPORT_TYPE=http`). Retries next ports if busy.                                                  | `3000`      |
+| `MCP_HTTP_HOST`       | Host address for the HTTP server (if `MCP_TRANSPORT_TYPE=http`).                                                                      | `127.0.0.1` |
+| `MCP_ALLOWED_ORIGINS` | Comma-separated list of allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).                                                      | (none)      |
+| `MCP_LOG_LEVEL`       | Logging level (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`). Inherited from template.                     | `info`      |
+| `GIT_SIGN_COMMITS`    | Set to `"true"` to enable signing attempts for commits made by the `git_commit` tool. Requires server-side Git/key setup (see below). | `false`     |
+
+\*(Note: `MCP_SERVER_NAME` and `MCP_SERVER_VERSION` are derived from `package.json`).
 
 ### MCP Client Settings
 
@@ -115,12 +113,14 @@ Add to your MCP client settings (e.g., `cline_mcp_settings.json`):
 ```json
 {
   "mcpServers": {
-    "git": {
+    "git-mcp-server": {
+      // Use a descriptive name
       "command": "node", // Use node to run the script
-      "args": ["/path/to/your/git-mcp-server/build/index.js"], // Absolute path to the built entry point
+      "args": ["/path/to/your/git-mcp-server/dist/index.js"], // Absolute path to the built entry point
       "env": {
         // "MCP_TRANSPORT_TYPE": "http", // Optional: if using http
-        // "MCP_HTTP_PORT": "3001"      // Optional: if using http and non-default port
+        // "MCP_HTTP_PORT": "3010",     // Optional: if using http and non-default port
+        // "GIT_SIGN_COMMITS": "true"   // Optional: Enable commit signing attempts if server is configured
       },
       "disabled": false,
       "autoApprove": [] // Configure auto-approval rules if desired
@@ -128,6 +128,61 @@ Add to your MCP client settings (e.g., `cline_mcp_settings.json`):
   }
 }
 ```
+
+## Verified Commits (GPG/SSH Signing)
+
+To sign your commits made via the `git_commit` tool on platforms like GitHub (resulting in a "Verified" badge), commit signing must be enabled and configured **on the machine where the `git-mcp-server` process runs**.
+
+**Configuration Steps (on Server Machine):**
+
+1.  **Enable Signing in Server (Optional):** Start the `git-mcp-server` with the environment variable `GIT_SIGN_COMMITS=true`. This tells the server to add the `-S` flag to `git commit` commands, explicitly requesting a signature. If this is `false` or unset (default), the `-S` flag is not added, and signing relies solely on Git's automatic signing configuration (step 2, if `commit.gpgsign=true` is set).
+
+2.  **Configure Git for Signing Method (SSH Recommended):** Choose **one** of the following methods and configure Git accordingly on the server:
+
+    - **Method A: GPG Signing**
+
+      - **Generate/Import GPG Key:** Ensure a GPG key pair exists for the desired committer email. See [GitHub Docs: Generating a new GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key).
+      - **Add Public Key to GitHub:** Add the GPG public key to the GitHub account associated with the committer email. See [GitHub Docs: Adding a new GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-new-gpg-key-to-your-github-account).
+      - **Configure Git:**
+        ```bash
+        # Tell Git which GPG key to use
+        git config --global user.signingkey YOUR_GPG_KEY_ID
+        # Ensure Git user email matches the GPG key email
+        git config --global user.email "your_email@example.com"
+        # Optional: Enable automatic signing for ALL commits (if not using GIT_SIGN_COMMITS=true)
+        # git config --global commit.gpgsign true
+        # Ensure Git knows how to find the gpg program if needed
+        # git config --global gpg.program /path/to/gpg
+        ```
+      - **Handle Passphrase (Crucial for Autonomy):** GPG often requires a passphrase. For non-interactive server use (when `-S` is used or `commit.gpgsign` is true), you **must** configure `gpg-agent` to cache the passphrase (e.g., by editing `~/.gnupg/gpg-agent.conf` and priming the cache). See the `.clinerules` file or GnuPG documentation for details.
+
+    - **Method B: SSH Signing (Recommended for Autonomy)**
+      - **Generate/Import SSH Key:** Ensure an SSH key pair exists (e.g., `~/.ssh/id_ed25519`). Ed25519 keys are recommended. Using a key _without_ a passphrase simplifies autonomous operation. See [GitHub Docs: Generating a new SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent).
+      - **Add Public Key to GitHub as _Signing Key_:** Add the SSH _public_ key (`~/.ssh/id_ed25519.pub`) to your GitHub account specifically in the "SSH Signing Keys" section (this is different from authentication keys).
+      - **Configure Git:**
+        ```bash
+        # Set Git to use SSH format for signing
+        git config --global gpg.format ssh
+        # Tell Git which SSH key to use for signing (path to the PRIVATE key)
+        git config --global user.signingkey /path/to/your/ssh_private_key # e.g., ~/.ssh/id_ed25519
+        # Ensure Git user email matches the GitHub account email
+        git config --global user.email "your_email@example.com"
+        # Optional: Enable automatic signing for ALL commits (if not using GIT_SIGN_COMMITS=true)
+        # git config --global commit.gpgsign true
+        ```
+      - **Handle Passphrase:** If your SSH key has a passphrase, you'll need `ssh-agent` running and configured to cache the passphrase non-interactively. Keys without passphrases avoid this complexity but are less secure if the private key file is compromised.
+
+3.  **Commit:** Use the `git_commit` tool.
+    - If `GIT_SIGN_COMMITS=true` was set when starting the server, the tool adds `-S`. Git will then attempt to sign using the configured method (`gpg.format`, `user.signingkey`).
+    - If `GIT_SIGN_COMMITS=false` (or unset), the tool does _not_ add `-S`. Signing will _only_ occur if `commit.gpgsign=true` is set in the Git config.
+    - **Fallback on Failure:** If signing is attempted (due to `GIT_SIGN_COMMITS=true`) but fails (e.g., key not found, agent issue), the commit operation will **fail by default**. To allow the commit to proceed _unsigned_ in case of signing failure, pass the optional parameter `forceUnsignedOnFailure: true` when calling the `git_commit` tool. The success message will indicate if signing was skipped.
+
+**Troubleshooting:**
+
+- If signing fails, check the `git-mcp-server` logs for errors from `git commit` itself, which might include details from `gpg` or `ssh`.
+- Ensure the `user.email` in the Git config (global or local) matches the email associated with the GPG/SSH key _and_ the email verified on your GitHub account.
+- Verify the correct public key (GPG or SSH) is added to the correct section on GitHub.
+- Double-check agent (`gpg-agent`/`ssh-agent`) configuration if using passphrases.
 
 ## Project Structure
 
@@ -161,7 +216,7 @@ The Git MCP Server provides a suite of tools for interacting with Git repositori
 | `git_clean`             | Removes untracked files. **Requires `force: true`**.                                                     | `path?`, `force`, `dryRun?`, `directories?`, `ignored?`                                                         |
 | `git_clear_working_dir` | Clears the session-specific working directory.                                                           | (none)                                                                                                          |
 | `git_clone`             | Clones a repository into a specified absolute path.                                                      | `repositoryUrl`, `targetPath`, `branch?`, `depth?`, `quiet?`                                                    |
-| `git_commit`            | Commits staged changes with a message.                                                                   | `path?`, `message`, `author?`, `allowEmpty?`, `amend?`                                                          |
+| `git_commit`            | Commits staged changes. Supports author override, signing control.                                       | `path?`, `message`, `author?`, `allowEmpty?`, `amend?`, `forceUnsignedOnFailure?`                               |
 | `git_diff`              | Shows changes between commits, working tree, etc.                                                        | `path?`, `commit1?`, `commit2?`, `staged?`, `file?`                                                             |
 | `git_fetch`             | Downloads objects and refs from other repositories.                                                      | `path?`, `remote?`, `prune?`, `tags?`, `all?`                                                                   |
 | `git_init`              | Initializes a new Git repository at the specified absolute path.                                         | `path`, `initialBranch?`, `bare?`, `quiet?`                                                                     |
@@ -182,26 +237,23 @@ _Note: The `path` parameter for most tools defaults to the session's working dir
 
 ## Resources
 
-**MCP Resources are not implemented in this version (v2.0.0).**
+**MCP Resources are not implemented in this version (v2.0.2).**
 
-This version focuses on the refactored Git tools implementation based on the latest `mcp-ts-template` and MCP SDK v1.10.2. Resource capabilities, previously available, have been temporarily removed during this major update.
+This version focuses on the refactored Git tools implementation based on the latest `mcp-ts-template` and MCP SDK v1.11.0. Resource capabilities, previously available, have been temporarily removed during this major update.
 
 If you require MCP Resource access (e.g., for reading file content directly via the server), please use the stable **[v1.2.4 release](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4)**.
 
 Future development may reintroduce resource capabilities in a subsequent release.
 
-> **Note:** This version (v2.0.0) focuses on refactoring and updating the core Git tools based on the latest MCP SDK. MCP Resource capabilities are not implemented in this version. For resource access, please use [v1.2.4](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4).
+> **Note:** This version (v2.0.2) focuses on refactoring and updating the core Git tools based on the latest MCP SDK. MCP Resource capabilities are not implemented in this version. For resource access, please use [v1.2.4](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4).
 
 ## Development
 
 ### Build and Test
 
 ```bash
-# Build the project (compile TS to JS in build/ and make executable)
+# Build the project (compile TS to JS in dist/ and make executable)
 npm run build
-
-# Watch for changes and recompile automatically
-npm run watch
 
 # Test the server locally using the MCP inspector tool (stdio transport)
 npm run inspector
@@ -214,6 +266,14 @@ npm run tree
 
 # Clean build artifacts and then rebuild the project
 npm run rebuild
+
+# Start the server using stdio (default)
+npm start
+# Or explicitly:
+npm run start:stdio
+
+# Start the server using HTTP transport
+npm run start:http
 ```
 
 ## License

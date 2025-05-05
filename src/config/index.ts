@@ -11,7 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Construct the path to package.json relative to the current file
 const pkgPath = join(__dirname, '../../package.json');
 // Default package information in case package.json is unreadable
-let pkg = { name: 'mcp-ts-template', version: '0.0.0' };
+let pkg = { name: 'obsidian-mcp-server', version: '0.0.0' };
 
 try {
   // Read and parse package.json to get server name and version
@@ -36,11 +36,13 @@ export const config = {
   /** The communication transport type ('stdio' or 'http'). Defaults to 'stdio'. */
   mcpTransportType: process.env.MCP_TRANSPORT_TYPE || "stdio",
   /** Port for the HTTP transport. Defaults to 3000. */
-  mcpHttpPort: parseInt(process.env.MCP_HTTP_PORT || "3000", 10),
+  mcpHttpPort: parseInt(process.env.MCP_HTTP_PORT || "3010", 10),
   /** Host for the HTTP transport. Defaults to '127.0.0.1'. */
   mcpHttpHost: process.env.MCP_HTTP_HOST || "127.0.0.1",
   /** Allowed origins for HTTP transport (comma-separated). */
   mcpAllowedOrigins: process.env.MCP_ALLOWED_ORIGINS?.split(',') || [],
+  /** Flag to enable GPG signing for commits made by the git_commit tool. Requires server-side GPG setup. */
+  gitSignCommits: process.env.GIT_SIGN_COMMITS === 'true',
   /** Security-related configurations. */
   security: {
     // Placeholder for security settings

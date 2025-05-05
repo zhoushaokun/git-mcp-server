@@ -41,22 +41,26 @@ Write clear, concise commit messages using the Conventional Commits format: \`ty
 - \`(scope)\`: Optional context (e.g., \`auth\`, \`ui\`, filename).
 - \`subject\`: Imperative, present tense description (e.g., "add login button", not "added login button").
 
+I want to understand what you did and why. Use the body for detailed explanations, if necessary.
+
 **Example Commit Message:**
 \`\`\`
 feat(auth): implement password reset endpoint
 
-Adds the /api/auth/reset-password endpoint to allow users
-to reset their password via an email link. Includes input
-validation and rate limiting.
+- Adds the /api/auth/reset-password endpoint to allow users to reset their password via an email link. 
+- Includes input validation and rate limiting.
 
 Closes #123 (if applicable).
 \`\`\`
 
 **Best Practice:** Commit related changes together in logical units. If you've modified multiple files for a single feature or fix, stage and commit them together with a message that describes the overall change.
 
-**Path Handling:** If the 'path' parameter is omitted or set to '.', the tool uses the working directory set by 'git_set_working_dir'. Providing a full, absolute path overrides this default and ensures explicitness.`;
+**Path Handling:** If the 'path' parameter is omitted or set to '.', the tool uses the working directory set by 'git_set_working_dir'. Providing a full, absolute path overrides this default and ensures explicitness.
 
-/**
+**Commit Signing:** If the server is configured with the \`GIT_SIGN_COMMITS=true\` environment variable, this tool adds the \`-S\` flag to the \`git commit\` command, requesting a signature. Signing requires proper GPG or SSH key setup and Git configuration on the server machine.
+- **Fallback:** If signing is enabled but fails (e.g., key not found, agent issue), the commit will **fail by default**. However, if the optional \`forceUnsignedOnFailure: true\` parameter is provided in the tool call, the tool will attempt the commit again *without* the \`-S\` flag, resulting in an unsigned commit.`;
+
+ /**
  * Registers the git_commit tool with the MCP server.
  * Uses the high-level server.tool() method for registration, schema validation, and routing.
  *

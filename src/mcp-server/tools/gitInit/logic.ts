@@ -15,7 +15,7 @@ const execAsync = promisify(exec);
 
 // Define the input schema for the git_init tool using Zod
 export const GitInitInputSchema = z.object({
-  path: z.string().min(1).describe("The absolute path where the new Git repository should be initialized. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
+  path: z.string().min(1).optional().default('.').describe("Path where the new Git repository should be initialized. Can be relative or absolute. If relative or '.', it resolves against the directory set via `git_set_working_dir` for the session. If absolute, it's used directly. If omitted, defaults to '.' (resolved against session git working directory)."),
   initialBranch: z.string().optional().describe("Optional name for the initial branch (e.g., 'main'). Uses Git's default if not specified."),
   bare: z.boolean().default(false).describe("Create a bare repository (no working directory)."),
   quiet: z.boolean().default(false).describe("Only print error and warning messages; all other output will be suppressed."),

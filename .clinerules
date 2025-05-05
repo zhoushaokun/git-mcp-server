@@ -13,6 +13,7 @@ The server can run using different communication transports, configured via envi
 - **`MCP_HTTP_HOST`**: Host address for the HTTP server (Default: `127.0.0.1`). Used only if `MCP_TRANSPORT_TYPE=http`.
 - **`MCP_ALLOWED_ORIGINS`**: Comma-separated list of allowed origins for HTTP requests (e.g., `http://localhost:8080,https://my-frontend.com`). Used only if `MCP_TRANSPORT_TYPE=http`.
 - **`MCP_LOG_LEVEL`**: Minimum logging level for the server (e.g., "debug", "info", "warning", "error", "notice", "crit", "alert", "emerg"). Defaults to "info". Affects both file logging and MCP notifications.
+- **`GIT_SIGN_COMMITS`**: Set to `"true"` to enable signing for commits created by the `git_commit` tool using the `-S` flag. **Requires additional server-side Git and key configuration (GPG or SSH) as detailed below.** Defaults to `false`.
 
 ### HTTP Transport Details (`MCP_TRANSPORT_TYPE=http`)
 
@@ -25,8 +26,9 @@ The server can run using different communication transports, configured via envi
 
 ### Running the Server
 
-- **Stdio**: `npm start` or `node dist/index.js`
-- **HTTP**: `MCP_TRANSPORT_TYPE=http npm start` or `MCP_TRANSPORT_TYPE=http node dist/index.js` (optionally set `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_ALLOWED_ORIGINS`, `MCP_LOG_LEVEL`).
+- **Stdio**: `npm run start:stdio`
+- **HTTP**: `npm run start:http'
+(optionally set `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_ALLOWED_ORIGINS`, `MCP_LOG_LEVEL`, `GIT_SIGN_COMMITS`).
 
 ## Model Context Protocol (MCP) Overview (Spec: 2025-03-26)
 
@@ -330,5 +332,63 @@ const safeLogData = sanitizeInputForLogging(sensitiveData);
 - **Utilities**: `src/utils/` (Core helper modules: logger, error handler, context, etc.)
 - **Tools**: `src/mcp-server/tools/` (Contains subdirectories for each Git tool)
 - **Resources**: `src/mcp-server/resources/` (Currently empty)
+
+## Verified Commits (GPG/SSH Signing)
+
+To sign your commits made via the `git_commit` tool on platforms like GitHub, commit signing must be enabled and configured **on the machine where the `git-mcp-server` process runs**.
+
+**Configuration Steps (on Server Machine):**
+
+1.  **Enable Signing in Server (Optional):** Start the `git-mcp-server` with the environment variable `GIT_SIGN_COMMITS=true`. This tells the server to add the `-S` flag to `git commit` commands, explicitly requesting a signature. If this is `false` or unset (default), the `-S` flag is not added, and signing relies solely on Git's automatic signing configuration (step 2).
+
+2.  **Configure Git for Signing Method (SSH Recommended):** Choose **one** of the following methods and configure Git accordingly on the server:
+
+    *   **Method A: GPG Signing**
+        *   **Generate/Import GPG Key:** Ensure a GPG key pair exists for the desired committer email.
+        *   **Add Public Key to GitHub:** Add the GPG public key to the GitHub account associated with the committer email.
+        *   **Configure Git:**
+            ```bash
+            # Ensure Git uses GPG format (usually default)
+            # git config --global gpg.format openpgp
+            # Tell Git which GPG key to use
+            git config --global user.signingkey YOUR_GPG_KEY_ID
+            # Ensure Git user email matches the GPG key email
+            git config --global user.email "your_email@example.com"
+            # Optional: Enable automatic signing for ALL commits on this machine
+            # git config --global commit.gpgsign true
+            ```
+        *   **Handle Passphrase (Crucial for Autonomy):** GPG often requires a passphrase. For non-interactive server use (when `-S` is used or `commit.gpgsign` is true), you **must** configure `gpg-agent` to cache the passphrase. Edit `~/.gnupg/gpg-agent.conf` (create if needed):
+            ```
+            default-cache-ttl 3600 # Cache for 1 hour
+            max-cache-ttl 7200   # Max cache time 2 hours
+            pinentry-program /opt/homebrew/bin/pinentry-curses # Or pinentry-mac, etc.
+            ```
+            Then reload the agent (`gpg-connect-agent reloadagent /bye`) and prime the cache by making one manual signed commit (`git commit -S ...`) in a regular terminal where you can enter the passphrase when prompted by `pinentry`. The agent will then cache it.
+
+    *   **Method B: SSH Signing (Recommended for Autonomy)**
+        *   **Generate/Import SSH Key:** Ensure an SSH key pair exists (e.g., `~/.ssh/id_ed25519`). Ed25519 keys are recommended. Using a key *without* a passphrase simplifies autonomous operation.
+        *   **Add Public Key to GitHub as *Signing Key*:** Add the SSH *public* key (`~/.ssh/id_ed25519.pub`) to your GitHub account specifically in the "SSH Signing Keys" section (this is different from authentication keys).
+        *   **Configure Git:**
+            ```bash
+            # Set Git to use SSH format for signing
+            git config --global gpg.format ssh
+            # Tell Git which SSH key to use for signing (path to the PRIVATE key)
+            git config --global user.signingkey /path/to/your/ssh_private_key # e.g., ~/.ssh/id_ed25519
+            # Ensure Git user email matches the GitHub account email
+            git config --global user.email "your_email@example.com"
+            # Optional: Enable automatic signing for ALL commits on this machine
+            # git config --global commit.gpgsign true
+            ```
+        *   **Handle Passphrase:** If your SSH key has a passphrase, you'll need `ssh-agent` running and configured to cache the passphrase non-interactively, similar to `gpg-agent`. Keys without passphrases avoid this complexity but are less secure if the private key file is compromised.
+
+3.  **Commit:** Use the `git_commit` tool.
+    *   If `GIT_SIGN_COMMITS=true` was set when starting the server, the tool adds `-S`. Git will then attempt to sign using the configured method (`gpg.format`, `user.signingkey`).
+    *   If `GIT_SIGN_COMMITS=false` (or unset), the tool does *not* add `-S`. Signing will *only* occur if `commit.gpgsign=true` is set in the Git config.
+    *   **Fallback on Failure:** If signing is attempted (due to `GIT_SIGN_COMMITS=true`) but fails (e.g., key not found, agent issue), the commit operation will **fail by default**. To allow the commit to proceed *unsigned* in case of signing failure, pass the optional parameter `forceUnsignedOnFailure: true` when calling the `git_commit` tool.
+
+**Troubleshooting:**
+- If signing fails (especially with `Inappropriate ioctl for device` when using GPG), ensure the relevant agent (`gpg-agent` or `ssh-agent`) is running, configured correctly, and the passphrase cache has been primed if necessary.
+- Ensure the `user.email` in the Git config (global or local) matches the email associated with the GPG/SSH key *and* the email verified on your GitHub account.
+- Verify the correct public key (GPG or SSH) is added to the correct section on GitHub.
 
 Remember to keep this cheatsheet updated as the codebase evolves!
