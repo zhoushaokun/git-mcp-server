@@ -15,6 +15,8 @@ export enum BaseErrorCode {
   CONFLICT = 'CONFLICT',
   /** The request failed due to invalid input parameters or data. */
   VALIDATION_ERROR = 'VALIDATION_ERROR',
+  /** An error occurred while parsing input data (e.g., date string, JSON). */
+  PARSING_ERROR = 'PARSING_ERROR',
   /** The request was rejected because the client has exceeded rate limits. */
   RATE_LIMITED = 'RATE_LIMITED',
   /** The request timed out before a response could be generated. */
@@ -26,9 +28,7 @@ export enum BaseErrorCode {
   /** An error occurred, but the specific cause is unknown or cannot be categorized. */
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
   /** An error occurred during the loading or validation of configuration data. */
-  CONFIGURATION_ERROR = 'CONFIGURATION_ERROR',
-  /** An error occurred related to network connectivity (e.g., DNS resolution, connection refused). */
-  NETWORK_ERROR = 'NETWORK_ERROR'
+  CONFIGURATION_ERROR = 'CONFIGURATION_ERROR'
 }
 
 /**

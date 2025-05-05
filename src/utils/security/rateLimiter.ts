@@ -1,5 +1,7 @@
-import { BaseErrorCode, McpError } from '../../types-global/errors.js'; // Direct import for types-global
-import { logger, RequestContext } from '../index.js'; // logger (./utils/internal/logger.js), RequestContext (./utils/internal/requestContext.js)
+import { BaseErrorCode, McpError } from '../../types-global/errors.js';
+// Import config and utils
+import { environment } from '../../config/index.js'; // Import environment from config
+import { logger, RequestContext } from '../index.js';
 
 /**
  * Rate limiting configuration options
@@ -55,12 +57,7 @@ export class RateLimiter {
     this.limits = new Map();
     this.startCleanupTimer();
     
-    // Log initialization
-    logger.debug('RateLimiter initialized', {
-      windowMs: this.config.windowMs,
-      maxRequests: this.config.maxRequests,
-      cleanupInterval: this.config.cleanupInterval
-    });
+    // Removed logger call from constructor to prevent logging before initialization
   }
 
   /**
@@ -143,8 +140,8 @@ export class RateLimiter {
    * @throws {McpError} If rate limit is exceeded
    */
   public check(key: string, context?: RequestContext): void {
-    // Skip in development if configured
-    if (this.config.skipInDevelopment && process.env.NODE_ENV === 'development') {
+    // Skip in development if configured, using the validated environment from config
+    if (this.config.skipInDevelopment && environment === 'development') {
       return;
     }
 

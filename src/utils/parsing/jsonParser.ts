@@ -1,6 +1,7 @@
 import { parse as parsePartialJson, Allow as PartialJsonAllow } from 'partial-json';
-import { BaseErrorCode, McpError } from '../../types-global/errors.js'; // Direct import for types-global
-import { logger, RequestContext } from '../index.js'; // logger (./utils/internal/logger.js), RequestContext (./utils/internal/requestContext.js)
+import { BaseErrorCode, McpError } from '../../types-global/errors.js';
+// Import utils from the main barrel file (logger, RequestContext from ../internal/*)
+import { logger, RequestContext } from '../index.js';
 
 /**
  * Enum mirroring partial-json's Allow constants for specifying

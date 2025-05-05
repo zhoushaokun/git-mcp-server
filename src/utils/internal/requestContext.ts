@@ -1,4 +1,6 @@
-import { generateUUID, logger } from '../index.js'; // logger (./internal/logger.js), generateUUID (./security/idGenerator.js)
+import { logger } from './logger.js';
+// Import utils from the main barrel file (generateUUID from ../security/idGenerator.js)
+import { generateUUID } from '../index.js';
 // Removed incorrect import: import { RequestContext } from './rateLimiter.js';
 
 /**
@@ -77,9 +79,6 @@ const requestContextServiceInstance = {
 
   // generateSecureRandomString function removed as it was unused and redundant
 };
-
-// Initialize logger message
-logger.debug('RequestContext service initialized');
 
 // Export the instance directly
 export const requestContextService = requestContextServiceInstance;
