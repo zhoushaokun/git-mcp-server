@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v2.0.5 - 2025-05-05
+
+### Added
+- (tools) Enhance `git_commit` tool result to include commit message and committed files list (`1f74915`)
+
+### Changed
+- (core) Alphabetize tool imports and initializers in `server.ts` for better organization (`1f74915`)
+- (docs) Refine `git_commit` tool description for clarity (`1f74915`)
+
+### Other
+- Bump version to 2.0.5 (`1f74915`)
+
 ## v2.0.4 - 2025-05-05
 
 - (docs): Added smithery.yaml
