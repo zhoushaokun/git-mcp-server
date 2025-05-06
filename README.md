@@ -16,7 +16,9 @@ Built on the [`cyanheads/mcp-ts-template`](https://github.com/cyanheads/mcp-ts-t
 ## Table of Contents
 
 | [Overview](#overview) | [Features](#features) | [Installation](#installation) |
+
 | [Configuration](#configuration) | [Project Structure](#project-structure) |
+
 | [Tools](#tools) | [Resources](#resources) | [Development](#development) | [License](#license) |
 
 ## Overview
