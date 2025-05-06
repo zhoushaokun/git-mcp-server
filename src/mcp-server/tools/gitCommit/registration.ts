@@ -55,6 +55,8 @@ Closes #123 (if applicable).
 
 **Best Practice:** Commit related changes together in logical units. If you've modified multiple files for a single feature or fix, stage and commit them together with a message that describes the overall change.
 
+**Auto-Staging Specific Files:** You can use the optional \`filesToStage\` parameter (an array of file paths relative to the repository root) to automatically stage *only* those specific files before the commit is made. This is useful for committing only a subset of modified files without needing a separate \`git_add\` call. If \`filesToStage\` is provided, the commit will only include changes from those specified files.
+
 **Path Handling:** If the 'path' parameter is omitted or set to '.', the tool uses the working directory set by 'git_set_working_dir'. Providing a full, absolute path overrides this default and ensures explicitness.
 
 **Commit Signing:** If the server is configured with the \`GIT_SIGN_COMMITS=true\` environment variable, this tool adds the \`-S\` flag to the \`git commit\` command, requesting a signature. Signing requires proper GPG or SSH key setup and Git configuration on the server machine.

@@ -24,6 +24,7 @@ export const GitCommitInputSchema = z.object({
   allowEmpty: z.boolean().default(false).describe('Allow creating empty commits'),
   amend: z.boolean().default(false).describe('Amend the previous commit instead of creating a new one'),
   forceUnsignedOnFailure: z.boolean().default(false).describe('If true and signing is enabled but fails, attempt the commit without signing instead of failing.'),
+  filesToStage: z.array(z.string().min(1)).optional().describe('Optional array of specific file paths (relative to the repository root) to stage automatically before committing. If provided, only these files will be staged.'),
 });
 
 // Infer the TypeScript type from the Zod schema
@@ -81,6 +82,24 @@ export async function commitGitChanges(
   }
 
   try {
+    // --- Stage specific files if requested ---
+    if (input.filesToStage && input.filesToStage.length > 0) {
+      logger.debug(`Attempting to stage specific files: ${input.filesToStage.join(', ')}`, { ...context, operation });
+      try {
+        // Correctly pass targetPath as rootDir in options object
+        const sanitizedFiles = input.filesToStage.map(file => sanitization.sanitizePath(file, { rootDir: targetPath })); // Sanitize relative to repo root
+        const filesToAddString = sanitizedFiles.map(file => `"${file}"`).join(' '); // Quote paths for safety
+        const addCommand = `git -C "${targetPath}" add -- ${filesToAddString}`;
+        logger.debug(`Executing git add command: ${addCommand}`, { ...context, operation });
+        await execAsync(addCommand);
+        logger.info(`Successfully staged specified files: ${sanitizedFiles.join(', ')}`, { ...context, operation });
+      } catch (addError: any) {
+        logger.error('Failed to stage specified files', { ...context, operation, files: input.filesToStage, error: addError.message, stderr: addError.stderr });
+        throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to stage files before commit: ${addError.stderr || addError.message}`, { context, operation, originalError: addError });
+      }
+    }
+    // --- End staging files ---
+
     // Escape message for shell safety
     const escapeShellArg = (arg: string): string => {
       // Escape backslashes first, then other special chars
