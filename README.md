@@ -2,7 +2,7 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.11.0-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.0.6-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-2.0.7-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/git-mcp-server/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/git-mcp-server?style=social)](https://github.com/cyanheads/git-mcp-server)
@@ -70,7 +70,7 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 
 1.  Install the package globally:
     ```bash
-    npm install git-mcp-server
+    npm install @cyanheads/git-mcp-server
     ```
 
 ### Install from Source
@@ -179,7 +179,7 @@ The Git MCP Server provides a suite of tools for interacting with Git repositori
 | `git_status`            | Gets repository status (branch, staged, modified, untracked files).                                      | `path?`                                                                                                         |
 | `git_tag`               | Manages tags (list, create annotated/lightweight, delete).                                               | `path?`, `mode`, `tagName?`, `message?`, `commitRef?`, `annotate?`                                              |
 
-_Note: The `path` parameter for most tools defaults to the session's working directory if set via `git_set_working_dir`, otherwise it defaults to the server's CWD._
+_Note: The `path` parameter for most tools defaults to the session's working directory if set via `git_set_working_dir`._
 
 ## Resources
 
