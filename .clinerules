@@ -144,15 +144,15 @@ Servers expose functionality via:
 
 ## Core Utilities Integration
 
-### 1. Logging (`src/utils/logger.ts`)
+### 1. Logging (`src/utils/internal/logger.ts`)
 
 - **Purpose**: Structured logging compliant with MCP Spec (RFC 5424 levels). Logs to files (`logs/`) and can send `notifications/message` to connected clients supporting the `logging` capability.
 - **Levels**: `debug`(7), `info`(6), `notice`(5), `warning`(4), `error`(3), `crit`(2), `alert`(1), `emerg`(0).
 - **Usage**: Import the singleton `logger` instance. Pass a `context` object (`RequestContext`) for correlation.
 
 ```typescript
-import { logger, McpLogLevel } from './src/utils/logger.js';
-import { RequestContext } from './src/utils/requestContext.js'; // Or OperationContext
+import { logger, McpLogLevel } from './src/utils/internal/logger.js';
+import { RequestContext } from './src/utils/internal/requestContext.js'; // Or OperationContext
 
 // Inside a function or handler
 const operationContext: RequestContext = /* ... get or create context ... */;
@@ -172,10 +172,10 @@ logger.setLevel('debug' as McpLogLevel);
 ```
 
 - **Key Files**:
-  - `src/utils/logger.ts`: Logger implementation.
+  - `src/utils/internal/logger.ts`: Logger implementation.
   - `logs/`: Directory where JSON log files are stored (`combined.log`, `error.log`, etc.).
 
-### 2. Error Handling (`src/types-global/errors.ts`, `src/utils/errorHandler.ts`)
+### 2. Error Handling (`src/types-global/errors.ts`, `src/utils/internal/errorHandler.ts`)
 
 - **Purpose**: Standardized error objects (`McpError`) and centralized handling (`ErrorHandler`). Automatically determines error codes based on type/patterns.
 - **Usage**:
@@ -184,9 +184,9 @@ logger.setLevel('debug' as McpLogLevel);
   - `ErrorHandler` automatically logs errors (using the updated logger) with context and sanitized input.
 
 ```typescript
-import { ErrorHandler } from './src/utils/errorHandler.js';
+import { ErrorHandler } from './src/utils/internal/errorHandler.js';
 import { McpError, BaseErrorCode } from './src/types-global/errors.js';
-import { RequestContext } from './src/utils/requestContext.js';
+import { RequestContext } from './src/utils/internal/requestContext.js';
 
 async function performGitOperation(input: any, context: RequestContext) {
   return await ErrorHandler.tryCatch(
@@ -211,9 +211,9 @@ async function performGitOperation(input: any, context: RequestContext) {
 
 - **Key Files**:
   - `src/types-global/errors.ts`: Defines `McpError` and `BaseErrorCode`.
-  - `src/utils/errorHandler.ts`: Provides `ErrorHandler.tryCatch`, `handleError`, `determineErrorCode`.
+  - `src/utils/internal/errorHandler.ts`: Provides `ErrorHandler.tryCatch`, `handleError`, `determineErrorCode`.
 
-### 3. Request Context (`src/utils/requestContext.ts`)
+### 3. Request Context (`src/utils/internal/requestContext.ts`)
 
 - **Purpose**: Track and correlate operations related to a single request or workflow using a unique `requestId`.
 - **Usage**:
@@ -222,8 +222,8 @@ async function performGitOperation(input: any, context: RequestContext) {
   - Include the context object when logging or creating errors.
 
 ```typescript
-import { requestContextService, RequestContext } from './src/utils/requestContext.js';
-import { logger } from './src/utils/logger.js';
+import { requestContextService, RequestContext } from './src/utils/internal/requestContext.js';
+import { logger } from './src/utils/internal/logger.js';
 
 function handleIncomingRequest(requestData: any) {
   const context: RequestContext = requestContextService.createRequestContext({
@@ -243,15 +243,15 @@ function processSubTask(payload: any, parentContext: RequestContext) {
 ```
 
 - **Key Files**:
-  - `src/utils/requestContext.ts`: Defines `RequestContext` interface and `requestContextService`.
+  - `src/utils/internal/requestContext.ts`: Defines `RequestContext` interface and `requestContextService`.
 
-### 4. ID Generation (`src/utils/idGenerator.ts`)
+### 4. ID Generation (`src/utils/security/idGenerator.ts`)
 
 - **Purpose**: Generate unique, prefixed IDs for different entity types and standard UUIDs.
 - **Usage**: Configure prefixes (if needed) and use `idGenerator.generateForEntity` or `generateUUID`.
 
 ```typescript
-import { idGenerator, generateUUID } from './src/utils/idGenerator.js';
+import { idGenerator, generateUUID } from './src/utils/security/idGenerator.js';
 
 // No specific entity prefixes needed for this server yet
 // idGenerator.setEntityPrefixes({ ... });
@@ -260,15 +260,15 @@ const standardUuid = generateUUID(); // e.g., "123e4567-e89b-12d3-a456-426614174
 ```
 
 - **Key Files**:
-  - `src/utils/idGenerator.ts`: `IdGenerator` class, `idGenerator` instance, `generateUUID`.
+  - `src/utils/security/idGenerator.ts`: `IdGenerator` class, `idGenerator` instance, `generateUUID`.
 
-### 5. Sanitization (`src/utils/sanitization.ts`)
+### 5. Sanitization (`src/utils/security/sanitization.ts`)
 
 - **Purpose**: Clean and validate input data (paths, numbers, URLs, JSON) to prevent security issues. Also sanitizes objects for logging. **Crucial for path inputs to Git commands.**
 - **Usage**: Import the singleton `sanitization` instance or `sanitizeInputForLogging`.
 
 ```typescript
-import { sanitization, sanitizeInputForLogging } from './src/utils/sanitization.js';
+import { sanitization, sanitizeInputForLogging } from './src/utils/security/sanitization.js';
 
 const unsafePath = '../../etc/passwd';
 try {
@@ -282,28 +282,28 @@ const safeLogData = sanitizeInputForLogging(sensitiveData);
 ```
 
 - **Key Files**:
-  - `src/utils/sanitization.ts`: `Sanitization` class, `sanitization` instance, `sanitizeInputForLogging`.
+  - `src/utils/security/sanitization.ts`: `Sanitization` class, `sanitization` instance, `sanitizeInputForLogging`.
 
-### 6. JSON Parsing (`src/utils/jsonParser.ts`)
+### 6. JSON Parsing (`src/utils/parsing/jsonParser.ts`)
 
 - **Purpose**: Parse potentially partial/incomplete JSON strings. Handles optional `<think>` blocks. (Less relevant for this server currently).
 - **Usage**: Import `jsonParser`. Use `Allow` constants for options.
 - **Key Files**:
-  - `src/utils/jsonParser.ts`: `JsonParser` class, `jsonParser` instance, `Allow` enum.
+  - `src/utils/parsing/jsonParser.ts`: `JsonParser` class, `jsonParser` instance, `Allow` enum.
 
-### 7. Rate Limiting (`src/utils/rateLimiter.ts`)
+### 7. Rate Limiting (`src/utils/security/rateLimiter.ts`)
 
 - **Purpose**: Implement rate limiting based on a key. (May be useful if tools call external services).
 - **Usage**: Import `rateLimiter`. Use `check`.
 - **Key Files**:
-  - `src/utils/rateLimiter.ts`: `RateLimiter` class, `rateLimiter` instance.
+  - `src/utils/security/rateLimiter.ts`: `RateLimiter` class, `rateLimiter` instance.
 
-### 8. Token Counting (`src/utils/tokenCounter.ts`)
+### 8. Token Counting (`src/utils/metrics/tokenCounter.ts`)
 
 - **Purpose**: Estimate tokens using `tiktoken` (`gpt-4o` model). (Less relevant for this server currently).
 - **Usage**: Import `countTokens` or `countChatTokens`.
 - **Key Files**:
-  - `src/utils/tokenCounter.ts`: Provides `countTokens` and `countChatTokens`.
+  - `src/utils/metrics/tokenCounter.ts`: Provides `countTokens` and `countChatTokens`.
 
 ## Adding New Features
 
@@ -329,7 +329,7 @@ const safeLogData = sanitizeInputForLogging(sensitiveData);
 - **Server Setup**: `src/mcp-server/server.ts` (Handles transport logic (stdio/http), session management (http), registers tools)
 - **Configuration**: `src/config/index.ts` (Loads env vars, package info, initializes logger)
 - **Global Types**: `src/types-global/`
-- **Utilities**: `src/utils/` (Core helper modules: logger, error handler, context, etc.)
+- **Utilities**: `src/utils/` (Contains subdirectories: `internal`, `metrics`, `parsing`, `security`)
 - **Tools**: `src/mcp-server/tools/` (Contains subdirectories for each Git tool)
 - **Resources**: `src/mcp-server/resources/` (Currently empty)
 
