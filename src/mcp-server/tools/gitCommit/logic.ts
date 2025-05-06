@@ -35,6 +35,8 @@ export interface GitCommitResult {
   success: boolean;
   statusMessage: string; // Renamed from 'message' for clarity
   commitHash?: string; // Include hash on success
+  commitMessage?: string; // The message used for the commit
+  committedFiles?: string[]; // List of files included in the commit
   nothingToCommit?: boolean; // Flag for specific non-error cases
 }
 
@@ -223,11 +225,28 @@ export async function commitGitChanges(
         ? `Commit successful: ${commitHash}`
         : `Commit successful (stdout: ${stdout.trim()})`);
 
-    logger.info(`${operation} executed successfully`, { ...context, operation, path: targetPath, commitHash, signed: !commitResult }); // Log if it was signed (not fallback)
+    let committedFiles: string[] = [];
+    if (commitHash) {
+      try {
+        // Get the list of files included in this specific commit
+        const showCommand = `git -C "${targetPath}" show --pretty="" --name-only ${commitHash}`;
+        logger.debug(`Executing git show command: ${showCommand}`, { ...context, operation });
+        const { stdout: showStdout } = await execAsync(showCommand);
+        committedFiles = showStdout.trim().split('\n').filter(Boolean); // Split by newline, remove empty lines
+        logger.debug(`Retrieved committed files list for ${commitHash}`, { ...context, operation, count: committedFiles.length });
+      } catch (showError: any) {
+        // Log a warning but don't fail the overall operation if we can't get the file list
+        logger.warning('Failed to retrieve committed files list', { ...context, operation, commitHash, error: showError.message, stderr: showError.stderr });
+      }
+    }
+
+    logger.info(`${operation} executed successfully`, { ...context, operation, path: targetPath, commitHash, signed: !commitResult, committedFilesCount: committedFiles.length }); // Log if it was signed (not fallback)
     return {
         success: true,
         statusMessage: finalStatusMsg, // Use potentially modified message
-        commitHash: commitHash
+        commitHash: commitHash,
+        commitMessage: input.message, // Include the original commit message
+        committedFiles: committedFiles // Include the list of files
     };
 
   } catch (error: any) { // This catch block now primarily handles non-signing errors or errors from the fallback attempt

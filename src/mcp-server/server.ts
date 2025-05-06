@@ -19,30 +19,30 @@ import { config, environment } from '../config/index.js';
 // Import core utilities: ErrorHandler, logger, requestContextService.
 import { ErrorHandler, logger, requestContextService, RequestContext } from '../utils/index.js'; // Added RequestContext
 
-// Import registration AND state initialization functions for ALL Git tools (assuming pattern)
+// Import registration AND state initialization functions for ALL Git tools (alphabetized)
 import { registerGitAddTool, initializeGitAddStateAccessors } from './tools/gitAdd/index.js';
 import { registerGitBranchTool, initializeGitBranchStateAccessors } from './tools/gitBranch/index.js';
-import { registerGitCheckoutTool, initializeGitCheckoutStateAccessors } from './tools/gitCheckout/index.js'; // Assumed initializer
-import { registerGitCherryPickTool, initializeGitCherryPickStateAccessors } from './tools/gitCherryPick/index.js'; // Assumed initializer
-import { registerGitCleanTool, initializeGitCleanStateAccessors } from './tools/gitClean/index.js'; // Assumed initializer
-import { registerGitClearWorkingDirTool, initializeGitClearWorkingDirStateAccessors } from './tools/gitClearWorkingDir/index.js'; // Assumed initializer
-import { registerGitCloneTool } from './tools/gitClone/index.js'; // Removed initializer import
-import { registerGitCommitTool, initializeGitCommitStateAccessors } from './tools/gitCommit/index.js'; // Assumed initializer
-import { registerGitDiffTool, initializeGitDiffStateAccessors } from './tools/gitDiff/index.js'; // Assumed initializer
+import { registerGitCheckoutTool, initializeGitCheckoutStateAccessors } from './tools/gitCheckout/index.js';
+import { registerGitCherryPickTool, initializeGitCherryPickStateAccessors } from './tools/gitCherryPick/index.js';
+import { registerGitCleanTool, initializeGitCleanStateAccessors } from './tools/gitClean/index.js';
+import { registerGitClearWorkingDirTool, initializeGitClearWorkingDirStateAccessors } from './tools/gitClearWorkingDir/index.js';
+import { registerGitCloneTool } from './tools/gitClone/index.js'; // No initializer needed/available
+import { registerGitCommitTool, initializeGitCommitStateAccessors } from './tools/gitCommit/index.js';
+import { registerGitDiffTool, initializeGitDiffStateAccessors } from './tools/gitDiff/index.js';
 import { registerGitFetchTool, initializeGitFetchStateAccessors } from './tools/gitFetch/index.js';
-import { registerGitInitTool, initializeGitInitStateAccessors } from './tools/gitInit/index.js'; // Added initializer import
-import { registerGitLogTool, initializeGitLogStateAccessors } from './tools/gitLog/index.js'; // Assumed initializer
-import { registerGitMergeTool, initializeGitMergeStateAccessors } from './tools/gitMerge/index.js'; // Assumed initializer
+import { registerGitInitTool, initializeGitInitStateAccessors } from './tools/gitInit/index.js';
+import { registerGitLogTool, initializeGitLogStateAccessors } from './tools/gitLog/index.js';
+import { registerGitMergeTool, initializeGitMergeStateAccessors } from './tools/gitMerge/index.js';
 import { registerGitPullTool, initializeGitPullStateAccessors } from './tools/gitPull/index.js';
 import { registerGitPushTool, initializeGitPushStateAccessors } from './tools/gitPush/index.js';
-import { registerGitRebaseTool, initializeGitRebaseStateAccessors } from './tools/gitRebase/index.js'; // Assumed initializer
-import { registerGitRemoteTool, initializeGitRemoteStateAccessors } from './tools/gitRemote/index.js'; // Assumed initializer
-import { registerGitResetTool, initializeGitResetStateAccessors } from './tools/gitReset/index.js'; // Assumed initializer
+import { registerGitRebaseTool, initializeGitRebaseStateAccessors } from './tools/gitRebase/index.js';
+import { registerGitRemoteTool, initializeGitRemoteStateAccessors } from './tools/gitRemote/index.js';
+import { registerGitResetTool, initializeGitResetStateAccessors } from './tools/gitReset/index.js';
 import { registerGitSetWorkingDirTool, initializeGitSetWorkingDirStateAccessors } from './tools/gitSetWorkingDir/index.js';
-import { registerGitShowTool, initializeGitShowStateAccessors } from './tools/gitShow/index.js'; // Assumed initializer
-import { registerGitStashTool, initializeGitStashStateAccessors } from './tools/gitStash/index.js'; // Assumed initializer
-import { registerGitStatusTool, initializeGitStatusStateAccessors } from './tools/gitStatus/index.js'; // Assumed initializer
-import { registerGitTagTool, initializeGitTagStateAccessors } from './tools/gitTag/index.js'; // Assumed initializer
+import { registerGitShowTool, initializeGitShowStateAccessors } from './tools/gitShow/index.js';
+import { registerGitStashTool, initializeGitStashStateAccessors } from './tools/gitStash/index.js';
+import { registerGitStatusTool, initializeGitStatusStateAccessors } from './tools/gitStatus/index.js';
+import { registerGitTagTool, initializeGitTagStateAccessors } from './tools/gitTag/index.js';
 
 
 // Import transport setup functions AND state accessors
@@ -152,7 +152,7 @@ async function createMcpServerInstance(): Promise<McpServer> {
   // Pass the defined unified accessor functions to the initializers.
   logger.debug('Initializing state accessors for tools...', context);
   try {
-    // Call initializers for all tools that likely need state access.
+    // Call initializers for all tools that likely need state access (alphabetized).
     // If an initializer doesn't exist, the import would have failed earlier (or build will fail).
     initializeGitAddStateAccessors(getWorkingDirectory, getSessionIdFromContext);
     initializeGitBranchStateAccessors(getWorkingDirectory, getSessionIdFromContext);
@@ -160,11 +160,11 @@ async function createMcpServerInstance(): Promise<McpServer> {
     initializeGitCherryPickStateAccessors(getWorkingDirectory, getSessionIdFromContext);
     initializeGitCleanStateAccessors(getWorkingDirectory, getSessionIdFromContext);
     initializeGitClearWorkingDirStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    // initializeGitCloneStateAccessors(getWorkingDirectory, getSessionIdFromContext); // Removed call
+    // initializeGitCloneStateAccessors - No initializer needed/available
     initializeGitCommitStateAccessors(getWorkingDirectory, getSessionIdFromContext);
     initializeGitDiffStateAccessors(getWorkingDirectory, getSessionIdFromContext);
     initializeGitFetchStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitInitStateAccessors(getWorkingDirectory, getSessionIdFromContext); // Added call
+    initializeGitInitStateAccessors(getWorkingDirectory, getSessionIdFromContext);
     initializeGitLogStateAccessors(getWorkingDirectory, getSessionIdFromContext);
     initializeGitMergeStateAccessors(getWorkingDirectory, getSessionIdFromContext);
     initializeGitPullStateAccessors(getWorkingDirectory, getSessionIdFromContext);
@@ -190,7 +190,7 @@ async function createMcpServerInstance(): Promise<McpServer> {
 
 
   try {
-    // Register all defined Git tools. These calls populate the server's
+    // Register all defined Git tools (alphabetized). These calls populate the server's
     // internal registry, making them available via MCP methods like 'tools/list'.
     logger.debug('Registering Git tools...', context);
     await registerGitAddTool(server);
