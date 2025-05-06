@@ -40,8 +40,8 @@ export type GitLogInput = z.infer<typeof GitLogInputSchema>;
 // Define the structure for the JSON output
 export interface GitLogResult {
   success: boolean;
-  commits: CommitEntry[];
-  message?: string; // Optional message, e.g., if no commits found
+  commits?: CommitEntry[]; // Make commits optional
+  message?: string; // Optional message, e.g., if no commits found or for raw output
 }
 
 // Delimiters for parsing the custom format
@@ -138,11 +138,12 @@ export async function logGitHistory(
       }
     }
 
-    // If raw output was requested, return it directly
+    // If raw output was requested, return it directly in the message field, omitting commits
     if (isRawOutput) {
       const message = `Raw log output (showSignature=true):\n${stdout}`;
       logger.info(`${operation} completed successfully (raw output).`, { ...context, operation, path: targetPath });
-      return { success: true, commits: [], message: message };
+      // Return without the 'commits' field
+      return { success: true, message: message };
     }
 
     // Otherwise, parse the structured output
