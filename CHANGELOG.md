@@ -5,14 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## v2.0.9 - 2025-05-07
+
+### Added
+
+- (gitLog) Group commit logs by author in the JSON response, providing a more structured view of commit history. (5b5e037)
 
 ### Changed
 
-- (security) Enhanced `sanitizePath` to return a `SanitizedPathInfo` object, providing more detailed context about the sanitization process. This includes the original input, whether the path was initially absolute, and if it was converted to a relative path. The logic for handling `rootDir`, absolute paths, and POSIX conversion has been made more robust with improved traversal checks. (`849db23`)
-- (security) Updated JSDoc comments across the `Sanitization` class, including `PathSanitizeOptions` and `SanitizedPathInfo`, for improved clarity, maintainability, and developer understanding. (`849db23`)
-- (security) Standardized error handling and logging within sanitization methods for better consistency and debuggability. (`849db23`)
-- (security) Minor refactoring in `sanitizeHtml`, `sanitizeString`, `sanitizeUrl`, `sanitizeJson`, and `sanitizeNumber` for improved readability and internal consistency. (`849db23`)
+- (security) Refactored path sanitization (`sanitizePath`) across all tools to use an object response (`SanitizedPathInfo`), improving robustness and providing more context. This includes updated JSDoc, standardized error handling within sanitization, and minor refactors to other sanitization functions. (5b5e037)
+- (gitDiff) The 'diff' field in the `gitDiff` tool's response now includes the string "No changes found." directly when no differences are detected, ensuring consistent output format. (5b5e037)
+
+### Other
+
+- Bump version to 2.0.9. (bfe23ea)
 
 ## v2.0.8 - 2025-05-07
 
