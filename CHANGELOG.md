@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v2.0.10 - 2025-05-07
+
+### Added
+
+- (dev) Added MCP Inspector configuration (`mcp.json`) to define server settings for `git-mcp-server` and `git-mcp-server-http` when using the inspector. (bf3a164)
+- (dev) Added npm scripts `inspector` and `inspector:http` to easily launch the MCP Inspector with the defined configurations. (bf3a164)
+
+### Dependencies
+
+- Added `@modelcontextprotocol/inspector: ^0.11.0` to `dependencies`. (bf3a164)
+
+### Changed
+
+- (docs) Updated version badge in `README.md` to `2.0.10`. (bf3a164)
+
+### Other
+
+- Bump version to 2.0.10. (bf3a164)
+
 ## v2.0.9 - 2025-05-07
 
 ### Added
