@@ -83,7 +83,7 @@ export async function gitMergeLogic(
     // Sanitize the resolved path
     // We assume the resolved path should be absolute for git commands.
     // sanitizePath checks for traversal and normalizes.
-    targetPath = sanitization.sanitizePath(resolvedPath, { allowAbsolute: true });
+    targetPath = sanitization.sanitizePath(resolvedPath, { allowAbsolute: true }).sanitizedPath;
     logger.debug(`Sanitized path: ${targetPath}`, { ...context, operation });
 
   } catch (error) {

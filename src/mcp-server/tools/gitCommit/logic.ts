@@ -71,9 +71,9 @@ export async function commitGitChanges(
     }
 
     // Sanitize the resolved path
-    const sanitizedPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
-    logger.debug('Sanitized path', { ...context, operation, sanitizedPath });
-    targetPath = sanitizedPath; // Use the sanitized path going forward
+    const sanitizedPathInfo = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
+    logger.debug('Sanitized path', { ...context, operation, sanitizedPathInfo });
+    targetPath = sanitizedPathInfo.sanitizedPath; // Use the sanitized path going forward
 
   } catch (error) {
     logger.error('Path resolution or sanitization failed', { ...context, operation, error });
@@ -89,7 +89,7 @@ export async function commitGitChanges(
       logger.debug(`Attempting to stage specific files: ${input.filesToStage.join(', ')}`, { ...context, operation });
       try {
         // Correctly pass targetPath as rootDir in options object
-        const sanitizedFiles = input.filesToStage.map(file => sanitization.sanitizePath(file, { rootDir: targetPath })); // Sanitize relative to repo root
+        const sanitizedFiles = input.filesToStage.map(file => sanitization.sanitizePath(file, { rootDir: targetPath }).sanitizedPath); // Sanitize relative to repo root
         const filesToAddString = sanitizedFiles.map(file => `"${file}"`).join(' '); // Quote paths for safety
         const addCommand = `git -C "${targetPath}" add -- ${filesToAddString}`;
         logger.debug(`Executing git add command: ${addCommand}`, { ...context, operation });

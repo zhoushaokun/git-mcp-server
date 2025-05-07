@@ -76,7 +76,7 @@ export async function gitCherryPickLogic(
          logger.debug(`Using provided path: ${targetPath}`, { ...context, operation });
     }
 
-    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
+    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true }).sanitizedPath;
     logger.debug('Sanitized path', { ...context, operation, sanitizedPath: targetPath });
 
   } catch (error) {

@@ -58,7 +58,7 @@ export async function fetchGitRemote(
       }
       targetPath = workingDir;
     }
-    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
+    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true }).sanitizedPath;
     logger.debug('Sanitized path', { ...context, operation, sanitizedPath: targetPath });
 
   } catch (error) {

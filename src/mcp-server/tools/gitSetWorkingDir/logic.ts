@@ -44,7 +44,7 @@ export async function gitSetWorkingDirLogic(
   try {
     // Sanitize the path. Must explicitly allow absolute paths for this tool.
     // It normalizes and checks for traversal issues.
-    sanitizedPath = sanitization.sanitizePath(input.path, { allowAbsolute: true });
+    sanitizedPath = sanitization.sanitizePath(input.path, { allowAbsolute: true }).sanitizedPath;
     logger.debug(`Sanitized path: ${sanitizedPath}`, { ...context, operation });
   } catch (error: any) {
     logger.error('Path sanitization failed', error, { ...context, operation });

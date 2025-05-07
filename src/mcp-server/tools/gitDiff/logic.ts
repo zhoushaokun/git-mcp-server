@@ -68,7 +68,7 @@ export async function diffGitChanges(
       }
       targetPath = workingDir;
     }
-    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
+    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true }).sanitizedPath;
     logger.debug('Sanitized path', { ...context, operation, sanitizedPath: targetPath });
 
   } catch (error) {
@@ -114,11 +114,13 @@ export async function diffGitChanges(
       logger.warning(`Git diff stderr: ${stderr}`, { ...context, operation });
     }
 
-    const diffOutput = stdout;
-    const message = diffOutput.trim() === '' ? 'No changes found.' : 'Diff generated successfully.';
+    const rawDiffOutput = stdout;
+    const isNoChanges = rawDiffOutput.trim() === '';
+    const finalDiffOutput = isNoChanges ? 'No changes found.' : rawDiffOutput;
+    const message = isNoChanges ? 'No changes found.' : 'Diff generated successfully.';
 
     logger.info(`${operation} completed successfully. ${message}`, { ...context, operation, path: targetPath });
-    return { success: true, diff: diffOutput, message };
+    return { success: true, diff: finalDiffOutput, message };
 
   } catch (error: any) {
     logger.error(`Failed to execute git diff command`, { ...context, operation, path: targetPath, error: error.message, stderr: error.stderr, stdout: error.stdout });

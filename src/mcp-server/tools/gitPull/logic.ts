@@ -62,7 +62,7 @@ export async function pullGitChanges(
       logger.debug(`Using session working directory: ${targetPath}`, { ...context, operation, sessionId: context.sessionId });
     }
     // Sanitize the resolved path
-    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
+    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true }).sanitizedPath;
     logger.debug('Sanitized path', { ...context, operation, sanitizedPath: targetPath });
 
   } catch (error) {

@@ -22,6 +22,22 @@ export const CommitEntrySchema = z.object({
 });
 export type CommitEntry = z.infer<typeof CommitEntrySchema>;
 
+// --- New Grouped Types ---
+/** Structure for a commit within a group, omitting redundant author info */
+export interface GroupedCommitInfo {
+  hash: string;
+  timestamp: number;
+  subject: string;
+  body?: string;
+}
+
+/** Represents commits grouped by a single author */
+export interface AuthorCommitGroup {
+  authorName: string;
+  authorEmail: string;
+  commits: GroupedCommitInfo[];
+}
+
 // Define the input schema for the git_log tool using Zod
 export const GitLogInputSchema = z.object({
   path: z.string().min(1).optional().default('.').describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
@@ -37,12 +53,23 @@ export const GitLogInputSchema = z.object({
 // Infer the TypeScript type from the Zod schema
 export type GitLogInput = z.infer<typeof GitLogInputSchema>;
 
-// Define the structure for the JSON output
-export interface GitLogResult {
+// Define the structure for the standard JSON output (flat list)
+export interface FlatGitLogResult {
   success: boolean;
-  commits?: CommitEntry[]; // Make commits optional
-  message?: string; // Optional message, e.g., if no commits found or for raw output
+  commits?: CommitEntry[];
+  message?: string;
 }
+
+// Define the structure for the grouped JSON output
+export interface GroupedGitLogResult {
+  success: boolean;
+  groupedCommits?: AuthorCommitGroup[]; // Array of groups
+  message?: string;
+}
+
+// Union type for the function's return value
+export type GitLogResult = FlatGitLogResult | GroupedGitLogResult;
+
 
 // Delimiters for parsing the custom format
 const FIELD_SEP = '\x1f'; // Unit Separator
@@ -54,13 +81,13 @@ const GIT_LOG_FORMAT = `--pretty=format:%H${FIELD_SEP}%an${FIELD_SEP}%ae${FIELD_
  *
  * @param {GitLogInput} input - The validated input object.
  * @param {RequestContext} context - The request context for logging and error handling.
- * @returns {Promise<GitLogResult>} A promise that resolves with the structured log result.
+ * @returns {Promise<GitLogResult>} A promise that resolves with the structured log result (either flat or grouped).
  * @throws {McpError} Throws an McpError if path resolution, validation, or the git command fails unexpectedly.
  */
 export async function logGitHistory(
   input: GitLogInput,
   context: RequestContext & { sessionId?: string; getWorkingDirectory: () => string | undefined }
-): Promise<GitLogResult> {
+): Promise<GitLogResult> { // Return type updated to the union
   const operation = 'logGitHistory';
   logger.debug(`Executing ${operation}`, { ...context, input });
 
@@ -76,7 +103,7 @@ export async function logGitHistory(
       }
       targetPath = workingDir;
     }
-    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
+    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true }).sanitizedPath;
     logger.debug('Sanitized path', { ...context, operation, sanitizedPath: targetPath });
 
   } catch (error) {
@@ -142,12 +169,12 @@ export async function logGitHistory(
     if (isRawOutput) {
       const message = `Raw log output (showSignature=true):\n${stdout}`;
       logger.info(`${operation} completed successfully (raw output).`, { ...context, operation, path: targetPath });
-      // Return without the 'commits' field
+      // Return without the 'commits' or 'groupedCommits' field
       return { success: true, message: message };
     }
 
-    // Otherwise, parse the structured output
-    const commits: CommitEntry[] = [];
+    // --- Parse the structured output into a flat list first ---
+    const flatCommits: CommitEntry[] = [];
     const commitRecords = stdout.split(RECORD_SEP).filter(record => record.trim() !== ''); // Split records and remove empty ones
 
     for (const record of commitRecords) {
@@ -165,9 +192,9 @@ export async function logGitHistory(
             subject: fields[4],
             body: fields[5] || undefined, // Body might be empty
           };
-          // Validate parsed entry (optional but recommended)
+          // Validate parsed entry
           CommitEntrySchema.parse(commitEntry);
-          commits.push(commitEntry);
+          flatCommits.push(commitEntry);
         } catch (parseError) {
             logger.warning(`Failed to parse commit record field`, { ...context, operation, fieldIndex: fields.findIndex((_, i) => i > 5), recordFragment: record.substring(0, 100), parseError });
             // Decide whether to skip the commit or throw an error
@@ -177,9 +204,34 @@ export async function logGitHistory(
       }
     }
 
-    const message = commits.length > 0 ? `${commits.length} commit(s) found.` : 'No commits found matching criteria.';
-    logger.info(`${operation} completed successfully. ${message}`, { ...context, operation, path: targetPath, commitCount: commits.length });
-    return { success: true, commits, message };
+    // --- Group the flat list by author ---
+    const groupedCommitsMap = new Map<string, AuthorCommitGroup>();
+    for (const commit of flatCommits) {
+        const authorKey = `${commit.authorName} <${commit.authorEmail}>`;
+        const groupedInfo: GroupedCommitInfo = {
+            hash: commit.hash,
+            timestamp: commit.timestamp,
+            subject: commit.subject,
+            body: commit.body,
+        };
+
+        if (groupedCommitsMap.has(authorKey)) {
+            groupedCommitsMap.get(authorKey)!.commits.push(groupedInfo);
+        } else {
+            groupedCommitsMap.set(authorKey, {
+                authorName: commit.authorName,
+                authorEmail: commit.authorEmail,
+                commits: [groupedInfo],
+            });
+        }
+    }
+    const groupedCommits: AuthorCommitGroup[] = Array.from(groupedCommitsMap.values());
+
+    // --- Prepare final result ---
+    const commitCount = flatCommits.length;
+    const message = commitCount > 0 ? `${commitCount} commit(s) found.` : 'No commits found matching criteria.';
+    logger.info(`${operation} completed successfully. ${message}`, { ...context, operation, path: targetPath, commitCount: commitCount, authorGroupCount: groupedCommits.length });
+    return { success: true, groupedCommits, message }; // Return the grouped structure
 
   } catch (error: any) {
     logger.error(`Failed to execute git log command`, { ...context, operation, path: targetPath, error: error.message, stderr: error.stderr, stdout: error.stdout });
@@ -197,12 +249,12 @@ export async function logGitHistory(
         throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Ambiguous argument provided (e.g., branch/tag/file conflict): '${input.branchOrFile}'. Error: ${errorMessage}`, { context, operation, originalError: error });
     }
 
-    // Check if it's just that no commits were found (which git might treat as an error in some cases, though usually not for log)
+    // Check if it's just that no commits were found
     if (errorMessage.includes('does not have any commits yet')) {
         logger.info('Repository has no commits yet.', { ...context, operation, path: targetPath });
-        return { success: true, commits: [], message: 'Repository has no commits yet.' };
+        // Return the grouped structure even for no commits
+        return { success: true, groupedCommits: [], message: 'Repository has no commits yet.' };
     }
-
 
     // Generic internal error for other failures
     throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to get git log for path: ${targetPath}. Error: ${errorMessage}`, { context, operation, originalError: error });
