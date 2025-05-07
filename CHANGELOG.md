@@ -5,30 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- (security) Enhanced `sanitizePath` to return a `SanitizedPathInfo` object, providing more detailed context about the sanitization process. This includes the original input, whether the path was initially absolute, and if it was converted to a relative path. The logic for handling `rootDir`, absolute paths, and POSIX conversion has been made more robust with improved traversal checks. (`849db23`)
+- (security) Updated JSDoc comments across the `Sanitization` class, including `PathSanitizeOptions` and `SanitizedPathInfo`, for improved clarity, maintainability, and developer understanding. (`849db23`)
+- (security) Standardized error handling and logging within sanitization methods for better consistency and debuggability. (`849db23`)
+- (security) Minor refactoring in `sanitizeHtml`, `sanitizeString`, `sanitizeUrl`, `sanitizeJson`, and `sanitizeNumber` for improved readability and internal consistency. (`849db23`)
+
 ## v2.0.8 - 2025-05-07
 
 ### Fixed
+
 - Resolved issue where Windows drive letters could be stripped from absolute paths during sanitization when `allowAbsolute` was not explicitly true. This primarily affected `git_set_working_dir` and other tools when absolute paths were provided. The `sanitizePath` calls in git tool logic now correctly pass `{ allowAbsolute: true }`. Fixes GitHub Issue #8. (`6f405a1`)
 
 ### Changed
+
 - (security) Update `sanitizePath` calls in all git tool logic to explicitly pass `{ allowAbsolute: true }` ensuring correct handling of absolute paths. (`6f405a1`)
 
 ### Dependencies
+
 - Update `@types/node` from `^22.15.9` to `^22.15.15`. (`c28fe86`)
 
 ### Other
+
 - Bump version to 2.0.8 (implicitly, as part of user's update process and reflected in package.json by commit `c28fe86` which was intended for 2.0.7 but now aligns with 2.0.8)
 
 ## v2.0.5 - 2025-05-05
 
 ### Added
+
 - (tools) Enhance `git_commit` tool result to include commit message and committed files list (`1f74915`)
 
 ### Changed
+
 - (core) Alphabetize tool imports and initializers in `server.ts` for better organization (`1f74915`)
 - (docs) Refine `git_commit` tool description for clarity (`1f74915`)
 
 ### Other
+
 - Bump version to 2.0.5 (`1f74915`)
 
 ## v2.0.4 - 2025-05-05
