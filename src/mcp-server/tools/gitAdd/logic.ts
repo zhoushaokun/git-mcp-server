@@ -62,7 +62,7 @@ export async function addGitFiles(
     }
 
     // Sanitize the resolved path
-    const sanitizedPath = sanitization.sanitizePath(targetPath);
+    const sanitizedPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
     logger.debug('Sanitized repository path', { ...context, operation, sanitizedPath });
     targetPath = sanitizedPath; // Use the sanitized path going forward
 

@@ -50,7 +50,7 @@ export async function gitInitLogic(
   let targetPath: string;
   try {
     // Sanitize the provided absolute path
-    targetPath = sanitization.sanitizePath(input.path);
+    targetPath = sanitization.sanitizePath(input.path, { allowAbsolute: true });
     logger.debug('Sanitized path', { ...context, operation, sanitizedPath: targetPath });
 
     // Ensure the target directory exists before trying to init inside it

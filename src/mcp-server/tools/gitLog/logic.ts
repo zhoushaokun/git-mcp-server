@@ -76,7 +76,7 @@ export async function logGitHistory(
       }
       targetPath = workingDir;
     }
-    targetPath = sanitization.sanitizePath(targetPath);
+    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
     logger.debug('Sanitized path', { ...context, operation, sanitizedPath: targetPath });
 
   } catch (error) {

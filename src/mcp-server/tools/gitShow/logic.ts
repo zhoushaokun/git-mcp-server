@@ -66,7 +66,7 @@ export async function gitShowLogic(
          logger.debug(`Using provided path: ${targetPath}`, { ...context, operation });
     }
 
-    targetPath = sanitization.sanitizePath(targetPath);
+    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
     logger.debug('Sanitized path', { ...context, operation, sanitizedPath: targetPath });
 
   } catch (error) {

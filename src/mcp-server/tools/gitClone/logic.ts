@@ -52,7 +52,7 @@ export async function gitCloneLogic(
   let sanitizedRepoUrl: string;
   try {
     // Sanitize the target path (must be absolute)
-    sanitizedTargetPath = sanitization.sanitizePath(input.targetPath);
+    sanitizedTargetPath = sanitization.sanitizePath(input.targetPath, { allowAbsolute: true });
     logger.debug('Sanitized target path', { ...context, operation, sanitizedTargetPath });
 
     // Basic sanitization/validation for URL (Zod already checks format)

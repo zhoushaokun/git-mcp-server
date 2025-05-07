@@ -172,7 +172,7 @@ export async function getGitStatus(
     }
 
     // Sanitize the resolved path
-    const sanitizedPath = sanitization.sanitizePath(targetPath);
+    const sanitizedPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true });
     logger.debug('Sanitized path', { ...context, operation, sanitizedPath });
     targetPath = sanitizedPath; // Use the sanitized path going forward
 

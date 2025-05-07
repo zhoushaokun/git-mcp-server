@@ -76,10 +76,10 @@ export const registerGitInitTool = async (server: McpServer): Promise<void> => {
 
             try {
               if (path.isAbsolute(inputPath)) {
-                resolvedPath = sanitization.sanitizePath(inputPath);
+                resolvedPath = sanitization.sanitizePath(inputPath, { allowAbsolute: true });
                 logger.debug(`Using absolute path: ${resolvedPath}`, requestContext);
               } else if (sessionWorkingDirectory) {
-                resolvedPath = sanitization.sanitizePath(path.resolve(sessionWorkingDirectory, inputPath));
+                resolvedPath = sanitization.sanitizePath(path.resolve(sessionWorkingDirectory, inputPath), { allowAbsolute: true });
                 logger.debug(`Resolved relative path '${inputPath}' to absolute path: ${resolvedPath} using session CWD`, requestContext);
               } else {
                 // This case should now only be hit if the path is relative AND there's no session CWD set.

@@ -92,7 +92,7 @@ export async function gitRemoteLogic(
          logger.debug(`Using provided path: ${targetPath}`, { ...context, operation });
     }
 
-    targetPath = sanitization.sanitizePath(targetPath); // Sanitize the final resolved path
+    targetPath = sanitization.sanitizePath(targetPath, { allowAbsolute: true }); // Sanitize the final resolved path
     logger.debug('Sanitized path', { ...context, operation, sanitizedPath: targetPath });
 
   } catch (error) {

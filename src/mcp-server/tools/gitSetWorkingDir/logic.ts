@@ -42,9 +42,9 @@ export async function gitSetWorkingDirLogic(
 
   let sanitizedPath: string;
   try {
-    // Sanitize the path. By default, sanitizePath allows absolute paths.
+    // Sanitize the path. Must explicitly allow absolute paths for this tool.
     // It normalizes and checks for traversal issues.
-    sanitizedPath = sanitization.sanitizePath(input.path);
+    sanitizedPath = sanitization.sanitizePath(input.path, { allowAbsolute: true });
     logger.debug(`Sanitized path: ${sanitizedPath}`, { ...context, operation });
   } catch (error: any) {
     logger.error('Path sanitization failed', error, { ...context, operation });
