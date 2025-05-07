@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v2.0.8 - 2025-05-07
+
+### Changed
+- (security) Update `sanitizePath` calls in all git tool logic to explicitly pass `{ allowAbsolute: true }` ensuring correct handling of absolute paths. (`6f405a1`)
+
+### Dependencies
+- Update `@types/node` from `^22.15.9` to `^22.15.15`. (`c28fe86`)
+
+### Other
+- Bump version to 2.0.8 (implicitly, as part of user's update process and reflected in package.json by commit `c28fe86` which was intended for 2.0.7 but now aligns with 2.0.8)
+
 ## v2.0.5 - 2025-05-05
 
 ### Added

@@ -183,7 +183,7 @@ _Note: The `path` parameter for most tools defaults to the session's working dir
 
 ## Resources
 
-**MCP Resources are not implemented in this version (v2.0.2).**
+**MCP Resources are not implemented in this version (v2.0.8).**
 
 This version focuses on the refactored Git tools implementation based on the latest `mcp-ts-template` and MCP SDK v1.11.0. Resource capabilities, previously available, have been temporarily removed during this major update.
 
@@ -191,7 +191,7 @@ If you require MCP Resource access (e.g., for reading file content directly via 
 
 Future development may reintroduce resource capabilities in a subsequent release.
 
-> **Note:** This version (v2.0.2) focuses on refactoring and updating the core Git tools based on the latest MCP SDK. MCP Resource capabilities are not implemented in this version. For resource access, please use [v1.2.4](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4).
+> **Note:** This version (v2.0.0) focuses on refactoring and updating the core Git tools based on the latest MCP SDK. MCP Resource capabilities are not implemented in this version. For resource access, please use [v1.2.4](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4).
 
 ## Development
 
