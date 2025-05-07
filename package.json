@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/git-mcp-server",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "description": "An MCP (Model Context Protocol) server providing tools to interact with Git repositories. Enables LLMs and AI agents to perform Git operations like clone, commit, push, pull, branch, diff, log, status, and more via the MCP standard.",
   "type": "module",
   "license": "Apache-2.0",
@@ -29,13 +29,15 @@
     "start:http": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=http node dist/index.js",
     "rebuild": "ts-node --esm scripts/clean.ts && npm run build",
     "tree": "ts-node --esm scripts/tree.ts",
-    "inspector": "npx @modelcontextprotocol/inspector dist/index.js",
+    "inspector": "npx @modelcontextprotocol/inspector --config mcp.json --server git-mcp-server",
+    "inspector:http": "npx @modelcontextprotocol/inspector --config mcp.json --server git-mcp-server-http",
     "clean": "ts-node --esm scripts/clean.ts"
   },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
+    "@modelcontextprotocol/inspector": "^0.11.0",
     "@modelcontextprotocol/sdk": "^1.11.0",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.15.15",
