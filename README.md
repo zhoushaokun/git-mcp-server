@@ -204,6 +204,9 @@ npm run build
 # Test the server locally using the MCP inspector tool (stdio transport)
 npm run inspector
 
+# Test the server locally using the MCP inspector tool (http transport)
+npm run inspector:http
+
 # Clean build artifacts (runs scripts/clean.ts)
 npm run clean
 
