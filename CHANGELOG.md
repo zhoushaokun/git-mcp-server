@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v2.0.11 - 2025-05-14
+
+### Fixed
+
+- (logging) Replaced direct `console.log` calls for server startup messages in HTTP and STDIO transports with `logger.notice()` to ensure MCP client compatibility and prevent parsing issues. (Addresses GitHub Issue #9)
+- (logging) Refactored internal logger (`utils/internal/logger.ts`):
+    - Deferred informational setup messages (e.g., logs directory creation, console logging status) to use the logger's own `info()` method after Winston is initialized.
+    - Made critical pre-initialization `console.error` and `console.warn` calls conditional on TTY to prevent non-JSONRPC output when running in stdio mode with an MCP client.
+    - Extracted console formatting logic into a reusable helper function (`createWinstonConsoleFormat`) to reduce duplication.
+    - Added comments explaining TTY-conditional logging for clarity.
+
+### Changed
+
+- (chore) Updated various dependencies (e.g., `@modelcontextprotocol/sdk`, `@types/node`, `openai`).
+- (docs) Refreshed `docs/tree.md` to include `mcp.json` and reflect current structure.
+
+### Other
+
+- Bump version to 2.0.11.
+
 ## v2.0.10 - 2025-05-07
 
 ### Added
