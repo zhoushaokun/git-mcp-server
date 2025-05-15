@@ -83,8 +83,8 @@ export async function connectStdioTransport(server: McpServer, context: Record<s
 
     // Log successful connection. The server is now ready to process messages via stdio.
     logger.info('MCP Server connected and listening via stdio transport.', operationContext);
-    // Use console.log for prominent startup message visibility when run directly.
-    console.log(`\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-03-26 Stdio Transport)\n`);
+    // Use logger.notice for startup message to ensure MCP compliance and proper handling by clients.
+    logger.notice(`\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-03-26 Stdio Transport)\n`, operationContext);
 
   } catch (err) {
     // Catch and handle any critical errors during the transport connection setup.

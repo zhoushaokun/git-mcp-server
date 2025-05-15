@@ -47,11 +47,45 @@ const logsDir = path.join(projectRoot, 'logs');
 const resolvedLogsDir = path.resolve(logsDir);
 const isLogsDirSafe = resolvedLogsDir === projectRoot || resolvedLogsDir.startsWith(projectRoot + path.sep);
 if (!isLogsDirSafe) {
-  // Use console.error here as logger might not be initialized or safe
-  console.error(
-    `FATAL: logs directory "${resolvedLogsDir}" is outside project root "${projectRoot}". File logging disabled.`
+  // Use console.error for critical pre-init errors.
+  // Only log to console if TTY to avoid polluting stdout for stdio MCP clients.
+  if (process.stdout.isTTY) {
+    console.error(
+      `FATAL: logs directory "${resolvedLogsDir}" is outside project root "${projectRoot}". File logging disabled.`
+    );
+  }
+}
+
+/**
+ * Helper function to create the Winston console format.
+ * This is extracted to avoid duplication between initialize and setLevel.
+ */
+function createWinstonConsoleFormat() {
+  return winston.format.combine(
+    winston.format.colorize(),
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.printf(({ timestamp, level, message, ...meta }) => {
+      let metaString = '';
+      const metaCopy = { ...meta };
+      if (metaCopy.error && typeof metaCopy.error === 'object') {
+        const errorObj = metaCopy.error as any;
+        if (errorObj.message) metaString += `\n  Error: ${errorObj.message}`;
+        if (errorObj.stack) metaString += `\n  Stack: ${String(errorObj.stack).split('\n').map((l: string) => `    ${l}`).join('\n')}`;
+        delete metaCopy.error;
+      }
+      if (Object.keys(metaCopy).length > 0) {
+         try {
+            const remainingMetaJson = JSON.stringify(metaCopy, null, 2);
+            if (remainingMetaJson !== '{}') metaString += `\n  Meta: ${remainingMetaJson}`;
+         } catch (stringifyError) {
+            metaString += `\n  Meta: [Error stringifying metadata: ${(stringifyError as Error).message}]`;
+         }
+      }
+      return `${timestamp} ${level}: ${message}${metaString}`;
+    })
   );
 }
+
 
 /**
  * Singleton Logger wrapping Winston, adapted for MCP.
@@ -74,23 +108,28 @@ class Logger {
    */
   public async initialize(level: McpLogLevel = 'info'): Promise<void> {
     if (this.initialized) {
-      console.warn('Logger already initialized.');
+      this.warning('Logger already initialized.', { loggerSetup: true });
       return;
     }
     this.currentMcpLevel = level;
     this.currentWinstonLevel = mcpToWinstonLevel[level];
+
+    let logsDirCreatedMessage: string | null = null;
 
     // Ensure logs directory exists
     if (isLogsDirSafe) {
       try {
         if (!fs.existsSync(resolvedLogsDir)) {
           fs.mkdirSync(resolvedLogsDir, { recursive: true });
-          console.log(`Created logs directory: ${resolvedLogsDir}`);
+          logsDirCreatedMessage = `Created logs directory: ${resolvedLogsDir}`;
         }
       } catch (err: any) {
-        console.error(
-          `Error creating logs directory at ${resolvedLogsDir}: ${err.message}. File logging disabled.`
-        );
+        // Conditional console output for pre-init errors to avoid issues with stdio MCP clients.
+        if (process.stdout.isTTY) {
+          console.error(
+            `Error creating logs directory at ${resolvedLogsDir}: ${err.message}. File logging disabled.`
+          );
+        }
       }
     }
 
@@ -113,43 +152,27 @@ class Logger {
         new winston.transports.File({ filename: path.join(resolvedLogsDir, 'combined.log'), format: fileFormat })
       );
     } else {
-       console.warn("File logging disabled due to unsafe logs directory path.");
+       // Conditional console output for pre-init warnings.
+       if (process.stdout.isTTY) {
+         console.warn("File logging disabled due to unsafe logs directory path.");
+       }
     }
+
+    let consoleLoggingEnabledMessage: string | null = null;
+    let consoleLoggingSkippedMessage: string | null = null;
 
     // Conditionally add Console transport only if:
     // 1. MCP level is 'debug'
     // 2. stdout is a TTY (interactive terminal, not piped)
     if (this.currentMcpLevel === 'debug' && process.stdout.isTTY) {
-      const consoleFormat = winston.format.combine(
-        winston.format.colorize(),
-        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-        winston.format.printf(({ timestamp, level, message, ...meta }) => {
-          let metaString = '';
-          const metaCopy = { ...meta };
-          if (metaCopy.error && typeof metaCopy.error === 'object') {
-            const errorObj = metaCopy.error as any;
-            if (errorObj.message) metaString += `\n  Error: ${errorObj.message}`;
-            if (errorObj.stack) metaString += `\n  Stack: ${String(errorObj.stack).split('\n').map((l: string) => `    ${l}`).join('\n')}`;
-            delete metaCopy.error;
-          }
-          if (Object.keys(metaCopy).length > 0) {
-             try {
-                const remainingMetaJson = JSON.stringify(metaCopy, null, 2);
-                if (remainingMetaJson !== '{}') metaString += `\n  Meta: ${remainingMetaJson}`;
-             } catch (stringifyError) {
-                metaString += `\n  Meta: [Error stringifying metadata: ${(stringifyError as Error).message}]`;
-             }
-          }
-          return `${timestamp} ${level}: ${message}${metaString}`;
-        })
-      );
+      const consoleFormat = createWinstonConsoleFormat();
       transports.push(new winston.transports.Console({
         level: 'debug',
         format: consoleFormat,
       }));
-      console.log(`Console logging enabled at level: debug (stdout is TTY)`);
+      consoleLoggingEnabledMessage = 'Console logging enabled at level: debug (stdout is TTY)';
     } else if (this.currentMcpLevel === 'debug' && !process.stdout.isTTY) {
-        console.log(`Console logging skipped: Level is debug, but stdout is not a TTY (likely stdio transport).`);
+        consoleLoggingSkippedMessage = 'Console logging skipped: Level is debug, but stdout is not a TTY (likely stdio transport).';
     }
 
     // Create logger with the initial Winston level and configured transports
@@ -158,10 +181,21 @@ class Logger {
         transports,
         exitOnError: false
     });
+    
+    // Log deferred messages now that winstonLogger is initialized
+    if (logsDirCreatedMessage) {
+      this.info(logsDirCreatedMessage, { loggerSetup: true });
+    }
+    if (consoleLoggingEnabledMessage) {
+      this.info(consoleLoggingEnabledMessage, { loggerSetup: true });
+    }
+    if (consoleLoggingSkippedMessage) {
+      this.info(consoleLoggingSkippedMessage, { loggerSetup: true });
+    }
 
     this.initialized = true;
     await Promise.resolve(); // Yield to event loop
-    this.info(`Logger initialized. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${process.stdout.isTTY && this.currentMcpLevel === 'debug' ? 'enabled' : 'disabled'}`);
+    this.info(`Logger initialized. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${process.stdout.isTTY && this.currentMcpLevel === 'debug' ? 'enabled' : 'disabled'}`, { loggerSetup: true });
   }
 
   /**
@@ -170,7 +204,7 @@ class Logger {
   public setMcpNotificationSender(sender: McpNotificationSender | undefined): void {
     this.mcpNotificationSender = sender;
     const status = sender ? 'enabled' : 'disabled';
-    this.info(`MCP notification sending ${status}.`);
+    this.info(`MCP notification sending ${status}.`, { loggerSetup: true });
   }
 
   /**
@@ -178,7 +212,10 @@ class Logger {
    */
   public setLevel(newLevel: McpLogLevel): void {
     if (!this.ensureInitialized()) {
-      console.error("Cannot set level: Logger not initialized.");
+      // Conditional console output if logger not usable.
+      if (process.stdout.isTTY) {
+        console.error("Cannot set level: Logger not initialized.");
+      }
       return;
     }
     if (!(newLevel in mcpLevelSeverity)) {
@@ -197,17 +234,17 @@ class Logger {
 
     if (shouldHaveConsole && !consoleTransport) {
         // Add console transport
-        const consoleFormat = winston.format.combine(/* ... same format as in initialize ... */); // TODO: Extract format to avoid duplication
+        const consoleFormat = createWinstonConsoleFormat();
         this.winstonLogger!.add(new winston.transports.Console({ level: 'debug', format: consoleFormat }));
-        this.info('Console logging dynamically enabled.');
+        this.info('Console logging dynamically enabled.', { loggerSetup: true });
     } else if (!shouldHaveConsole && consoleTransport) {
         // Remove console transport
         this.winstonLogger!.remove(consoleTransport);
-        this.info('Console logging dynamically disabled.');
+        this.info('Console logging dynamically disabled.', { loggerSetup: true });
     }
 
     if (oldLevel !== newLevel) {
-        this.info(`Log level changed. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${shouldHaveConsole ? 'enabled' : 'disabled'}`);
+        this.info(`Log level changed. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${shouldHaveConsole ? 'enabled' : 'disabled'}`, { loggerSetup: true });
     }
   }
 
@@ -222,7 +259,10 @@ class Logger {
   /** Ensures the logger has been initialized. */
   private ensureInitialized(): boolean {
     if (!this.initialized || !this.winstonLogger) {
-      console.warn('Logger not initialized; message dropped.');
+      // Conditional console output if logger not usable.
+      if (process.stdout.isTTY) {
+        console.warn('Logger not initialized; message dropped.');
+      }
       return false;
     }
     return true;
