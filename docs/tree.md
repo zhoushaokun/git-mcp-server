@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-05-05 23:54:18
+Generated on: 2025-05-15 00:40:25
 
 
 ```
@@ -143,6 +143,7 @@ git-mcp-server
 ├── CHANGELOG.md
 ├── Dockerfile
 ├── LICENSE
+├── mcp.json
 ├── package-lock.json
 ├── package.json
 ├── README.md
