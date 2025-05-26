@@ -1,13 +1,12 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-05-15 00:40:25
+Generated on: 2025-05-26 03:06:48
 
 
 ```
 git-mcp-server
 ├── docs
     └── tree.md
-├── logs
 ├── scripts
     ├── clean.ts
     ├── make-executable.ts
@@ -105,7 +104,11 @@ git-mcp-server
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
-    │   │   └── gitTag
+    │   │   ├── gitTag
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   └── gitWorktree
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts

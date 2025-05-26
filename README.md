@@ -1,8 +1,8 @@
 # Git MCP Server
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.11.2-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.0.11-blue.svg)](./CHANGELOG.md)
+[![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.12.0-green.svg)](https://modelcontextprotocol.io/)
+[![Version](https://img.shields.io/badge/Version-2.0.12-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/git-mcp-server/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/git-mcp-server?style=social)](https://github.com/cyanheads/git-mcp-server)
@@ -165,7 +165,7 @@ The Git MCP Server provides a suite of tools for interacting with Git repositori
 | `git_commit`            | Commits staged changes. Supports author override, signing control.                                       | `path?`, `message`, `author?`, `allowEmpty?`, `amend?`, `forceUnsignedOnFailure?`                               |
 | `git_diff`              | Shows changes between commits, working tree, etc.                                                        | `path?`, `commit1?`, `commit2?`, `staged?`, `file?`                                                             |
 | `git_fetch`             | Downloads objects and refs from other repositories.                                                      | `path?`, `remote?`, `prune?`, `tags?`, `all?`                                                                   |
-| `git_init`              | Initializes a new Git repository at the specified absolute path.                                         | `path`, `initialBranch?`, `bare?`, `quiet?`                                                                     |
+| `git_init`              | Initializes a new Git repository at the specified absolute path. Defaults to 'main' for initial branch.    | `path`, `initialBranch?`, `bare?`, `quiet?`                                                                     |
 | `git_log`               | Shows commit logs.                                                                                       | `path?`, `maxCount?`, `author?`, `since?`, `until?`, `branchOrFile?`                                            |
 | `git_merge`             | Merges the specified branch into the current branch.                                                     | `path?`, `branch`, `commitMessage?`, `noFf?`, `squash?`, `abort?`                                               |
 | `git_pull`              | Fetches from and integrates with another repository or local branch.                                     | `path?`, `remote?`, `branch?`, `rebase?`, `ffOnly?`                                                             |
@@ -173,19 +173,20 @@ The Git MCP Server provides a suite of tools for interacting with Git repositori
 | `git_rebase`            | Reapplies commits on top of another base tip.                                                            | `path?`, `mode?`, `upstream?`, `branch?`, `interactive?`, `strategy?`, `strategyOption?`, `onto?`               |
 | `git_remote`            | Manages remote repositories (list, add, remove, show).                                                   | `path?`, `mode`, `name?`, `url?`                                                                                |
 | `git_reset`             | Resets current HEAD to a specified state. Supports soft, mixed, hard modes. **USE 'hard' WITH CAUTION**. | `path?`, `mode?`, `commit?`                                                                                     |
-| `git_set_working_dir`   | Sets the default working directory for the current session. Requires absolute path.                      | `path`, `validateGitRepo?`                                                                                      |
+| `git_set_working_dir`   | Sets the default working directory. Can optionally initialize repo if not present. Requires absolute path. | `path`, `validateGitRepo?`, `initializeIfNotPresent?`                                                           |
 | `git_show`              | Shows information about Git objects (commits, tags, etc.).                                               | `path?`, `ref`, `filePath?`                                                                                     |
 | `git_stash`             | Manages stashed changes (list, apply, pop, drop, save).                                                  | `path?`, `mode`, `stashRef?`, `message?`                                                                        |
 | `git_status`            | Gets repository status (branch, staged, modified, untracked files).                                      | `path?`                                                                                                         |
 | `git_tag`               | Manages tags (list, create annotated/lightweight, delete).                                               | `path?`, `mode`, `tagName?`, `message?`, `commitRef?`, `annotate?`                                              |
+| `git_worktree`          | Manages Git worktrees (list, add, remove, move, prune).                                                  | `path?`, `mode`, `worktreePath?`, `commitish?`, `newBranch?`, `force?`, `detach?`, `newPath?`, `verbose?`, `dryRun?`, `expire?` |
 
 _Note: The `path` parameter for most tools defaults to the session's working directory if set via `git_set_working_dir`._
 
 ## Resources
 
-**MCP Resources are not implemented in this version (v2.0.8).**
+**MCP Resources are not implemented in this version (v2.0.12).**
 
-This version focuses on the refactored Git tools implementation based on the latest `mcp-ts-template` and MCP SDK v1.11.0. Resource capabilities, previously available, have been temporarily removed during this major update.
+This version focuses on the refactored Git tools implementation based on the latest `mcp-ts-template` and MCP SDK v1.12.0. Resource capabilities, previously available, have been temporarily removed during this major update.
 
 If you require MCP Resource access (e.g., for reading file content directly via the server), please use the stable **[v1.2.4 release](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4)**.
 
