@@ -1,13 +1,13 @@
 {
   "name": "@cyanheads/git-mcp-server",
-  "version": "2.0.11",
-  "description": "An MCP (Model Context Protocol) server providing tools to interact with Git repositories. Enables LLMs and AI agents to perform Git operations like clone, commit, push, pull, branch, diff, log, status, and more via the MCP standard.",
+  "version": "2.0.12",
+  "description": "An MCP (Model Context Protocol) server enabling LLMs and AI agents to interact with Git repositories. Provides tools for comprehensive Git operations including clone, commit, branch, diff, log, status, push, pull, merge, rebase, worktree, tag management, and more, via the MCP standard. STDIO & HTTP.",
   "type": "module",
   "license": "Apache-2.0",
   "author": "Casey Hand @cyanheads",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cyanheads/git-mcp-server"
+    "url": "git+https://github.com/cyanheads/git-mcp-server.git"
   },
   "homepage": "https://github.com/cyanheads/git-mcp-server#readme",
   "bugs": {
@@ -17,7 +17,7 @@
     "node": ">=18.0.0"
   },
   "bin": {
-    "git-mcp-server": "./dist/index.js"
+    "git-mcp-server": "dist/index.js"
   },
   "files": [
     "dist"
@@ -64,24 +64,36 @@
     "typescript",
     "MCP",
     "model-context-protocol",
+    "mcp-server",
+    "llm-tools",
+    "git-tools",
     "LLM",
     "AI-integration",
     "server",
     "git",
     "version-control",
     "repository",
-    "commit",
     "branch",
-    "diff",
-    "log",
-    "status",
-    "push",
-    "pull",
+    "cherry-pick",
     "clone",
-    "automation",
+    "commit",
     "devops",
+    "diff",
+    "fetch",
+    "log",
+    "llm-tools",
+    "merge",
+    "pull",
+    "push",
+    "rebase",
+    "remote",
+    "reset",
+    "stash",
+    "status",
+    "tag",
+    "worktree",
     "ai-agent",
-    "llm-tools"
+    "automation"
   ],
   "devDependencies": {
     "@types/express": "^5.0.2"
