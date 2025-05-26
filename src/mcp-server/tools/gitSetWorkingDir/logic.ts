@@ -11,6 +11,7 @@ const execAsync = promisify(exec);
 export const GitSetWorkingDirInputSchema = z.object({
   path: z.string().min(1, "Path cannot be empty.").describe("The absolute path to set as the default working directory for the current session. Set this before using other git_* tools."),
   validateGitRepo: z.boolean().default(true).describe("Whether to validate that the path is a Git repository"),
+  initializeIfNotPresent: z.boolean().optional().default(false).describe("If true and the directory is not a Git repository, attempt to initialize it with 'git init'.")
 });
 
 // Infer the TypeScript type from the Zod schema
@@ -21,6 +22,7 @@ export interface GitSetWorkingDirResult {
   success: boolean;
   message: string;
   path: string;
+  initialized: boolean; // Added to indicate if repo was initialized
 }
 
 /**
@@ -66,23 +68,37 @@ export async function gitSetWorkingDirLogic(
     throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to access path: ${error.message}`, { context, operation });
   }
 
-  // Optionally validate if it's a Git repository
-  if (input.validateGitRepo) {
-    logger.debug('Validating if path is a Git repository', { ...context, operation, path: sanitizedPath });
-    try {
-      // A common way to check is using 'git rev-parse --is-inside-work-tree'
-      // or checking for the existence of a .git directory/file.
-      // Using rev-parse is generally more robust.
-      const { stdout } = await execAsync('git rev-parse --is-inside-work-tree', { cwd: sanitizedPath });
-      if (stdout.trim() !== 'true') {
-        // This case should ideally not happen if rev-parse succeeds, but good to check.
-        throw new Error('Not a Git repository (rev-parse returned non-true)');
-      }
-      logger.debug('Path validated as Git repository', { ...context, operation, path: sanitizedPath });
-    } catch (error: any) {
-      logger.warning('Path is not a valid Git repository', { ...context, operation, path: sanitizedPath, error: error.message });
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Path is not a valid Git repository: ${sanitizedPath}. Error: ${error.message}`, { context, operation });
+  let isGitRepo = false;
+  let initializedRepo = false;
+
+  try {
+    const { stdout } = await execAsync('git rev-parse --is-inside-work-tree', { cwd: sanitizedPath });
+    if (stdout.trim() === 'true') {
+      isGitRepo = true;
+      logger.debug('Path is already a Git repository', { ...context, operation, path: sanitizedPath });
     }
+  } catch (error) {
+    logger.debug('Path is not a Git repository (rev-parse failed or returned non-true)', { ...context, operation, path: sanitizedPath, error: (error as Error).message });
+    isGitRepo = false;
+  }
+
+  if (!isGitRepo && input.initializeIfNotPresent) {
+    logger.info(`Path is not a Git repository. Attempting to initialize (initializeIfNotPresent=true) with initial branch 'main'.`, { ...context, operation, path: sanitizedPath });
+    try {
+      await execAsync('git init --initial-branch=main', { cwd: sanitizedPath });
+      initializedRepo = true;
+      isGitRepo = true; // Now it is a git repo
+      logger.info('Successfully initialized Git repository with initial branch "main".', { ...context, operation, path: sanitizedPath });
+    } catch (initError: any) {
+      logger.error('Failed to initialize Git repository', initError, { ...context, operation, path: sanitizedPath });
+      throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to initialize Git repository at ${sanitizedPath}: ${initError.message}`, { context, operation });
+    }
+  }
+
+  // After potential initialization, if validateGitRepo is true, it must now be a Git repo.
+  if (input.validateGitRepo && !isGitRepo) {
+    logger.warning('Path is not a valid Git repository and initialization was not performed or failed.', { ...context, operation, path: sanitizedPath });
+    throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Path is not a valid Git repository: ${sanitizedPath}.`, { context, operation });
   }
 
   // --- Update Session State ---
@@ -98,9 +114,22 @@ export async function gitSetWorkingDirLogic(
   }
 
 
+  let message = `Working directory set to: ${sanitizedPath}`;
+  if (initializedRepo) {
+    message += ' (New Git repository initialized).';
+  } else if (isGitRepo && input.validateGitRepo) { // Only state "Existing" if validation was on and it passed
+    message += ' (Existing Git repository).';
+  } else if (isGitRepo && !input.validateGitRepo) { // It is a git repo, but we weren't asked to validate it
+    message += ' (Is a Git repository, validation skipped).';
+  } else if (!isGitRepo && !input.validateGitRepo && !input.initializeIfNotPresent) { // Not a git repo, validation off, no init request
+     message += ' (Not a Git repository, validation skipped, no initialization requested).';
+  }
+
+
   return {
     success: true,
-    message: `Working directory set to: ${sanitizedPath}`,
+    message: message,
     path: sanitizedPath,
+    initialized: initializedRepo,
   };
 }

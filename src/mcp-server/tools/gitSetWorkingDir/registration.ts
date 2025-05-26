@@ -39,7 +39,7 @@ export function initializeGitSetWorkingDirStateAccessors(
 
 
 const TOOL_NAME = 'git_set_working_dir';
-const TOOL_DESCRIPTION = "Sets the default working directory for the current session. Subsequent Git tool calls within this session can use '.' for the `path` parameter, which will resolve to this directory. Optionally validates if the path is a Git repository (`validateGitRepo: true`). Returns the result as a JSON object. IMPORTANT: The provided path must be absolute.";
+const TOOL_DESCRIPTION = "Sets the default working directory for the current session. Subsequent Git tool calls within this session can use '.' for the `path` parameter, which will resolve to this directory. Optionally validates if the path is a Git repository (`validateGitRepo: true`). Can optionally initialize a Git repository with 'git init' if it's not already one and `initializeIfNotPresent: true` is set. Returns the result as a JSON object. IMPORTANT: The provided path must be absolute.";
 
 /**
  * Registers the git_set_working_dir tool with the MCP server.
