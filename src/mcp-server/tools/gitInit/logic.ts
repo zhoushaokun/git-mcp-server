@@ -81,11 +81,10 @@ export async function gitInitLogic(
     if (input.bare) {
       command += ' --bare';
     }
-    if (input.initialBranch) {
-      // Use -b for modern Git versions, older might need --initial-branch=
-      // Sticking with -b as it's common now. Add quotes around branch name.
-      command += ` -b "${input.initialBranch.replace(/"/g, '\\"')}"`;
-    }
+    // Determine the initial branch name, defaulting to 'main' if not provided
+    const branchNameToUse = input.initialBranch || 'main';
+    command += ` -b "${branchNameToUse.replace(/"/g, '\\"')}"`;
+    
     // Add the target directory path at the end
     command += ` "${targetPath}"`;
 
