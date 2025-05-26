@@ -379,6 +379,15 @@ export async function startHttpTransport(
       logger.debug(`Processing POST request content for session ${currentSessionId}...`, { ...basePostContext, sessionId: currentSessionId, isInitReq });
       // Delegate the actual handling (parsing, routing, response/SSE generation) to the SDK transport instance.
       // The SDK transport handles returning 202 for notification/response-only POSTs internally.
+      
+      // --- Type modification for req.auth compatibility ---
+      const tempReqPost = req as any; // Allow modification
+      if (tempReqPost.auth && (typeof tempReqPost.auth === 'string' || (typeof tempReqPost.auth === 'object' && 'devMode' in tempReqPost.auth))) {
+        logger.debug('Sanitizing req.auth for SDK compatibility (POST)', { ...basePostContext, sessionId: currentSessionId, originalAuthType: typeof tempReqPost.auth });
+        tempReqPost.auth = undefined;
+      }
+      // --- End modification ---
+
       await transport.handleRequest(req, res, req.body);
       logger.debug(`Finished processing POST request content for session ${currentSessionId}.`, { ...basePostContext, sessionId: currentSessionId });
 
@@ -435,6 +444,15 @@ export async function startHttpTransport(
       // MCP Spec (GET): Client SHOULD include Last-Event-ID for resumption. Resumption handling depends on SDK transport.
       // MCP Spec (DELETE): Client SHOULD send DELETE to terminate. Server MAY respond 405 if not supported.
       // This implementation supports DELETE via the SDK transport's handleRequest.
+
+      // --- Type modification for req.auth compatibility ---
+      const tempReqSession = req as any; // Allow modification
+      if (tempReqSession.auth && (typeof tempReqSession.auth === 'string' || (typeof tempReqSession.auth === 'object' && 'devMode' in tempReqSession.auth))) {
+        logger.debug(`Sanitizing req.auth for SDK compatibility (${method})`, { ...baseSessionReqContext, sessionId, originalAuthType: typeof tempReqSession.auth });
+        tempReqSession.auth = undefined;
+      }
+      // --- End modification ---
+      
       await transport.handleRequest(req, res);
       logger.info(`Successfully handled ${method} request for session ${sessionId}`, { ...baseSessionReqContext, sessionId });
       // Note: For DELETE, the transport's handleRequest should trigger the 'onclose' handler for cleanup.
