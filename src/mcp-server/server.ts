@@ -44,6 +44,7 @@ import { initializeGitStashStateAccessors, registerGitStashTool } from './tools/
 import { initializeGitStatusStateAccessors, registerGitStatusTool } from './tools/gitStatus/index.js';
 import { initializeGitTagStateAccessors, registerGitTagTool } from './tools/gitTag/index.js';
 import { initializeGitWorktreeStateAccessors, registerGitWorktreeTool } from './tools/gitWorktree/index.js';
+import { registerGitWrapupInstructionsTool } from './tools/gitWrapupInstructions/index.js';
 
 
 // Import transport setup functions AND state accessors
@@ -179,6 +180,7 @@ async function createMcpServerInstance(): Promise<McpServer> {
     initializeGitStatusStateAccessors(getWorkingDirectory, getSessionIdFromContext);
     initializeGitTagStateAccessors(getWorkingDirectory, getSessionIdFromContext);
     initializeGitWorktreeStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    // No state accessor initialization needed for gitWrapupInstructionsTool
     logger.debug('State accessors initialized successfully.', context);
   } catch (initError) {
       // Catch errors specifically during initialization phase
@@ -219,6 +221,7 @@ async function createMcpServerInstance(): Promise<McpServer> {
     await registerGitStatusTool(server);
     await registerGitTagTool(server);
     await registerGitWorktreeTool(server);
+    await registerGitWrapupInstructionsTool(server);
     // Add calls to register other resources/tools here if needed in the future.
     logger.info('Git tools registered successfully', context);
   } catch (err) {
