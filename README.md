@@ -1,8 +1,8 @@
 # Git MCP Server
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.12.0-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.0.14-blue.svg)](./CHANGELOG.md)
+[![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.12.1-green.svg)](https://modelcontextprotocol.io/)
+[![Version](https://img.shields.io/badge/Version-2.0.15-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/git-mcp-server/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/git-mcp-server?style=social)](https://github.com/cyanheads/git-mcp-server)
@@ -165,7 +165,7 @@ The Git MCP Server provides a suite of tools for interacting with Git repositori
 | `git_clear_working_dir`   | Clears the session-specific working directory.                                                             | (none)                                                                                                                          |
 | `git_clone`               | Clones a repository into a specified absolute path.                                                        | `repositoryUrl`, `targetPath`, `branch?`, `depth?`, `quiet?`                                                                    |
 | `git_commit`              | Commits staged changes. Supports author override, signing control.                                         | `path?`, `message`, `author?`, `allowEmpty?`, `amend?`, `forceUnsignedOnFailure?`                                               |
-| `git_diff`                | Shows changes between commits, working tree, etc.                                                          | `path?`, `commit1?`, `commit2?`, `staged?`, `file?`, `includeUntracked?`                                                         |
+| `git_diff`                | Shows changes between commits, working tree, etc.                                                          | `path?`, `commit1?`, `commit2?`, `staged?`, `file?`, `includeUntracked?`                                                        |
 | `git_fetch`               | Downloads objects and refs from other repositories.                                                        | `path?`, `remote?`, `prune?`, `tags?`, `all?`                                                                                   |
 | `git_init`                | Initializes a new Git repository at the specified absolute path. Defaults to 'main' for initial branch.    | `path`, `initialBranch?`, `bare?`, `quiet?`                                                                                     |
 | `git_log`                 | Shows commit logs.                                                                                         | `path?`, `maxCount?`, `author?`, `since?`, `until?`, `branchOrFile?`                                                            |

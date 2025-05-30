@@ -19,7 +19,14 @@ export interface GitWrapupInstructionsResult {
 }
 
 // The predefined instructions string.
-const WRAPUP_INSTRUCTIONS = `Initiate our standard git wrapup workflow. (1) First, review all changes to our repo using the git_diff tool to understand the precise nature and rationale behind each change (what changed and why did it change?). (2) For substantial code updates, review and update the README to ensure it is up to date with our current codebase (make a note to the user of any discrepancies you noticed, gathered from everything you've seen of our codebase). (3) Then, update the CHANGELOG with concise, descriptive entries detailing all modifications, clearly indicating their purpose (e.g., bug fix, feature implementation, refactoring). (4) Finally, proceed to commit all changes; group these changes into logical, atomic commits, each accompanied by a clear and descriptive message adhering to Conventional Commits standards (e.g. "docs(readme): updated readme to include xyz."). Note the 'git_commit' tool allows you to also stage the files while commiting. Ensure commit messages accurately convey the scope and impact of the changes, incorporating specific metrics or identifiers where applicable. Be sure to set 'git_set_working_dir' if not already set.`;
+const WRAPUP_INSTRUCTIONS = `
+Perform all actions for our git wrapup workflow:
+1. Use the git_diff tool to understand the precise nature and rationale behind each change (what changed and why did it change?) within the code base. Use the 'includeUntracked' parameter to view all changes, including untracked files. This will help you understand the context and purpose of the modifications made.
+2. For substantial code updates, review and update the README to ensure it is up to date with our current codebase (make a note to the user of any discrepancies you noticed, gathered from everything you've seen of our codebase so far).
+3. Update the CHANGELOG with concise, descriptive entries detailing all modifications, clearly indicating their purpose (e.g., bug fix, feature implementation, refactoring). Include specific metrics or identifiers where applicable, such as issue numbers or pull request links, to provide context and traceability for each change. This will help maintain a clear history of changes and their impacts on the project.
+4. Proceed to commit all changes; based on your review of the git_diff and readme, group these changes into logical, atomic commits, each accompanied by a clear and descriptive message adhering to Conventional Commits standards (e.g. "docs(readme): updated readme to include xyz."). Note the 'git_commit' tool allows you to also stage the files while commiting. Ensure commit messages accurately convey the scope and impact of the changes, incorporating specific metrics or identifiers where applicable.
+Note: Be sure to set 'git_set_working_dir' if not already set.
+`;
 
 /**
  * Core logic for the git_wrapup_instructions tool.

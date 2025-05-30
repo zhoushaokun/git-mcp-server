@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.15 - 2025-05-30
+
+### Changed
+
+- (deps) Updated `@modelcontextprotocol/sdk` to `^1.12.1`.
+- (deps) Downgraded `chrono-node` from `2.8.1` to `2.8.0`.
+- (tools) Refined the instructional text within the `git_wrapup_instructions` tool for clarity and better formatting.
+- (docs) Updated `README.md` to reflect new SDK version and project version.
+- (docs) Updated `docs/tree.md` to reflect current project structure and new files.
+
+### Added
+
+- (config) Added `.ncurc.json` to specify `chrono-node` as a rejected update, pinning it to `2.8.0`.
+
+### Other
+
+- Bump version to 2.0.15.
+
 ## v2.0.14 - 2025-05-30
 
 ### Changed

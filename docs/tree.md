@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-05-26 03:06:48
+Generated on: 2025-05-30 09:45:37
 
 
 ```
@@ -108,7 +108,11 @@ git-mcp-server
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
-    │   │   └── gitWorktree
+    │   │   ├── gitWorktree
+    │   │   │   ├── index.ts
+    │   │   │   ├── logic.ts
+    │   │   │   └── registration.ts
+    │   │   └── gitWrapupInstructions
     │   │   │   ├── index.ts
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
@@ -143,6 +147,7 @@ git-mcp-server
     └── index.ts
 ├── .clinerules
 ├── .env.example
+├── .ncurc.json
 ├── CHANGELOG.md
 ├── Dockerfile
 ├── LICENSE
