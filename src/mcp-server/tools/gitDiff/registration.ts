@@ -35,7 +35,7 @@ export function initializeGitDiffStateAccessors(getWdFn: GetWorkingDirectoryFn, 
 
 
 const TOOL_NAME = 'git_diff';
-const TOOL_DESCRIPTION = "Shows changes between commits, commit and working tree, etc. Can show staged changes or diff specific files. Returns the diff output as plain text.";
+const TOOL_DESCRIPTION = "Shows changes between commits, commit and working tree, etc. Can show staged changes or diff specific files. An optional 'includeUntracked' parameter (boolean) can be used to also show the content of untracked files. Returns the diff output as plain text.";
 
 /**
  * Registers the git_diff tool with the MCP server.

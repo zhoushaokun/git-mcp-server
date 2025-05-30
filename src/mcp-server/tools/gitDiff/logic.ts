@@ -18,6 +18,7 @@ const GitDiffInputBaseSchema = z.object({
   commit2: z.string().optional().describe("Second commit, branch, or ref for comparison. If omitted, compares commit1 against the working tree or index."),
   staged: z.boolean().optional().default(false).describe("Show diff of changes staged for the next commit (compares index against HEAD). Overrides commit1/commit2 if true."),
   file: z.string().optional().describe("Limit the diff output to a specific file path."),
+  includeUntracked: z.boolean().optional().default(false).describe("Include untracked files in the diff output (shows their full content as new files). This is a non-standard extension."),
   // Add options like --name-only, --stat, context lines (-U<n>) if needed
 });
 
@@ -39,6 +40,7 @@ export interface GitDiffResult {
   success: boolean;
   diff: string; // The diff output
   message?: string; // Optional status message (e.g., "No changes found")
+  untrackedFilesProcessed?: number; // Number of untracked files included in the diff
 }
 
 /**
@@ -82,48 +84,110 @@ export async function diffGitChanges(
   const safeCommit2 = input.commit2?.replace(/[`$&;*()|<>]/g, '');
   const safeFile = input.file?.replace(/[`$&;*()|<>]/g, '');
 
+  let untrackedFilesDiff = '';
+  let untrackedFilesCount = 0;
+
   try {
-    // Construct the git diff command
-    let command = `git -C "${targetPath}" diff`;
+    // Construct the standard git diff command
+    let standardDiffCommand = `git -C "${targetPath}" diff`;
 
     if (input.staged) {
-      command += ' --staged'; // Or --cached
+      standardDiffCommand += ' --staged'; // Or --cached
     } else {
       // Add commit references if not doing staged diff
       if (safeCommit1) {
-        command += ` ${safeCommit1}`;
+        standardDiffCommand += ` ${safeCommit1}`;
       }
       if (safeCommit2) {
-        command += ` ${safeCommit2}`;
+        standardDiffCommand += ` ${safeCommit2}`;
       }
     }
 
-    // Add file path limiter if provided
+    // Add file path limiter if provided for standard diff
+    // Note: `input.file` will not apply to the untracked files part unless we explicitly filter them.
+    // For simplicity, `includeUntracked` will show all untracked files if `input.file` is also set.
     if (safeFile) {
-      command += ` -- "${safeFile}"`; // Use '--' to separate paths from revisions
+      standardDiffCommand += ` -- "${safeFile}"`; // Use '--' to separate paths from revisions
     }
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing standard diff command: ${standardDiffCommand}`, { ...context, operation });
+    const { stdout: standardStdout, stderr: standardStderr } = await execAsync(standardDiffCommand, { maxBuffer: 1024 * 1024 * 20 });
 
-    // Execute command. Diff output is primarily on stdout.
-    // Increase maxBuffer as diffs can be large.
-    const { stdout, stderr } = await execAsync(command, { maxBuffer: 1024 * 1024 * 20 }); // 20MB buffer
+    if (standardStderr) {
+      logger.warning(`Git diff (standard) stderr: ${standardStderr}`, { ...context, operation });
+    }
+    let combinedDiffOutput = standardStdout;
 
-    if (stderr) {
-      // Log stderr as warning, as it might contain non-fatal info
-      logger.warning(`Git diff stderr: ${stderr}`, { ...context, operation });
+    // Handle untracked files if requested
+    if (input.includeUntracked) {
+      logger.debug('Including untracked files.', { ...context, operation });
+      const listUntrackedCommand = `git -C "${targetPath}" ls-files --others --exclude-standard`;
+      try {
+        const { stdout: untrackedFilesStdOut } = await execAsync(listUntrackedCommand);
+        const untrackedFiles = untrackedFilesStdOut.trim().split('\n').filter(f => f); // Filter out empty lines
+
+        if (untrackedFiles.length > 0) {
+          logger.info(`Found ${untrackedFiles.length} untracked files.`, { ...context, operation, untrackedFiles });
+          let individualUntrackedDiffs = '';
+          for (const untrackedFile of untrackedFiles) {
+            // Sanitize each untracked file path before using in command
+            const safeUntrackedFile = untrackedFile.replace(/[`$&;*()|<>]/g, '');
+            // Skip if file path becomes empty after sanitization (unlikely but safe)
+            if (!safeUntrackedFile) continue;
+
+            const untrackedDiffCommand = `git -C "${targetPath}" diff --no-index /dev/null "${safeUntrackedFile}"`;
+            logger.debug(`Executing diff for untracked file: ${untrackedDiffCommand}`, { ...context, operation, file: safeUntrackedFile });
+            try {
+              const { stdout: untrackedFileDiffOut } = await execAsync(untrackedDiffCommand);
+              individualUntrackedDiffs += untrackedFileDiffOut;
+              untrackedFilesCount++;
+            } catch (untrackedError: any) {
+              // For `git diff --no-index`, a non-zero exit code (usually 1) means differences were found.
+              // The actual diff output will be in untrackedError.stdout.
+              if (untrackedError.stdout) {
+                individualUntrackedDiffs += untrackedError.stdout;
+                untrackedFilesCount++;
+                // Log stderr if it exists, as it might contain actual error messages despite stdout having the diff
+                if (untrackedError.stderr) {
+                    logger.warning(`Stderr while diffing untracked file ${safeUntrackedFile} (diff captured from stdout): ${untrackedError.stderr}`, { ...context, operation, file: safeUntrackedFile });
+                }
+              } else {
+                // If stdout is empty, then it's a more genuine failure.
+                logger.warning(`Failed to diff untracked file: ${safeUntrackedFile}. Error: ${untrackedError.message}`, { ...context, operation, file: safeUntrackedFile, errorDetails: { stderr: untrackedError.stderr, stdout: untrackedError.stdout, code: untrackedError.code } });
+                individualUntrackedDiffs += `\n--- Diff for untracked file ${safeUntrackedFile} failed: ${untrackedError.message}\n`;
+              }
+            }
+          }
+          if (individualUntrackedDiffs) {
+            // Add a separator if standard diff also had output
+            if (combinedDiffOutput.trim()) {
+              combinedDiffOutput += '\n';
+            }
+            combinedDiffOutput += individualUntrackedDiffs;
+          }
+        } else {
+          logger.info('No untracked files found.', { ...context, operation });
+        }
+      } catch (lsFilesError: any) {
+        logger.warning(`Failed to list untracked files. Error: ${lsFilesError.message}`, { ...context, operation, error: lsFilesError.stderr || lsFilesError.stdout });
+        // Proceed without untracked files if listing fails
+      }
     }
 
-    const rawDiffOutput = stdout;
-    const isNoChanges = rawDiffOutput.trim() === '';
-    const finalDiffOutput = isNoChanges ? 'No changes found.' : rawDiffOutput;
-    const message = isNoChanges ? 'No changes found.' : 'Diff generated successfully.';
+    const isNoChanges = combinedDiffOutput.trim() === '';
+    const finalDiffOutput = isNoChanges ? 'No changes found.' : combinedDiffOutput;
+    let message = isNoChanges ? 'No changes found.' : 'Diff generated successfully.';
+    if (untrackedFilesCount > 0) {
+      message += ` Included ${untrackedFilesCount} untracked file(s).`;
+    }
 
     logger.info(`${operation} completed successfully. ${message}`, { ...context, operation, path: targetPath });
-    return { success: true, diff: finalDiffOutput, message };
+    return { success: true, diff: finalDiffOutput, message, untrackedFilesProcessed: untrackedFilesCount };
 
   } catch (error: any) {
-    logger.error(`Failed to execute git diff command`, { ...context, operation, path: targetPath, error: error.message, stderr: error.stderr, stdout: error.stdout });
+    // This catch block now primarily handles errors from the *standard* diff command
+    // or catastrophic failures before/after untracked file processing.
+    logger.error(`Failed to execute git diff operation`, { ...context, operation, path: targetPath, error: error.message, stderr: error.stderr, stdout: error.stdout });
 
     const errorMessage = error.stderr || error.stdout || error.message || '';
 

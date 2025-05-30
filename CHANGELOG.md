@@ -2,46 +2,62 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.14 - 2025-05-30
+
+### Changed
+
+- (tools) `git_diff` tool now supports an `includeUntracked` boolean parameter. If true, the diff output will also include the content of untracked files by comparing them against `/dev/null`.
+- (docs) Updated `README.md` to reflect the new `includeUntracked` parameter in `git_diff` tool description and arguments table.
+- (docs) Updated version badge in `README.md` to `v2.0.14`.
+- (docs) Updated version in `README.md` Resources section to `v2.0.14`.
+
+### Other
+
+- Bump version to 2.0.14.
+
 ## v2.0.13 - 2025-05-30
 
 ### Added
+
 - (tools) Added `git_wrapup_instructions` tool to provide a standard Git wrap-up workflow, including reviewing changes, updating documentation (README, CHANGELOG), and making logical commits.
 - (core) Integrated the `git_wrapup_instructions` tool into the server by adding its registration in `src/mcp-server/server.ts`.
 
 ### Changed
+
 - (docs) Updated `README.md` to include the new `git_wrapup_instructions` tool in the tools table.
 
 ### Other
+
 - Bump version to 2.0.13 (implicitly).
-
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## v2.0.12 - 2025-05-25
 
 ### Added
+
 - (tools) Added `git_worktree` tool to manage Git worktrees, including listing, adding, removing, moving, and pruning.
 - (tools) `gitSetWorkingDir` tool can now optionally initialize a new Git repository with `git init --initial-branch=main` if `initializeIfNotPresent: true` is set and the target directory is not already a Git repository.
 
 ### Changed
+
 - (tools) `gitInit` tool now defaults the initial branch to `main` if no `initialBranch` is specified in the input.
 - (security) Refactored `authMiddleware.ts` to align with MCP SDK's `AuthInfo` type, improving JWT claim handling for `clientId` and `scopes`. Invalid or missing scopes now default to an empty array.
 - (deps) Updated various dependencies, including:
-    - `@modelcontextprotocol/inspector` to `^0.13.0`
-    - `@modelcontextprotocol/sdk` to `^1.12.0`
-    - `@types/node` to `^22.15.21`
-    - `@types/validator` to `^13.15.1`
-    - `openai` to `^4.103.0`
-    - `zod` to `^3.25.28`
-    - `@types/express` to `^5.0.2` (devDependency)
+  - `@modelcontextprotocol/inspector` to `^0.13.0`
+  - `@modelcontextprotocol/sdk` to `^1.12.0`
+  - `@types/node` to `^22.15.21`
+  - `@types/validator` to `^13.15.1`
+  - `openai` to `^4.103.0`
+  - `zod` to `^3.25.28`
+  - `@types/express` to `^5.0.2` (devDependency)
 - (docs) Updated `docs/tree.md` to include the new `gitWorktree` tool.
 - (docs) Updated `README.md` to reflect the new `gitWorktree` tool, changes to `gitInit` and `gitSetWorkingDir`, and updated dependency versions.
 
 ### Fixed
+
 - (http) Added a workaround in `httpTransport.ts` to sanitize `req.auth` for SDK compatibility, addressing potential type mismatches.
 
 ### Other
+
 - Bump version to 2.0.12.
 
 ## v2.0.11 - 2025-05-14
@@ -50,10 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (logging) Replaced direct `console.log` calls for server startup messages in HTTP and STDIO transports with `logger.notice()` to ensure MCP client compatibility and prevent parsing issues. (Addresses GitHub Issue #9)
 - (logging) Refactored internal logger (`utils/internal/logger.ts`):
-    - Deferred informational setup messages (e.g., logs directory creation, console logging status) to use the logger's own `info()` method after Winston is initialized.
-    - Made critical pre-initialization `console.error` and `console.warn` calls conditional on TTY to prevent non-JSONRPC output when running in stdio mode with an MCP client.
-    - Extracted console formatting logic into a reusable helper function (`createWinstonConsoleFormat`) to reduce duplication.
-    - Added comments explaining TTY-conditional logging for clarity.
+  - Deferred informational setup messages (e.g., logs directory creation, console logging status) to use the logger's own `info()` method after Winston is initialized.
+  - Made critical pre-initialization `console.error` and `console.warn` calls conditional on TTY to prevent non-JSONRPC output when running in stdio mode with an MCP client.
+  - Extracted console formatting logic into a reusable helper function (`createWinstonConsoleFormat`) to reduce duplication.
+  - Added comments explaining TTY-conditional logging for clarity.
 
 ### Changed
 
