@@ -2,17 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## v2.0.16 - 2025-06-03
+## v2.1.0 - 2025-06-03
 
 ### Changed
 
 - (tools) `gitStatus` tool:
-    - Reworked JSON output structure to provide more detailed and categorized information for staged and unstaged changes (e.g., `Added`, `Modified`, `Deleted` arrays under `staged_changes` and `unstaged_changes`).
-    - Updated tool description to accurately reflect the new, richer output format.
+  - Reworked JSON output structure to provide more detailed and categorized information for staged and unstaged changes (e.g., `Added`, `Modified`, `Deleted` arrays under `staged_changes` and `unstaged_changes`).
+  - Updated tool description to accurately reflect the new, richer output format.
 - (tools) `gitWrapupInstructions` tool:
-    - Now includes the full JSON output of the `git_status` tool in its own result, providing immediate context on repository status when initiating a wrap-up.
-    - Updated internal logic to fetch and integrate the `git_status` output.
-    - Enhanced registration to initialize and utilize necessary session state accessors (`getWorkingDirectory`, `getSessionId`) for fetching Git status.
+  - Now includes the full JSON output of the `git_status` tool in its own result, providing immediate context on repository status when initiating a wrap-up.
+  - Updated internal logic to fetch and integrate the `git_status` output.
+  - Enhanced registration to initialize and utilize necessary session state accessors (`getWorkingDirectory`, `getSessionId`) for fetching Git status.
 - (core) `server.ts`: Added initialization call for `gitWrapupInstructionsStateAccessors` to ensure the tool has access to session-specific context.
 - (docs) `docs/tree.md`: Updated timestamp.
 
@@ -26,7 +26,7 @@ All notable changes to this project will be documented in this file.
 
 ### Other
 
-- Bump version to 2.0.16.
+- Bump version to 2.1.0.
 
 ## v2.0.15 - 2025-05-30
 
