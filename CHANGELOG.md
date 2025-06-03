@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.16 - 2025-06-03
+
+### Changed
+
+- (tools) `gitStatus` tool:
+    - Reworked JSON output structure to provide more detailed and categorized information for staged and unstaged changes (e.g., `Added`, `Modified`, `Deleted` arrays under `staged_changes` and `unstaged_changes`).
+    - Updated tool description to accurately reflect the new, richer output format.
+- (tools) `gitWrapupInstructions` tool:
+    - Now includes the full JSON output of the `git_status` tool in its own result, providing immediate context on repository status when initiating a wrap-up.
+    - Updated internal logic to fetch and integrate the `git_status` output.
+    - Enhanced registration to initialize and utilize necessary session state accessors (`getWorkingDirectory`, `getSessionId`) for fetching Git status.
+- (core) `server.ts`: Added initialization call for `gitWrapupInstructionsStateAccessors` to ensure the tool has access to session-specific context.
+- (docs) `docs/tree.md`: Updated timestamp.
+
+### Dependencies
+
+- Updated the following dependencies:
+  - `@types/node` to `^22.15.29`
+  - `ignore` to `^7.0.5`
+  - `openai` to `^5.0.2`
+  - `zod` to `^3.25.49`
+
+### Other
+
+- Bump version to 2.0.16.
+
 ## v2.0.15 - 2025-05-30
 
 ### Changed
