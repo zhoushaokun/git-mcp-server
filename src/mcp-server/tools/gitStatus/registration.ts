@@ -28,7 +28,7 @@ export function initializeGitStatusStateAccessors(getWdFn: GetWorkingDirectoryFn
 
 
 const TOOL_NAME = 'git_status';
-const TOOL_DESCRIPTION = 'Retrieves the status of a Git repository. Shows the working tree status including tracked/untracked files, modifications, staged changes, and current branch information. Returns the status as a JSON object.';
+const TOOL_DESCRIPTION = 'Retrieves the status of a Git repository. Returns a JSON object detailing the current branch, cleanliness, and changes. Staged and unstaged changes are grouped by status (e.g., Added, Modified), alongside lists of untracked and conflicted files.';
 
 /**
  * Registers the git_status tool with the MCP server.

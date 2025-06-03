@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { RequestContext } from '../../../utils/internal/requestContext.js'; // For consistency, though not strictly used by logic
+import { logger, RequestContext } from '../../../utils/index.js'; // Added logger
+import { getGitStatus, GitStatusResult } from '../gitStatus/logic.js'; // Corrected path
 
 // Define the input schema
 export const GitWrapupInstructionsInputSchema = z.object({
@@ -16,6 +17,8 @@ export type GitWrapupInstructionsInput = z.infer<typeof GitWrapupInstructionsInp
 // Define the structure of the result object that the logic function will return.
 export interface GitWrapupInstructionsResult {
   instructions: string;
+  gitStatus?: GitStatusResult; // To hold the structured git status output
+  gitStatusError?: string; // To hold any error message if git status fails
 }
 
 // The predefined instructions string.
@@ -38,13 +41,38 @@ Note: Be sure to set 'git_set_working_dir' if not already set.
  */
 export async function getWrapupInstructions(
   input: GitWrapupInstructionsInput,
-  _context: RequestContext // Included for structural consistency, not used by this simple tool
+  // The context is now expected to be enhanced by the registration layer
+  // to include session-specific methods like getWorkingDirectory.
+  context: RequestContext & { sessionId?: string; getWorkingDirectory: () => string | undefined }
 ): Promise<GitWrapupInstructionsResult> {
   let finalInstructions = WRAPUP_INSTRUCTIONS;
   if (input.updateAgentMetaFiles && ['Y', 'y', 'Yes', 'yes'].includes(input.updateAgentMetaFiles)) {
     finalInstructions += ` Extra request: review and update if needed the .clinerules and claude.md files if present.`;
   }
+
+  let statusResult: GitStatusResult | undefined = undefined;
+  let statusError: string | undefined = undefined;
+
+  const workingDir = context.getWorkingDirectory();
+
+  if (workingDir) {
+    try {
+      // The `getGitStatus` function expects `path` and a context with `getWorkingDirectory`.
+      // Passing `path: '.'` signals `getGitStatus` to use the working directory from the context.
+      // The `registration.ts` for this tool will be responsible for ensuring `context.getWorkingDirectory` is correctly supplied.
+      statusResult = await getGitStatus({ path: '.' }, context);
+    } catch (error: any) {
+      logger.warning(`Failed to get git status while generating wrapup instructions (working dir: ${workingDir}). Tool will proceed without it.`, { ...context, tool: 'gitWrapupInstructions', originalError: error.message });
+      statusError = error instanceof Error ? error.message : String(error);
+    }
+  } else {
+    logger.info('No working directory set for session, skipping git status for wrapup instructions.', { ...context, tool: 'gitWrapupInstructions' });
+    statusError = 'No working directory set for session, git status skipped.';
+  }
+
   return {
     instructions: finalInstructions,
+    gitStatus: statusResult,
+    gitStatusError: statusError,
   };
 }

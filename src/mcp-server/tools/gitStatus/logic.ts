@@ -14,14 +14,25 @@ export const GitStatusInputSchema = z.object({
 // Infer the TypeScript type from the Zod schema
 export type GitStatusInput = z.infer<typeof GitStatusInputSchema>;
 
-// Define the structure for the JSON output
+// Define the structure for the JSON output (New Structure)
 export interface GitStatusResult {
-  currentBranch: string | null;
-  staged: { status: string; file: string }[];
-  modified: { status: string; file: string }[];
-  untracked: string[];
-  conflicted: string[];
-  isClean: boolean;
+  current_branch: string | null;
+  staged_changes: {
+    Added?: string[];
+    Modified?: string[];
+    Deleted?: string[];
+    Renamed?: string[];
+    Copied?: string[];
+    TypeChanged?: string[];
+  };
+  unstaged_changes: {
+    Modified?: string[];
+    Deleted?: string[];
+    TypeChanged?: string[];
+  };
+  untracked_files: string[];
+  conflicted_files: string[];
+  is_clean: boolean;
 }
 
 /**
@@ -34,107 +45,105 @@ export interface GitStatusResult {
 function parseGitStatusPorcelainV1(porcelainOutput: string): GitStatusResult {
   const lines = porcelainOutput.trim().split('\n');
   const result: GitStatusResult = {
-    currentBranch: null,
-    staged: [],
-    modified: [],
-    untracked: [],
-    conflicted: [],
-    isClean: true, // Assume clean initially
+    current_branch: null,
+    staged_changes: {},
+    unstaged_changes: {},
+    untracked_files: [],
+    conflicted_files: [],
+    is_clean: true, // Assume clean initially
   };
 
   if (lines.length === 0 || (lines.length === 1 && lines[0] === '')) {
-    // If output is empty, it might mean no branch yet or truly clean
-    // We'll refine branch detection below if possible
     return result;
   }
 
-  // First line often contains branch info (e.g., ## master...origin/master)
   if (lines[0].startsWith('## ')) {
-    const branchLine = lines.shift()!; // Remove and process the branch line
-    // Try matching standard branch format first (e.g., ## master...origin/master [ahead 1])
-    // Make regex more specific: look for '...' or '[' after branch name, or end of line for simple branch name
+    const branchLine = lines.shift()!;
     const standardBranchMatch = branchLine.match(/^## ([^ ]+?)(?:\.\.\.| \[.*\]|$)/);
-    // Try matching the 'No commits yet' format (e.g., ## No commits yet on master)
     const noCommitsMatch = branchLine.match(/^## No commits yet on (.+)/);
-    // Try matching detached HEAD format (e.g., ## HEAD (no branch))
     const detachedMatch = branchLine.match(/^## HEAD \(no branch\)/);
 
     if (standardBranchMatch) {
-      result.currentBranch = standardBranchMatch[1];
-      // TODO: Optionally parse ahead/behind counts if needed from the full match
+      result.current_branch = standardBranchMatch[1];
     } else if (noCommitsMatch) {
-      // More descriptive state: Branch exists but has no commits
-      result.currentBranch = `${noCommitsMatch[1]} (no commits yet)`;
-    } else if (detachedMatch) { // Handle detached HEAD
-       result.currentBranch = 'HEAD (detached)';
+      result.current_branch = `${noCommitsMatch[1]} (no commits yet)`;
+    } else if (detachedMatch) {
+      result.current_branch = 'HEAD (detached)';
     } else {
-       // Fallback if branch line format is unexpected
-       logger.warning('Could not parse branch information from line:', { branchLine });
-       result.currentBranch = '(unknown)';
+      logger.warning('Could not parse branch information from line:', { branchLine });
+      result.current_branch = '(unknown)';
     }
   }
 
-
   for (const line of lines) {
-    if (!line) continue; // Skip empty lines if any
+    if (!line) continue;
 
-    result.isClean = false; // Any line indicates non-clean state
+    result.is_clean = false; // Any line indicates non-clean state
 
     const xy = line.substring(0, 2);
-    const file = line.substring(3); // Path starts after 'XY '
+    const file = line.substring(3);
 
-    const stagedStatus = xy[0];
-    const unstagedStatus = xy[1];
+    const stagedStatusChar = xy[0];
+    const unstagedStatusChar = xy[1];
 
     // Handle untracked files
     if (xy === '??') {
-      result.untracked.push(file);
+      result.untracked_files.push(file);
       continue;
     }
 
-    // Handle conflicted files (complex statuses)
-    if (stagedStatus === 'U' || unstagedStatus === 'U' || (stagedStatus === 'A' && unstagedStatus === 'A') || (stagedStatus === 'D' && unstagedStatus === 'D')) {
-       result.conflicted.push(file);
-       // Decide how to represent conflicts (could be more granular)
-       if (!result.staged.some(f => f.file === file)) result.staged.push({ status: 'Conflicted', file });
-       if (!result.modified.some(f => f.file === file)) result.modified.push({ status: 'Conflicted', file });
-       continue;
+    // Handle conflicted files (unmerged paths)
+    // DD = both deleted, AU = added by us, UD = deleted by them, UA = added by them, DU = deleted by us
+    // AA = both added, UU = both modified
+    if (stagedStatusChar === 'U' || unstagedStatusChar === 'U' || 
+        (stagedStatusChar === 'D' && unstagedStatusChar === 'D') || 
+        (stagedStatusChar === 'A' && unstagedStatusChar === 'A')) {
+      result.conflicted_files.push(file);
+      continue; // Conflicted files are handled separately and not in staged/unstaged
     }
 
-
     // Handle staged changes (index status)
-    if (stagedStatus !== ' ' && stagedStatus !== '?') {
-       let statusDesc = 'Unknown Staged';
-       switch (stagedStatus) {
-           case 'M': statusDesc = 'Modified'; break;
-           case 'A': statusDesc = 'Added'; break;
-           case 'D': statusDesc = 'Deleted'; break;
-           case 'R': statusDesc = 'Renamed'; break; // Often includes ' -> new_name' in file path
-           case 'C': statusDesc = 'Copied'; break; // Often includes ' -> new_name' in file path
-           case 'T': statusDesc = 'Type Changed'; break;
-       }
-       result.staged.push({ status: statusDesc, file });
+    if (stagedStatusChar !== ' ' && stagedStatusChar !== '?') {
+      let statusDesc: keyof GitStatusResult['staged_changes'] | undefined = undefined;
+      switch (stagedStatusChar) {
+        case 'M': statusDesc = 'Modified'; break;
+        case 'A': statusDesc = 'Added'; break;
+        case 'D': statusDesc = 'Deleted'; break;
+        case 'R': statusDesc = 'Renamed'; break;
+        case 'C': statusDesc = 'Copied'; break;
+        case 'T': statusDesc = 'TypeChanged'; break;
+      }
+      if (statusDesc) {
+        if (!result.staged_changes[statusDesc]) {
+          result.staged_changes[statusDesc] = [];
+        }
+        result.staged_changes[statusDesc]!.push(file);
+      }
     }
 
     // Handle unstaged changes (worktree status)
-    if (unstagedStatus !== ' ' && unstagedStatus !== '?') {
-       let statusDesc = 'Unknown Unstaged';
-        switch (unstagedStatus) {
-           case 'M': statusDesc = 'Modified'; break;
-           case 'D': statusDesc = 'Deleted'; break;
-           case 'T': statusDesc = 'Type Changed'; break;
-           // Note: 'A' (Added) in unstaged usually means untracked ('??') handled above
-       }
-       // Avoid duplicating if already marked as conflicted
-       if (!result.modified.some(f => f.file === file && f.status === 'Conflicted')) {
-           result.modified.push({ status: statusDesc, file });
-       }
+    if (unstagedStatusChar !== ' ' && unstagedStatusChar !== '?') {
+      let statusDesc: keyof GitStatusResult['unstaged_changes'] | undefined = undefined;
+      switch (unstagedStatusChar) {
+        case 'M': statusDesc = 'Modified'; break;
+        case 'D': statusDesc = 'Deleted'; break;
+        case 'T': statusDesc = 'TypeChanged'; break;
+        // 'A' (Added but not committed) is handled by '??' (untracked)
+        // 'R' and 'C' in worktree without being staged are complex, often appear as deleted + untracked
+      }
+      if (statusDesc) {
+        if (!result.unstaged_changes[statusDesc]) {
+          result.unstaged_changes[statusDesc] = [];
+        }
+        result.unstaged_changes[statusDesc]!.push(file);
+      }
     }
   }
 
-  // Final check for cleanliness
-  result.isClean = result.staged.length === 0 && result.modified.length === 0 && result.untracked.length === 0 && result.conflicted.length === 0;
-
+  result.is_clean = Object.keys(result.staged_changes).length === 0 &&
+                     Object.keys(result.unstaged_changes).length === 0 &&
+                     result.untracked_files.length === 0 &&
+                     result.conflicted_files.length === 0;
   return result;
 }
 
@@ -204,13 +213,16 @@ export async function getGitStatus(
 
     // If parsing resulted in clean state but no branch, re-check branch explicitly
     // This handles the case of an empty repo after init but before first commit
-    if (structuredResult.isClean && !structuredResult.currentBranch) {
+    if (structuredResult.is_clean && !structuredResult.current_branch) {
         try {
             const branchCommand = `git -C "${targetPath}" rev-parse --abbrev-ref HEAD`;
             const { stdout: branchStdout } = await execAsync(branchCommand);
-            const currentBranch = branchStdout.trim();
-            if (currentBranch && currentBranch !== 'HEAD') {
-                structuredResult.currentBranch = currentBranch;
+            const currentBranchName = branchStdout.trim(); // Renamed variable for clarity
+            if (currentBranchName && currentBranchName !== 'HEAD') {
+                structuredResult.current_branch = currentBranchName;
+            } else if (currentBranchName === 'HEAD' && !structuredResult.current_branch) {
+                // If rev-parse returns HEAD and we still don't have a branch (e.g. detached from no-commits branch)
+                structuredResult.current_branch = 'HEAD (detached)';
             }
         } catch (branchError) {
             // Ignore error if rev-parse fails (e.g., still no commits)
