@@ -29,6 +29,8 @@ Perform all actions for our git wrapup workflow:
 3. Update the CHANGELOG with concise, descriptive entries detailing all modifications, clearly indicating their purpose (e.g., bug fix, feature implementation, refactoring). Include specific metrics or identifiers where applicable, such as issue numbers or pull request links, to provide context and traceability for each change. This will help maintain a clear history of changes and their impacts on the project.
 4. Proceed to commit all changes; based on your review of the git_diff and readme, group these changes into logical, atomic commits, each accompanied by a clear and descriptive message adhering to Conventional Commits standards (e.g. "docs(readme): updated readme to include xyz."). Note the 'git_commit' tool allows you to also stage the files while commiting. Ensure commit messages accurately convey the scope and impact of the changes, incorporating specific metrics or identifiers where applicable.
 Note: Be sure to set 'git_set_working_dir' if not already set.
+
+Instructions: Now write a concise list of what you must do to complete the git wrapup workflow, then perform all actions. Do not push unless requested.
 `;
 
 /**

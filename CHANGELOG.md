@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.1.1 - 2025-06-13
+
+### Changed
+
+- (docs) Updated `README.md` to reflect the new version `2.1.1`.
+- (docs) Updated `git_wrapup_instructions` tool description for clarity.
+- (docs) Updated `git_wrapup_instructions` tool logic to include a prompt for the agent.
+
+### Dependencies
+
+- Updated the following dependencies:
+  - `@modelcontextprotocol/inspector` to `^0.14.0`
+  - `@types/node` to `^24.0.1`
+  - `openai` to `^5.3.0`
+  - `zod` to `^3.25.64`
+  - `@types/express` to `^5.0.3` (devDependency)
+
+### Other
+
+- Bump version to 2.1.1.
+
 ## v2.1.0 - 2025-06-03
 
 ### Changed

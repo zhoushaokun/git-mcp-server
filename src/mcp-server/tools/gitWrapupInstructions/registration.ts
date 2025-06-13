@@ -32,7 +32,7 @@ export function initializeGitWrapupInstructionsStateAccessors(getWdFn: GetWorkin
 }
 
 const TOOL_NAME = 'git_wrapup_instructions';
-const TOOL_DESCRIPTION = 'Provides a standard Git wrap-up workflow. This involves reviewing changes with `git_diff`, updating documentation (README, CHANGELOG), and making logical, descriptive commits using the `git_commit` tool. The tool\'s response also includes the current `git status` output.';
+const TOOL_DESCRIPTION = 'Provides a standard Git wrap-up workflow. This involves reviewing changes with `git_diff`, updating documentation (README, CHANGELOG), and making logical, descriptive commits using the `git_commit` tool. The tool\'s response also includes the current `git status` output. You should set the working directory using `git_set_working_dir` before running this tool.';
 
 /**
  * Registers the git_wrapup_instructions tool with the MCP server.
