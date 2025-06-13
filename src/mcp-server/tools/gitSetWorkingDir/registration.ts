@@ -1,19 +1,37 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { CallToolResult, TextContent } from '@modelcontextprotocol/sdk/types.js';
-import { BaseErrorCode } from '../../../types-global/errors.js'; // Direct import for types-global
-import { ErrorHandler, logger, requestContextService } from '../../../utils/index.js'; // ErrorHandler (./utils/internal/errorHandler.js), logger (./utils/internal/logger.js), requestContextService & RequestContext (./utils/internal/requestContext.js)
-import { GitSetWorkingDirInput, GitSetWorkingDirInputSchema, gitSetWorkingDirLogic } from './logic.js';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  CallToolResult,
+  TextContent,
+} from "@modelcontextprotocol/sdk/types.js";
+import { BaseErrorCode } from "../../../types-global/errors.js"; // Direct import for types-global
+import {
+  ErrorHandler,
+  logger,
+  requestContextService,
+} from "../../../utils/index.js"; // ErrorHandler (./utils/internal/errorHandler.js), logger (./utils/internal/logger.js), requestContextService & RequestContext (./utils/internal/requestContext.js)
+import {
+  GitSetWorkingDirInput,
+  GitSetWorkingDirInputSchema,
+  gitSetWorkingDirLogic,
+} from "./logic.js";
 
 // --- State Accessors ---
 // These functions need to be provided by the server setup layer (server.ts)
 // to allow the tool registration to interact with the session-specific state.
 
 /** Type definition for the function that gets the working directory for a session */
-export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | undefined;
+export type GetWorkingDirectoryFn = (
+  sessionId: string | undefined,
+) => string | undefined;
 /** Type definition for the function that sets the working directory for a session */
-export type SetWorkingDirectoryFn = (sessionId: string | undefined, path: string) => void;
+export type SetWorkingDirectoryFn = (
+  sessionId: string | undefined,
+  path: string,
+) => void;
 /** Type definition for the function that gets the session ID from the context */
-export type GetSessionIdFn = (context: Record<string, any>) => string | undefined;
+export type GetSessionIdFn = (
+  context: Record<string, any>,
+) => string | undefined;
 
 let _getWorkingDirectory: GetWorkingDirectoryFn | undefined; // Added getter
 let _setWorkingDirectory: SetWorkingDirectoryFn | undefined;
@@ -29,17 +47,19 @@ let _getSessionId: GetSessionIdFn | undefined;
 export function initializeGitSetWorkingDirStateAccessors(
   getWdFn: GetWorkingDirectoryFn, // Added getter parameter
   setWdFn: SetWorkingDirectoryFn,
-  getSidFn: GetSessionIdFn
+  getSidFn: GetSessionIdFn,
 ): void {
   _getWorkingDirectory = getWdFn; // Store getter
   _setWorkingDirectory = setWdFn;
   _getSessionId = getSidFn;
-  logger.info('State accessors initialized for git_set_working_dir tool registration.');
+  logger.info(
+    "State accessors initialized for git_set_working_dir tool registration.",
+  );
 }
 
-
-const TOOL_NAME = 'git_set_working_dir';
-const TOOL_DESCRIPTION = "Sets the default working directory for the current session. Subsequent Git tool calls within this session can use '.' for the `path` parameter, which will resolve to this directory. Optionally validates if the path is a Git repository (`validateGitRepo: true`). Can optionally initialize a Git repository with 'git init' if it's not already one and `initializeIfNotPresent: true` is set. Returns the result as a JSON object. IMPORTANT: The provided path must be absolute.";
+const TOOL_NAME = "git_set_working_dir";
+const TOOL_DESCRIPTION =
+  "Sets the default working directory for the current session. Subsequent Git tool calls within this session can use '.' for the `path` parameter, which will resolve to this directory. Optionally validates if the path is a Git repository (`validateGitRepo: true`). Can optionally initialize a Git repository with 'git init' if it's not already one and `initializeIfNotPresent: true` is set. Returns the result as a JSON object. IMPORTANT: The provided path must be absolute.";
 
 /**
  * Registers the git_set_working_dir tool with the MCP server.
@@ -47,10 +67,14 @@ const TOOL_DESCRIPTION = "Sets the default working directory for the current ses
  * @param {McpServer} server - The MCP server instance.
  * @throws {Error} If state accessors are not initialized.
  */
-export async function registerGitSetWorkingDirTool(server: McpServer): Promise<void> {
+export async function registerGitSetWorkingDirTool(
+  server: McpServer,
+): Promise<void> {
   // Check all required accessors
   if (!_getWorkingDirectory || !_setWorkingDirectory || !_getSessionId) {
-    throw new Error('State accessors (getWD, setWD, getSID) for git_set_working_dir must be initialized before registration.');
+    throw new Error(
+      "State accessors (getWD, setWD, getSID) for git_set_working_dir must be initialized before registration.",
+    );
   }
 
   try {
@@ -58,10 +82,14 @@ export async function registerGitSetWorkingDirTool(server: McpServer): Promise<v
       TOOL_NAME,
       TOOL_DESCRIPTION,
       GitSetWorkingDirInputSchema.shape, // Pass the shape for SDK validation
-      async (validatedArgs, callContext) => { // Use callContext provided by SDK
-        const operation = 'tool:git_set_working_dir';
+      async (validatedArgs, callContext) => {
+        // Use callContext provided by SDK
+        const operation = "tool:git_set_working_dir";
         // Create a request context, potentially inheriting from callContext if it provides relevant info
-        const requestContext = requestContextService.createRequestContext({ operation, parentContext: callContext });
+        const requestContext = requestContextService.createRequestContext({
+          operation,
+          parentContext: callContext,
+        });
 
         // Get session ID using the accessor function
         const sessionId = _getSessionId!(requestContext); // Non-null assertion as we checked initialization
@@ -88,15 +116,21 @@ export async function registerGitSetWorkingDirTool(server: McpServer): Promise<v
         return await ErrorHandler.tryCatch<CallToolResult>(
           async () => {
             // Call the core logic function with validated args and enhanced context
-            const result = await gitSetWorkingDirLogic(validatedArgs as GitSetWorkingDirInput, logicContext);
+            const result = await gitSetWorkingDirLogic(
+              validatedArgs as GitSetWorkingDirInput,
+              logicContext,
+            );
 
             // Format the successful result for the MCP client
             const responseContent: TextContent = {
-              type: 'text',
+              type: "text",
               text: JSON.stringify(result, null, 2), // Pretty-print JSON result
-              contentType: 'application/json',
+              contentType: "application/json",
             };
-            logger.info(`Tool ${TOOL_NAME} executed successfully`, { ...logicContext, result });
+            logger.info(`Tool ${TOOL_NAME} executed successfully`, {
+              ...logicContext,
+              result,
+            });
             return { content: [responseContent] };
           },
           {
@@ -105,9 +139,9 @@ export async function registerGitSetWorkingDirTool(server: McpServer): Promise<v
             input: validatedArgs, // Log sanitized input
             errorCode: BaseErrorCode.INTERNAL_ERROR, // Default error code if logic fails unexpectedly
             // toolName: TOOL_NAME, // Removed as it's not part of ErrorHandlerOptions
-          }
+          },
         );
-      }
+      },
     );
     logger.info(`Tool registered: ${TOOL_NAME}`);
   } catch (error) {

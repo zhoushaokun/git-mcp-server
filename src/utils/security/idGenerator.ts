@@ -1,7 +1,7 @@
-import { randomBytes, randomUUID as cryptoRandomUUID } from 'crypto'; // Import cryptoRandomUUID
-import { BaseErrorCode, McpError } from '../../types-global/errors.js'; // Corrected path
+import { randomBytes, randomUUID as cryptoRandomUUID } from "crypto"; // Import cryptoRandomUUID
+import { BaseErrorCode, McpError } from "../../types-global/errors.js"; // Corrected path
 // Import utils from the main barrel file (logger from ../internal/logger.js)
-import { logger } from '../index.js';
+import { logger } from "../index.js";
 
 /**
  * Interface for entity prefix configuration
@@ -24,9 +24,9 @@ export interface IdGenerationOptions {
  */
 export class IdGenerator {
   // Default charset
-  private static DEFAULT_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  private static DEFAULT_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   // Default separator
-  private static DEFAULT_SEPARATOR = '_';
+  private static DEFAULT_SEPARATOR = "_";
   // Default random part length
   private static DEFAULT_LENGTH = 6;
   // Entity prefixes
@@ -48,14 +48,17 @@ export class IdGenerator {
    */
   public setEntityPrefixes(entityPrefixes: EntityPrefixConfig): void {
     this.entityPrefixes = { ...entityPrefixes };
-    
+
     // Rebuild reverse mapping
-    this.prefixToEntityType = Object.entries(this.entityPrefixes).reduce((acc, [type, prefix]) => {
-      acc[prefix] = type;
-      acc[prefix.toLowerCase()] = type;
-      return acc;
-    }, {} as Record<string, string>);
-    
+    this.prefixToEntityType = Object.entries(this.entityPrefixes).reduce(
+      (acc, [type, prefix]) => {
+        acc[prefix] = type;
+        acc[prefix.toLowerCase()] = type;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+
     // Removed logger call from setEntityPrefixes to prevent logging before initialization
   }
 
@@ -75,15 +78,15 @@ export class IdGenerator {
    */
   public generateRandomString(
     length: number = IdGenerator.DEFAULT_LENGTH,
-    charset: string = IdGenerator.DEFAULT_CHARSET
+    charset: string = IdGenerator.DEFAULT_CHARSET,
   ): string {
     const bytes = randomBytes(length);
-    let result = '';
-    
+    let result = "";
+
     for (let i = 0; i < length; i++) {
       result += charset[bytes[i] % charset.length];
     }
-    
+
     return result;
   }
 
@@ -97,14 +100,12 @@ export class IdGenerator {
     const {
       length = IdGenerator.DEFAULT_LENGTH,
       separator = IdGenerator.DEFAULT_SEPARATOR,
-      charset = IdGenerator.DEFAULT_CHARSET
+      charset = IdGenerator.DEFAULT_CHARSET,
     } = options;
-    
+
     const randomPart = this.generateRandomString(length, charset);
-    
-    return prefix 
-      ? `${prefix}${separator}${randomPart}`
-      : randomPart;
+
+    return prefix ? `${prefix}${separator}${randomPart}` : randomPart;
   }
 
   /**
@@ -114,16 +115,19 @@ export class IdGenerator {
    * @returns A unique identifier string (e.g., "PROJ_A6B3J0")
    * @throws {McpError} If the entity type is not registered
    */
-  public generateForEntity(entityType: string, options: IdGenerationOptions = {}): string {
+  public generateForEntity(
+    entityType: string,
+    options: IdGenerationOptions = {},
+  ): string {
     const prefix = this.entityPrefixes[entityType];
-    
+
     if (!prefix) {
       throw new McpError(
         BaseErrorCode.VALIDATION_ERROR,
-        `Unknown entity type: ${entityType}`
+        `Unknown entity type: ${entityType}`,
       );
     }
-    
+
     return this.generate(prefix, options);
   }
 
@@ -134,17 +138,21 @@ export class IdGenerator {
    * @param options Optional validation options
    * @returns boolean indicating if the ID is valid
    */
-  public isValid(id: string, entityType: string, options: IdGenerationOptions = {}): boolean {
+  public isValid(
+    id: string,
+    entityType: string,
+    options: IdGenerationOptions = {},
+  ): boolean {
     const prefix = this.entityPrefixes[entityType];
-    const { 
+    const {
       length = IdGenerator.DEFAULT_LENGTH,
-      separator = IdGenerator.DEFAULT_SEPARATOR
+      separator = IdGenerator.DEFAULT_SEPARATOR,
     } = options;
-    
+
     if (!prefix) {
       return false;
     }
-    
+
     const pattern = new RegExp(`^${prefix}${separator}[A-Z0-9]{${length}}$`);
     return pattern.test(id);
   }
@@ -155,7 +163,10 @@ export class IdGenerator {
    * @param separator Optional custom separator
    * @returns The ID without the prefix
    */
-  public stripPrefix(id: string, separator: string = IdGenerator.DEFAULT_SEPARATOR): string {
+  public stripPrefix(
+    id: string,
+    separator: string = IdGenerator.DEFAULT_SEPARATOR,
+  ): string {
     return id.split(separator)[1] || id;
   }
 
@@ -166,22 +177,25 @@ export class IdGenerator {
    * @returns The entity type
    * @throws {McpError} If the ID format is invalid or entity type is unknown
    */
-  public getEntityType(id: string, separator: string = IdGenerator.DEFAULT_SEPARATOR): string {
+  public getEntityType(
+    id: string,
+    separator: string = IdGenerator.DEFAULT_SEPARATOR,
+  ): string {
     const parts = id.split(separator);
     if (parts.length !== 2 || !parts[0]) {
       throw new McpError(
         BaseErrorCode.VALIDATION_ERROR,
-        `Invalid ID format: ${id}. Expected format: PREFIX${separator}XXXXXX`
+        `Invalid ID format: ${id}. Expected format: PREFIX${separator}XXXXXX`,
       );
     }
 
     const prefix = parts[0];
     const entityType = this.prefixToEntityType[prefix];
-    
+
     if (!entityType) {
       throw new McpError(
         BaseErrorCode.VALIDATION_ERROR,
-        `Unknown entity type prefix: ${prefix}`
+        `Unknown entity type prefix: ${prefix}`,
       );
     }
 
@@ -194,7 +208,10 @@ export class IdGenerator {
    * @param separator Optional custom separator
    * @returns The normalized ID in uppercase format
    */
-  public normalize(id: string, separator: string = IdGenerator.DEFAULT_SEPARATOR): string {
+  public normalize(
+    id: string,
+    separator: string = IdGenerator.DEFAULT_SEPARATOR,
+  ): string {
     const entityType = this.getEntityType(id, separator);
     const idParts = id.split(separator);
     return `${this.entityPrefixes[entityType]}${separator}${idParts[1].toUpperCase()}`;

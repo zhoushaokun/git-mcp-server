@@ -31,7 +31,8 @@
     "tree": "ts-node --esm scripts/tree.ts",
     "inspector": "npx @modelcontextprotocol/inspector --config mcp.json --server git-mcp-server",
     "inspector:http": "npx @modelcontextprotocol/inspector --config mcp.json --server git-mcp-server-http",
-    "clean": "ts-node --esm scripts/clean.ts"
+    "clean": "ts-node --esm scripts/clean.ts",
+    "format": "prettier --write \"**/*.{ts,js,json,md,html,css}\""
   },
   "publishConfig": {
     "access": "public"
@@ -50,6 +51,7 @@
     "jsonwebtoken": "^9.0.2",
     "openai": "^5.3.0",
     "partial-json": "^0.1.7",
+    "prettier": "^3.5.3",
     "sanitize-html": "^2.17.0",
     "tiktoken": "^1.0.21",
     "ts-node": "^10.9.2",

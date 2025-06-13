@@ -1,6 +1,6 @@
-import { logger } from './logger.js';
+import { logger } from "./logger.js";
 // Import utils from the main barrel file (generateUUID from ../security/idGenerator.js)
-import { generateUUID } from '../index.js';
+import { generateUUID } from "../index.js";
 // Removed incorrect import: import { RequestContext } from './rateLimiter.js';
 
 /**
@@ -45,9 +45,11 @@ const requestContextServiceInstance = {
   configure(config: Partial<ContextConfig>): ContextConfig {
     this.config = {
       ...this.config,
-      ...config
+      ...config,
     };
-    logger.debug('RequestContext configuration updated', { config: this.config });
+    logger.debug("RequestContext configuration updated", {
+      config: this.config,
+    });
     return { ...this.config };
   },
 
@@ -65,7 +67,7 @@ const requestContextServiceInstance = {
    * @returns Request context object
    */
   createRequestContext(
-    additionalContext: Record<string, unknown> = {}
+    additionalContext: Record<string, unknown> = {},
   ): RequestContext {
     const requestId = generateUUID(); // Use imported generateUUID
     const timestamp = new Date().toISOString();
@@ -73,7 +75,7 @@ const requestContextServiceInstance = {
     return {
       requestId,
       timestamp,
-      ...additionalContext
+      ...additionalContext,
     };
   },
 

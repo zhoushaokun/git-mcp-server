@@ -114,16 +114,13 @@ Add to your MCP client settings (e.g., `cline_mcp_settings.json`):
 {
   "mcpServers": {
     "git-mcp-server": {
-      // Use a descriptive name
-      "command": "node", // Use node to run the script
-      "args": ["/path/to/your/git-mcp-server/dist/index.js"], // Absolute path to the built entry point
+      "command": "node",
+      "args": ["/path/to/your/git-mcp-server/dist/index.js"],
       "env": {
-        // "MCP_TRANSPORT_TYPE": "http", // Optional: if using http
-        // "MCP_HTTP_PORT": "3010",     // Optional: if using http and non-default port
-        // "GIT_SIGN_COMMITS": "true"   // Optional: Enable commit signing attempts if server is configured
+        "GIT_SIGN_COMMITS": "true"
       },
       "disabled": false,
-      "autoApprove": [] // Configure auto-approval rules if desired
+      "autoApprove": []
     }
   }
 }

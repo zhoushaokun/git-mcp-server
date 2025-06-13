@@ -17,10 +17,10 @@
  * @see {@link https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/authorization.mdx | MCP Authorization Specification}
  */
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 // Import core utilities: ErrorHandler for centralized error management and logger for logging.
-import { ErrorHandler, logger } from '../../utils/index.js';
+import { ErrorHandler, logger } from "../../utils/index.js";
 
 // --- Stdio Session State ---
 // Since stdio typically involves a single, persistent connection managed by a parent,
@@ -41,7 +41,9 @@ export function getStdioWorkingDirectory(): string | undefined {
  */
 export function setStdioWorkingDirectory(dir: string): void {
   currentWorkingDirectory = dir;
-  logger.info(`Stdio working directory set to: ${dir}`, { operation: 'setStdioWorkingDirectory' });
+  logger.info(`Stdio working directory set to: ${dir}`, {
+    operation: "setStdioWorkingDirectory",
+  });
 }
 
 /**
@@ -64,28 +66,43 @@ export function setStdioWorkingDirectory(dir: string): void {
  * @returns {Promise<void>} A promise that resolves when the connection is successfully established.
  * @throws {Error} Throws an error if the connection fails during setup (e.g., issues connecting server to transport).
  */
-export async function connectStdioTransport(server: McpServer, context: Record<string, any>): Promise<void> {
+export async function connectStdioTransport(
+  server: McpServer,
+  context: Record<string, any>,
+): Promise<void> {
   // Add a specific operation name to the context for better log filtering.
-  const operationContext = { ...context, operation: 'connectStdioTransport', transportType: 'Stdio' };
-  logger.debug('Attempting to connect stdio transport...', operationContext);
+  const operationContext = {
+    ...context,
+    operation: "connectStdioTransport",
+    transportType: "Stdio",
+  };
+  logger.debug("Attempting to connect stdio transport...", operationContext);
 
   try {
-    logger.debug('Creating StdioServerTransport instance...', operationContext);
+    logger.debug("Creating StdioServerTransport instance...", operationContext);
     // Instantiate the transport provided by the SDK for standard I/O communication.
     // This class encapsulates the logic for reading from stdin and writing to stdout
     // according to the MCP stdio spec.
     const transport = new StdioServerTransport();
 
-    logger.debug('Connecting McpServer instance to StdioServerTransport...', operationContext);
+    logger.debug(
+      "Connecting McpServer instance to StdioServerTransport...",
+      operationContext,
+    );
     // Establish the link between the server's core logic and the transport layer.
     // This internally starts the necessary listeners on process.stdin.
     await server.connect(transport);
 
     // Log successful connection. The server is now ready to process messages via stdio.
-    logger.info('MCP Server connected and listening via stdio transport.', operationContext);
+    logger.info(
+      "MCP Server connected and listening via stdio transport.",
+      operationContext,
+    );
     // Use logger.notice for startup message to ensure MCP compliance and proper handling by clients.
-    logger.notice(`\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-03-26 Stdio Transport)\n`, operationContext);
-
+    logger.notice(
+      `\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-03-26 Stdio Transport)\n`,
+      operationContext,
+    );
   } catch (err) {
     // Catch and handle any critical errors during the transport connection setup.
     // Mark as critical because the server cannot function without a connected transport.

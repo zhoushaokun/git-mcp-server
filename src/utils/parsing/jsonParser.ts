@@ -1,7 +1,10 @@
-import { parse as parsePartialJson, Allow as PartialJsonAllow } from 'partial-json';
-import { BaseErrorCode, McpError } from '../../types-global/errors.js';
+import {
+  parse as parsePartialJson,
+  Allow as PartialJsonAllow,
+} from "partial-json";
+import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 // Import utils from the main barrel file (logger, RequestContext from ../internal/*)
-import { logger, RequestContext } from '../index.js';
+import { logger, RequestContext } from "../index.js";
 
 /**
  * Enum mirroring partial-json's Allow constants for specifying
@@ -30,7 +33,11 @@ class JsonParser {
    * @returns The parsed JavaScript value.
    * @throws {McpError} Throws an McpError with BaseErrorCode.VALIDATION_ERROR if parsing fails due to malformed JSON.
    */
-  parse<T = any>(jsonString: string, allowPartial: number = Allow.ALL, context?: RequestContext): T {
+  parse<T = any>(
+    jsonString: string,
+    allowPartial: number = Allow.ALL,
+    context?: RequestContext,
+  ): T {
     let stringToParse = jsonString;
     const match = jsonString.match(thinkBlockRegex);
 
@@ -39,9 +46,12 @@ class JsonParser {
       const restOfString = match[2];
 
       if (thinkContent) {
-        logger.debug('LLM <think> block detected and logged.', { ...context, thinkContent });
+        logger.debug("LLM <think> block detected and logged.", {
+          ...context,
+          thinkContent,
+        });
       } else {
-        logger.debug('Empty LLM <think> block detected.', context);
+        logger.debug("Empty LLM <think> block detected.", context);
       }
 
       stringToParse = restOfString; // Parse only the part after </think>
@@ -51,40 +61,48 @@ class JsonParser {
     stringToParse = stringToParse.trim();
 
     if (!stringToParse) {
-        // If after removing think block and trimming, the string is empty, it's an error
-        throw new McpError(
-            BaseErrorCode.VALIDATION_ERROR,
-            'JSON string is empty after removing <think> block.',
-            context
-        );
+      // If after removing think block and trimming, the string is empty, it's an error
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        "JSON string is empty after removing <think> block.",
+        context,
+      );
     }
 
     try {
       // Ensure the string starts with '{' or '[' if we expect an object or array after stripping <think>
       // This helps catch cases where only non-JSON text remains.
-      if (!stringToParse.startsWith('{') && !stringToParse.startsWith('[')) {
-           // Check if it might be a simple string value that partial-json could parse
-           // Allow simple strings only if specifically permitted or Allow.ALL is used
-           const allowsString = (allowPartial & Allow.STR) === Allow.STR;
-           if (!allowsString && !stringToParse.startsWith('"')) { // Allow quoted strings if Allow.STR is set
-                throw new Error('Remaining content does not appear to be valid JSON object or array.');
-           }
-           // If it starts with a quote and strings are allowed, let parsePartialJson handle it
+      if (!stringToParse.startsWith("{") && !stringToParse.startsWith("[")) {
+        // Check if it might be a simple string value that partial-json could parse
+        // Allow simple strings only if specifically permitted or Allow.ALL is used
+        const allowsString = (allowPartial & Allow.STR) === Allow.STR;
+        if (!allowsString && !stringToParse.startsWith('"')) {
+          // Allow quoted strings if Allow.STR is set
+          throw new Error(
+            "Remaining content does not appear to be valid JSON object or array.",
+          );
+        }
+        // If it starts with a quote and strings are allowed, let parsePartialJson handle it
       }
 
       return parsePartialJson(stringToParse, allowPartial) as T;
     } catch (error: any) {
       // Wrap the original error in an McpError for consistent error handling
       // Include the original error message for better debugging context.
-      logger.error('Failed to parse JSON content.', { ...context, error: error.message, contentAttempted: stringToParse });
+      logger.error("Failed to parse JSON content.", {
+        ...context,
+        error: error.message,
+        contentAttempted: stringToParse,
+      });
       throw new McpError(
         BaseErrorCode.VALIDATION_ERROR,
         `Failed to parse JSON: ${error.message}`,
-        { // Combine context and details into the third argument
+        {
+          // Combine context and details into the third argument
           ...context,
           originalContent: stringToParse,
-          rawError: error instanceof Error ? error.stack : String(error) // Include raw error info
-        }
+          rawError: error instanceof Error ? error.stack : String(error), // Include raw error info
+        },
       );
     }
   }

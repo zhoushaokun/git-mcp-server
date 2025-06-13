@@ -13,52 +13,127 @@
  * - Transports: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx
  */
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 // Import validated configuration and environment details.
-import { config, environment } from '../config/index.js';
+import { config, environment } from "../config/index.js";
 // Import core utilities: ErrorHandler, logger, requestContextService.
-import { ErrorHandler, logger, RequestContext, requestContextService } from '../utils/index.js'; // Added RequestContext
+import {
+  ErrorHandler,
+  logger,
+  RequestContext,
+  requestContextService,
+} from "../utils/index.js"; // Added RequestContext
 
 // Import registration AND state initialization functions for ALL Git tools (alphabetized)
-import { initializeGitAddStateAccessors, registerGitAddTool } from './tools/gitAdd/index.js';
-import { initializeGitBranchStateAccessors, registerGitBranchTool } from './tools/gitBranch/index.js';
-import { initializeGitCheckoutStateAccessors, registerGitCheckoutTool } from './tools/gitCheckout/index.js';
-import { initializeGitCherryPickStateAccessors, registerGitCherryPickTool } from './tools/gitCherryPick/index.js';
-import { initializeGitCleanStateAccessors, registerGitCleanTool } from './tools/gitClean/index.js';
-import { initializeGitClearWorkingDirStateAccessors, registerGitClearWorkingDirTool } from './tools/gitClearWorkingDir/index.js';
-import { registerGitCloneTool } from './tools/gitClone/index.js'; // No initializer needed/available
-import { initializeGitCommitStateAccessors, registerGitCommitTool } from './tools/gitCommit/index.js';
-import { initializeGitDiffStateAccessors, registerGitDiffTool } from './tools/gitDiff/index.js';
-import { initializeGitFetchStateAccessors, registerGitFetchTool } from './tools/gitFetch/index.js';
-import { initializeGitInitStateAccessors, registerGitInitTool } from './tools/gitInit/index.js';
-import { initializeGitLogStateAccessors, registerGitLogTool } from './tools/gitLog/index.js';
-import { initializeGitMergeStateAccessors, registerGitMergeTool } from './tools/gitMerge/index.js';
-import { initializeGitPullStateAccessors, registerGitPullTool } from './tools/gitPull/index.js';
-import { initializeGitPushStateAccessors, registerGitPushTool } from './tools/gitPush/index.js';
-import { initializeGitRebaseStateAccessors, registerGitRebaseTool } from './tools/gitRebase/index.js';
-import { initializeGitRemoteStateAccessors, registerGitRemoteTool } from './tools/gitRemote/index.js';
-import { initializeGitResetStateAccessors, registerGitResetTool } from './tools/gitReset/index.js';
-import { initializeGitSetWorkingDirStateAccessors, registerGitSetWorkingDirTool } from './tools/gitSetWorkingDir/index.js';
-import { initializeGitShowStateAccessors, registerGitShowTool } from './tools/gitShow/index.js';
-import { initializeGitStashStateAccessors, registerGitStashTool } from './tools/gitStash/index.js';
-import { initializeGitStatusStateAccessors, registerGitStatusTool } from './tools/gitStatus/index.js';
-import { initializeGitTagStateAccessors, registerGitTagTool } from './tools/gitTag/index.js';
-import { initializeGitWorktreeStateAccessors, registerGitWorktreeTool } from './tools/gitWorktree/index.js';
-import { initializeGitWrapupInstructionsStateAccessors, registerGitWrapupInstructionsTool } from './tools/gitWrapupInstructions/index.js';
-
+import {
+  initializeGitAddStateAccessors,
+  registerGitAddTool,
+} from "./tools/gitAdd/index.js";
+import {
+  initializeGitBranchStateAccessors,
+  registerGitBranchTool,
+} from "./tools/gitBranch/index.js";
+import {
+  initializeGitCheckoutStateAccessors,
+  registerGitCheckoutTool,
+} from "./tools/gitCheckout/index.js";
+import {
+  initializeGitCherryPickStateAccessors,
+  registerGitCherryPickTool,
+} from "./tools/gitCherryPick/index.js";
+import {
+  initializeGitCleanStateAccessors,
+  registerGitCleanTool,
+} from "./tools/gitClean/index.js";
+import {
+  initializeGitClearWorkingDirStateAccessors,
+  registerGitClearWorkingDirTool,
+} from "./tools/gitClearWorkingDir/index.js";
+import { registerGitCloneTool } from "./tools/gitClone/index.js"; // No initializer needed/available
+import {
+  initializeGitCommitStateAccessors,
+  registerGitCommitTool,
+} from "./tools/gitCommit/index.js";
+import {
+  initializeGitDiffStateAccessors,
+  registerGitDiffTool,
+} from "./tools/gitDiff/index.js";
+import {
+  initializeGitFetchStateAccessors,
+  registerGitFetchTool,
+} from "./tools/gitFetch/index.js";
+import {
+  initializeGitInitStateAccessors,
+  registerGitInitTool,
+} from "./tools/gitInit/index.js";
+import {
+  initializeGitLogStateAccessors,
+  registerGitLogTool,
+} from "./tools/gitLog/index.js";
+import {
+  initializeGitMergeStateAccessors,
+  registerGitMergeTool,
+} from "./tools/gitMerge/index.js";
+import {
+  initializeGitPullStateAccessors,
+  registerGitPullTool,
+} from "./tools/gitPull/index.js";
+import {
+  initializeGitPushStateAccessors,
+  registerGitPushTool,
+} from "./tools/gitPush/index.js";
+import {
+  initializeGitRebaseStateAccessors,
+  registerGitRebaseTool,
+} from "./tools/gitRebase/index.js";
+import {
+  initializeGitRemoteStateAccessors,
+  registerGitRemoteTool,
+} from "./tools/gitRemote/index.js";
+import {
+  initializeGitResetStateAccessors,
+  registerGitResetTool,
+} from "./tools/gitReset/index.js";
+import {
+  initializeGitSetWorkingDirStateAccessors,
+  registerGitSetWorkingDirTool,
+} from "./tools/gitSetWorkingDir/index.js";
+import {
+  initializeGitShowStateAccessors,
+  registerGitShowTool,
+} from "./tools/gitShow/index.js";
+import {
+  initializeGitStashStateAccessors,
+  registerGitStashTool,
+} from "./tools/gitStash/index.js";
+import {
+  initializeGitStatusStateAccessors,
+  registerGitStatusTool,
+} from "./tools/gitStatus/index.js";
+import {
+  initializeGitTagStateAccessors,
+  registerGitTagTool,
+} from "./tools/gitTag/index.js";
+import {
+  initializeGitWorktreeStateAccessors,
+  registerGitWorktreeTool,
+} from "./tools/gitWorktree/index.js";
+import {
+  initializeGitWrapupInstructionsStateAccessors,
+  registerGitWrapupInstructionsTool,
+} from "./tools/gitWrapupInstructions/index.js";
 
 // Import transport setup functions AND state accessors
 import {
   getHttpSessionWorkingDirectory,
   setHttpSessionWorkingDirectory,
-  startHttpTransport
-} from './transports/httpTransport.js';
+  startHttpTransport,
+} from "./transports/httpTransport.js";
 import {
   connectStdioTransport,
   getStdioWorkingDirectory,
-  setStdioWorkingDirectory
-} from './transports/stdioTransport.js';
-
+  setStdioWorkingDirectory,
+} from "./transports/stdioTransport.js";
 
 /**
  * Creates and configures a new instance of the McpServer.
@@ -93,8 +168,8 @@ import {
  */
 // Removed sessionId parameter, it will be retrieved from context within tool handlers
 async function createMcpServerInstance(): Promise<McpServer> {
-  const context = { operation: 'createMcpServerInstance' };
-  logger.info('Initializing MCP server instance', context);
+  const context = { operation: "createMcpServerInstance" };
+  logger.info("Initializing MCP server instance", context);
 
   // Configure the request context service (used for correlating logs/errors).
   requestContextService.configure({
@@ -106,26 +181,50 @@ async function createMcpServerInstance(): Promise<McpServer> {
   // Instantiate the core McpServer using the SDK.
   // Provide server identity (name, version) and declare supported capabilities.
   // Note: Resources capability declared, but none are registered currently.
-  logger.debug('Instantiating McpServer with capabilities', { ...context, serverInfo: { name: config.mcpServerName, version: config.mcpServerVersion }, capabilities: { logging: {}, resources: { listChanged: true }, tools: { listChanged: true } } });
+  logger.debug("Instantiating McpServer with capabilities", {
+    ...context,
+    serverInfo: {
+      name: config.mcpServerName,
+      version: config.mcpServerVersion,
+    },
+    capabilities: {
+      logging: {},
+      resources: { listChanged: true },
+      tools: { listChanged: true },
+    },
+  });
   const server = new McpServer(
     { name: config.mcpServerName, version: config.mcpServerVersion }, // ServerInformation part of InitializeResult
-    { capabilities: { logging: {}, resources: { listChanged: true }, tools: { listChanged: true } } } // Declared capabilities
+    {
+      capabilities: {
+        logging: {},
+        resources: { listChanged: true },
+        tools: { listChanged: true },
+      },
+    }, // Declared capabilities
   );
 
   // --- Define Unified State Accessor Functions ---
   // These functions abstract away the transport type to get/set session state.
 
   /** Gets the session ID from the tool's execution context. */
-  const getSessionIdFromContext = (toolContext: Record<string, any>): string | undefined => {
+  const getSessionIdFromContext = (
+    toolContext: Record<string, any>,
+  ): string | undefined => {
     // The RequestContext created by the tool registration wrapper should contain the sessionId.
     return (toolContext as RequestContext)?.sessionId;
   };
 
   /** Gets the working directory based on transport type and session ID. */
-  const getWorkingDirectory = (sessionId: string | undefined): string | undefined => {
-    if (config.mcpTransportType === 'http') {
+  const getWorkingDirectory = (
+    sessionId: string | undefined,
+  ): string | undefined => {
+    if (config.mcpTransportType === "http") {
       if (!sessionId) {
-        logger.warning('Attempted to get HTTP working directory without session ID', { ...context, caller: 'getWorkingDirectory' });
+        logger.warning(
+          "Attempted to get HTTP working directory without session ID",
+          { ...context, caller: "getWorkingDirectory" },
+        );
         return undefined;
       }
       return getHttpSessionWorkingDirectory(sessionId);
@@ -136,10 +235,16 @@ async function createMcpServerInstance(): Promise<McpServer> {
   };
 
   /** Sets the working directory based on transport type and session ID. */
-  const setWorkingDirectory = (sessionId: string | undefined, dir: string): void => {
-    if (config.mcpTransportType === 'http') {
+  const setWorkingDirectory = (
+    sessionId: string | undefined,
+    dir: string,
+  ): void => {
+    if (config.mcpTransportType === "http") {
       if (!sessionId) {
-        logger.error('Attempted to set HTTP working directory without session ID', { ...context, caller: 'setWorkingDirectory', dir });
+        logger.error(
+          "Attempted to set HTTP working directory without session ID",
+          { ...context, caller: "setWorkingDirectory", dir },
+        );
         // Optionally throw an error or just log
         return;
       }
@@ -152,51 +257,123 @@ async function createMcpServerInstance(): Promise<McpServer> {
 
   // --- Initialize Tool State Accessors BEFORE Registration ---
   // Pass the defined unified accessor functions to the initializers.
-  logger.debug('Initializing state accessors for tools...', context);
+  logger.debug("Initializing state accessors for tools...", context);
   try {
     // Call initializers for all tools that likely need state access (alphabetized).
     // If an initializer doesn't exist, the import would have failed earlier (or build will fail).
-    initializeGitAddStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitBranchStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitCheckoutStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitCherryPickStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitCleanStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitClearWorkingDirStateAccessors(getWorkingDirectory, getSessionIdFromContext);
+    initializeGitAddStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitBranchStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitCheckoutStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitCherryPickStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitCleanStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitClearWorkingDirStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
     // initializeGitCloneStateAccessors - No initializer needed/available
-    initializeGitCommitStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitDiffStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitFetchStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitInitStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitLogStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitMergeStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitPullStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitPushStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitRebaseStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitRemoteStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitResetStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitSetWorkingDirStateAccessors(getWorkingDirectory, setWorkingDirectory, getSessionIdFromContext); // Special case
-    initializeGitShowStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitStashStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitStatusStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitTagStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitWorktreeStateAccessors(getWorkingDirectory, getSessionIdFromContext);
-    initializeGitWrapupInstructionsStateAccessors(getWorkingDirectory, getSessionIdFromContext); // Added this line
-    logger.debug('State accessors initialized successfully.', context);
+    initializeGitCommitStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitDiffStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitFetchStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitInitStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitLogStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitMergeStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitPullStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitPushStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitRebaseStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitRemoteStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitResetStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitSetWorkingDirStateAccessors(
+      getWorkingDirectory,
+      setWorkingDirectory,
+      getSessionIdFromContext,
+    ); // Special case
+    initializeGitShowStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitStashStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitStatusStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitTagStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitWorktreeStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    initializeGitWrapupInstructionsStateAccessors(
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    ); // Added this line
+    logger.debug("State accessors initialized successfully.", context);
   } catch (initError) {
-      // Catch errors specifically during initialization phase
-      logger.error('Failed during state accessor initialization', {
-        ...context,
-        error: initError instanceof Error ? initError.message : String(initError),
-        stack: initError instanceof Error ? initError.stack : undefined,
-      });
-      throw initError; // Re-throw to prevent server starting incorrectly
+    // Catch errors specifically during initialization phase
+    logger.error("Failed during state accessor initialization", {
+      ...context,
+      error: initError instanceof Error ? initError.message : String(initError),
+      stack: initError instanceof Error ? initError.stack : undefined,
+    });
+    throw initError; // Re-throw to prevent server starting incorrectly
   }
-
 
   try {
     // Register all defined Git tools (alphabetized). These calls populate the server's
     // internal registry, making them available via MCP methods like 'tools/list'.
-    logger.debug('Registering Git tools...', context);
+    logger.debug("Registering Git tools...", context);
     await registerGitAddTool(server);
     await registerGitBranchTool(server);
     await registerGitCheckoutTool(server);
@@ -223,10 +400,10 @@ async function createMcpServerInstance(): Promise<McpServer> {
     await registerGitWorktreeTool(server);
     await registerGitWrapupInstructionsTool(server);
     // Add calls to register other resources/tools here if needed in the future.
-    logger.info('Git tools registered successfully', context);
+    logger.info("Git tools registered successfully", context);
   } catch (err) {
     // Registration is critical; log and re-throw errors.
-    logger.error('Failed to register resources/tools', {
+    logger.error("Failed to register resources/tools", {
       ...context,
       error: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined, // Include stack for debugging
@@ -236,7 +413,6 @@ async function createMcpServerInstance(): Promise<McpServer> {
 
   return server;
 }
-
 
 /**
  * Selects, sets up, and starts the appropriate MCP transport layer based on configuration.
@@ -261,12 +437,12 @@ async function createMcpServerInstance(): Promise<McpServer> {
 async function startTransport(): Promise<McpServer | void> {
   // Determine the transport type from the validated configuration.
   const transportType = config.mcpTransportType;
-  const context = { operation: 'startTransport', transport: transportType };
+  const context = { operation: "startTransport", transport: transportType };
   logger.info(`Starting transport: ${transportType}`, context);
 
   // --- HTTP Transport Setup ---
-  if (transportType === 'http') {
-    logger.debug('Delegating to startHttpTransport...', context);
+  if (transportType === "http") {
+    logger.debug("Delegating to startHttpTransport...", context);
     // For HTTP, the transport layer manages its own lifecycle and potentially multiple sessions.
     // We pass the factory function to allow the HTTP transport to create server instances as needed (per session).
     await startHttpTransport(createMcpServerInstance, context);
@@ -275,12 +451,15 @@ async function startTransport(): Promise<McpServer | void> {
   }
 
   // --- Stdio Transport Setup ---
-  if (transportType === 'stdio') {
-    logger.debug('Creating single McpServer instance for stdio transport...', context);
+  if (transportType === "stdio") {
+    logger.debug(
+      "Creating single McpServer instance for stdio transport...",
+      context,
+    );
     // For stdio, there's typically one persistent connection managed by a parent process.
     // Create a single McpServer instance for the entire process lifetime.
     const server = await createMcpServerInstance();
-    logger.debug('Delegating to connectStdioTransport...', context);
+    logger.debug("Delegating to connectStdioTransport...", context);
     // Connect the server instance to the stdio transport handler.
     await connectStdioTransport(server, context);
     // Return the server instance; the caller (main entry point) might hold onto it.
@@ -289,8 +468,13 @@ async function startTransport(): Promise<McpServer | void> {
 
   // --- Unsupported Transport ---
   // This case should theoretically not be reached due to config validation, but acts as a safeguard.
-  logger.fatal(`Unsupported transport type configured: ${transportType}`, context);
-  throw new Error(`Unsupported transport type: ${transportType}. Must be 'stdio' or 'http'.`);
+  logger.fatal(
+    `Unsupported transport type configured: ${transportType}`,
+    context,
+  );
+  throw new Error(
+    `Unsupported transport type: ${transportType}. Must be 'stdio' or 'http'.`,
+  );
 }
 
 /**
@@ -305,16 +489,19 @@ async function startTransport(): Promise<McpServer | void> {
  * @returns {Promise<void | McpServer>} Resolves upon successful startup (void for http, McpServer for stdio). Rejects on critical failure.
  */
 export async function initializeAndStartServer(): Promise<void | McpServer> {
-  const context = { operation: 'initializeAndStartServer' };
-  logger.info('MCP Server initialization sequence started.', context);
+  const context = { operation: "initializeAndStartServer" };
+  logger.info("MCP Server initialization sequence started.", context);
   try {
     // Initiate the transport setup based on configuration.
     const result = await startTransport();
-    logger.info('MCP Server initialization sequence completed successfully.', context);
+    logger.info(
+      "MCP Server initialization sequence completed successfully.",
+      context,
+    );
     return result;
   } catch (err) {
     // Catch any errors that occurred during server instance creation or transport setup.
-    logger.fatal('Critical error during MCP server initialization.', {
+    logger.fatal("Critical error during MCP server initialization.", {
       ...context,
       error: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined,
@@ -322,7 +509,10 @@ export async function initializeAndStartServer(): Promise<void | McpServer> {
     // Use the centralized error handler for consistent critical error reporting.
     ErrorHandler.handleError(err, { ...context, critical: true });
     // Exit the process with a non-zero code to indicate failure.
-    logger.info('Exiting process due to critical initialization error.', context);
+    logger.info(
+      "Exiting process due to critical initialization error.",
+      context,
+    );
     process.exit(1);
   }
 }

@@ -1,18 +1,26 @@
-import { z } from 'zod';
-import { logger, RequestContext } from '../../../utils/index.js'; // Added logger
-import { getGitStatus, GitStatusResult } from '../gitStatus/logic.js'; // Corrected path
+import { z } from "zod";
+import { logger, RequestContext } from "../../../utils/index.js"; // Added logger
+import { getGitStatus, GitStatusResult } from "../gitStatus/logic.js"; // Corrected path
 
 // Define the input schema
 export const GitWrapupInstructionsInputSchema = z.object({
-  acknowledgement: z.enum(['Y', 'y', 'Yes', 'yes'], {
-    required_error: 'Acknowledgement is required.',
-    description: 'Acknowledgement that you have permission (implicit allowed, explicit preferred) from the user to initiate this tool. Must be "Y" or "Yes" (case-insensitive).',
+  acknowledgement: z.enum(["Y", "y", "Yes", "yes"], {
+    required_error: "Acknowledgement is required.",
+    description:
+      'Acknowledgement that you have permission (implicit allowed, explicit preferred) from the user to initiate this tool. Must be "Y" or "Yes" (case-insensitive).',
   }),
-  updateAgentMetaFiles: z.enum(['Y', 'y', 'Yes', 'yes']).optional().describe("If set to 'Y' or 'Yes', include an extra instruction to review and update agent-specific meta files like .clinerules or claude.md if present. Only use this if the user explicitly requested it."),
+  updateAgentMetaFiles: z
+    .enum(["Y", "y", "Yes", "yes"])
+    .optional()
+    .describe(
+      "If set to 'Y' or 'Yes', include an extra instruction to review and update agent-specific meta files like .clinerules or claude.md if present. Only use this if the user explicitly requested it.",
+    ),
 });
 
 // Infer the TypeScript type for the input.
-export type GitWrapupInstructionsInput = z.infer<typeof GitWrapupInstructionsInputSchema>;
+export type GitWrapupInstructionsInput = z.infer<
+  typeof GitWrapupInstructionsInputSchema
+>;
 
 // Define the structure of the result object that the logic function will return.
 export interface GitWrapupInstructionsResult {
@@ -45,10 +53,16 @@ export async function getWrapupInstructions(
   input: GitWrapupInstructionsInput,
   // The context is now expected to be enhanced by the registration layer
   // to include session-specific methods like getWorkingDirectory.
-  context: RequestContext & { sessionId?: string; getWorkingDirectory: () => string | undefined }
+  context: RequestContext & {
+    sessionId?: string;
+    getWorkingDirectory: () => string | undefined;
+  },
 ): Promise<GitWrapupInstructionsResult> {
   let finalInstructions = WRAPUP_INSTRUCTIONS;
-  if (input.updateAgentMetaFiles && ['Y', 'y', 'Yes', 'yes'].includes(input.updateAgentMetaFiles)) {
+  if (
+    input.updateAgentMetaFiles &&
+    ["Y", "y", "Yes", "yes"].includes(input.updateAgentMetaFiles)
+  ) {
     finalInstructions += ` Extra request: review and update if needed the .clinerules and claude.md files if present.`;
   }
 
@@ -62,14 +76,24 @@ export async function getWrapupInstructions(
       // The `getGitStatus` function expects `path` and a context with `getWorkingDirectory`.
       // Passing `path: '.'` signals `getGitStatus` to use the working directory from the context.
       // The `registration.ts` for this tool will be responsible for ensuring `context.getWorkingDirectory` is correctly supplied.
-      statusResult = await getGitStatus({ path: '.' }, context);
+      statusResult = await getGitStatus({ path: "." }, context);
     } catch (error: any) {
-      logger.warning(`Failed to get git status while generating wrapup instructions (working dir: ${workingDir}). Tool will proceed without it.`, { ...context, tool: 'gitWrapupInstructions', originalError: error.message });
+      logger.warning(
+        `Failed to get git status while generating wrapup instructions (working dir: ${workingDir}). Tool will proceed without it.`,
+        {
+          ...context,
+          tool: "gitWrapupInstructions",
+          originalError: error.message,
+        },
+      );
       statusError = error instanceof Error ? error.message : String(error);
     }
   } else {
-    logger.info('No working directory set for session, skipping git status for wrapup instructions.', { ...context, tool: 'gitWrapupInstructions' });
-    statusError = 'No working directory set for session, git status skipped.';
+    logger.info(
+      "No working directory set for session, skipping git status for wrapup instructions.",
+      { ...context, tool: "gitWrapupInstructions" },
+    );
+    statusError = "No working directory set for session, git status skipped.";
   }
 
   return {

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import http from 'http'; // Import http module
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import http from "http"; // Import http module
 import { config, environment, logLevel } from "./config/index.js"; // Import logLevel from config
 import { initializeAndStartServer } from "./mcp-server/server.js";
 // Import utils from barrel
-import { logger, McpLogLevel, requestContextService } from './utils/index.js'; // Import McpLogLevel type
+import { logger, McpLogLevel, requestContextService } from "./utils/index.js"; // Import McpLogLevel type
 
 /**
  * The main MCP server instance (used for stdio transport).
@@ -25,43 +25,60 @@ let httpServerInstance: http.Server | undefined;
  * @param signal - The signal or event name that triggered the shutdown (e.g., "SIGTERM", "uncaughtException").
  */
 const shutdown = async (signal: string) => {
-  const transportType = (process.env.MCP_TRANSPORT_TYPE || 'stdio').toLowerCase();
+  const transportType = (
+    process.env.MCP_TRANSPORT_TYPE || "stdio"
+  ).toLowerCase();
   const shutdownContext = {
-    operation: 'Shutdown',
+    operation: "Shutdown",
     signal,
     transport: transportType,
   };
 
-  logger.info(`Received ${signal}. Starting graceful shutdown...`, shutdownContext);
+  logger.info(
+    `Received ${signal}. Starting graceful shutdown...`,
+    shutdownContext,
+  );
 
   try {
     let closePromise: Promise<void> = Promise.resolve();
 
-    if (transportType === 'stdio') {
+    if (transportType === "stdio") {
       // Close the main MCP server instance for stdio
       if (mcpServerInstance) {
         logger.info("Closing main MCP server (stdio)...", shutdownContext);
         closePromise = mcpServerInstance.close();
       } else {
-        logger.warning("Stdio MCP server instance not found during shutdown.", shutdownContext);
+        logger.warning(
+          "Stdio MCP server instance not found during shutdown.",
+          shutdownContext,
+        );
       }
-    } else if (transportType === 'http') {
+    } else if (transportType === "http") {
       // Close the main HTTP server listener for http
       if (httpServerInstance) {
         logger.info("Closing main HTTP server listener...", shutdownContext);
         closePromise = new Promise((resolve, reject) => {
           httpServerInstance!.close((err) => {
             if (err) {
-              logger.error("Error closing HTTP server listener", { ...shutdownContext, error: err.message });
+              logger.error("Error closing HTTP server listener", {
+                ...shutdownContext,
+                error: err.message,
+              });
               reject(err);
             } else {
-              logger.info("Main HTTP server listener closed successfully", shutdownContext);
+              logger.info(
+                "Main HTTP server listener closed successfully",
+                shutdownContext,
+              );
               resolve();
             }
           });
         });
       } else {
-        logger.warning("HTTP server instance not found during shutdown.", shutdownContext);
+        logger.warning(
+          "HTTP server instance not found during shutdown.",
+          shutdownContext,
+        );
       }
       // Note: Individual session transports (StreamableHTTPServerTransport) are closed
       // when the client disconnects or sends a DELETE request, managed in httpTransport.ts.
@@ -77,7 +94,7 @@ const shutdown = async (signal: string) => {
     logger.error("Critical error during shutdown", {
       ...shutdownContext,
       error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
     process.exit(1); // Exit with error code if shutdown fails
   }
@@ -91,58 +108,95 @@ const shutdown = async (signal: string) => {
 const start = async () => {
   // --- Initialize Logger FIRST ---
   // Define valid MCP log levels based on the logger's type definition
-  const validMcpLogLevels: McpLogLevel[] = ['debug', 'info', 'notice', 'warning', 'error', 'crit', 'alert', 'emerg'];
-  let validatedMcpLogLevel: McpLogLevel = 'info'; // Default to 'info'
+  const validMcpLogLevels: McpLogLevel[] = [
+    "debug",
+    "info",
+    "notice",
+    "warning",
+    "error",
+    "crit",
+    "alert",
+    "emerg",
+  ];
+  let validatedMcpLogLevel: McpLogLevel = "info"; // Default to 'info'
   if (validMcpLogLevels.includes(logLevel as McpLogLevel)) {
     validatedMcpLogLevel = logLevel as McpLogLevel;
   } else {
     // Use console.warn as logger isn't ready yet
-    console.warn(`Invalid MCP_LOG_LEVEL "${logLevel}" found in config. Defaulting to "info".`);
+    console.warn(
+      `Invalid MCP_LOG_LEVEL "${logLevel}" found in config. Defaulting to "info".`,
+    );
   }
   // Initialize the logger singleton instance with the validated level.
   logger.initialize(validatedMcpLogLevel);
   // Now it's safe to use the logger.
 
   // --- Start Application ---
-  const transportType = (process.env.MCP_TRANSPORT_TYPE || 'stdio').toLowerCase();
+  const transportType = (
+    process.env.MCP_TRANSPORT_TYPE || "stdio"
+  ).toLowerCase();
   const startupContext = requestContextService.createRequestContext({
     operation: `ServerStartup_${transportType}`, // Include transport in operation name
     appName: config.mcpServerName,
     appVersion: config.mcpServerVersion,
-    environment: environment
+    environment: environment,
   });
 
-  logger.info(`Starting ${config.mcpServerName} v${config.mcpServerVersion} (Transport: ${transportType})...`, startupContext);
+  logger.info(
+    `Starting ${config.mcpServerName} v${config.mcpServerVersion} (Transport: ${transportType})...`,
+    startupContext,
+  );
 
   try {
     // Initialize the server instance and start the selected transport
-    logger.debug("Initializing and starting MCP server transport", startupContext);
+    logger.debug(
+      "Initializing and starting MCP server transport",
+      startupContext,
+    );
 
     // Start the server transport. This returns the McpServer instance for stdio
     // or the http.Server instance for http.
     const serverOrHttpInstance = await initializeAndStartServer();
 
-    if (transportType === 'stdio' && serverOrHttpInstance instanceof McpServer) {
-        mcpServerInstance = serverOrHttpInstance; // Store McpServer for stdio shutdown
-        logger.debug("Stored McpServer instance for stdio transport.", startupContext);
-    } else if (transportType === 'http' && serverOrHttpInstance instanceof http.Server) {
-        httpServerInstance = serverOrHttpInstance; // Store http.Server for http shutdown
-        logger.debug("Stored http.Server instance for http transport.", startupContext);
+    if (
+      transportType === "stdio" &&
+      serverOrHttpInstance instanceof McpServer
+    ) {
+      mcpServerInstance = serverOrHttpInstance; // Store McpServer for stdio shutdown
+      logger.debug(
+        "Stored McpServer instance for stdio transport.",
+        startupContext,
+      );
+    } else if (
+      transportType === "http" &&
+      serverOrHttpInstance instanceof http.Server
+    ) {
+      httpServerInstance = serverOrHttpInstance; // Store http.Server for http shutdown
+      logger.debug(
+        "Stored http.Server instance for http transport.",
+        startupContext,
+      );
     } else {
-        // This case should ideally not happen if initializeAndStartServer works correctly
-        logger.warning("initializeAndStartServer did not return the expected instance type.", {
-            ...startupContext,
-            instanceType: typeof serverOrHttpInstance
-        });
+      // This case should ideally not happen if initializeAndStartServer works correctly
+      logger.warning(
+        "initializeAndStartServer did not return the expected instance type.",
+        {
+          ...startupContext,
+          instanceType: typeof serverOrHttpInstance,
+        },
+      );
     }
 
     // If initializeAndStartServer failed internally, it would have thrown an error,
     // and execution would jump to the outer catch block.
 
-    logger.info(`${config.mcpServerName} is running with ${transportType} transport`, {
-      ...startupContext,
-      startTime: new Date().toISOString(),
-    });
+    logger.info(
+      `${config.mcpServerName} is running with ${transportType} transport`,
+      {
+        ...startupContext,
+        startTime: new Date().toISOString(),
+      },
+    );
 
     // --- Signal and Error Handling Setup ---
 
@@ -154,11 +208,14 @@ const start = async () => {
     process.on("uncaughtException", async (error) => {
       const errorContext = {
         ...startupContext, // Include base context for correlation
-        event: 'uncaughtException',
+        event: "uncaughtException",
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       };
-      logger.error("Uncaught exception detected. Initiating shutdown...", errorContext);
+      logger.error(
+        "Uncaught exception detected. Initiating shutdown...",
+        errorContext,
+      );
       // Attempt graceful shutdown; shutdown() handles its own errors.
       await shutdown("uncaughtException");
       // If shutdown fails internally, it will call process.exit(1).
@@ -171,11 +228,14 @@ const start = async () => {
     process.on("unhandledRejection", async (reason: unknown) => {
       const rejectionContext = {
         ...startupContext, // Include base context for correlation
-        event: 'unhandledRejection',
+        event: "unhandledRejection",
         reason: reason instanceof Error ? reason.message : String(reason),
-        stack: reason instanceof Error ? reason.stack : undefined
+        stack: reason instanceof Error ? reason.stack : undefined,
       };
-      logger.error("Unhandled promise rejection detected. Initiating shutdown...", rejectionContext);
+      logger.error(
+        "Unhandled promise rejection detected. Initiating shutdown...",
+        rejectionContext,
+      );
       // Attempt graceful shutdown; shutdown() handles its own errors.
       await shutdown("unhandledRejection");
       // Similar logic as uncaughtException: shutdown handles its exit codes.
@@ -185,7 +245,7 @@ const start = async () => {
     // Log the final failure context, including error details, before exiting
     logger.error("Critical error during startup, exiting.", {
       ...startupContext,
-      finalErrorContext: 'Startup Failure',
+      finalErrorContext: "Startup Failure",
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });

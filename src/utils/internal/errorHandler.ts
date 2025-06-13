@@ -1,6 +1,6 @@
-import { BaseErrorCode, McpError } from '../../types-global/errors.js'; // Corrected path
-import { logger } from './logger.js';
-import { sanitizeInputForLogging } from '../index.js'; // Import from main barrel file
+import { BaseErrorCode, McpError } from "../../types-global/errors.js"; // Corrected path
+import { logger } from "./logger.js";
+import { sanitizeInputForLogging } from "../index.js"; // Import from main barrel file
 
 /**
  * Generic error context interface
@@ -49,7 +49,8 @@ export interface BaseErrorMapping {
 /**
  * Error mapping configuration
  */
-export interface ErrorMapping<T extends Error = Error> extends BaseErrorMapping {
+export interface ErrorMapping<T extends Error = Error>
+  extends BaseErrorMapping {
   /** Factory function to create the mapped error */
   factory: (error: unknown, context?: Record<string, unknown>) => T;
   /** Additional context to merge with error context */
@@ -60,12 +61,12 @@ export interface ErrorMapping<T extends Error = Error> extends BaseErrorMapping 
  * Simple mapper that maps error types to error codes
  */
 const ERROR_TYPE_MAPPINGS: Record<string, BaseErrorCode> = {
-  'SyntaxError': BaseErrorCode.VALIDATION_ERROR,
-  'TypeError': BaseErrorCode.VALIDATION_ERROR,
-  'ReferenceError': BaseErrorCode.INTERNAL_ERROR,
-  'RangeError': BaseErrorCode.VALIDATION_ERROR,
-  'URIError': BaseErrorCode.VALIDATION_ERROR,
-  'EvalError': BaseErrorCode.INTERNAL_ERROR
+  SyntaxError: BaseErrorCode.VALIDATION_ERROR,
+  TypeError: BaseErrorCode.VALIDATION_ERROR,
+  ReferenceError: BaseErrorCode.INTERNAL_ERROR,
+  RangeError: BaseErrorCode.VALIDATION_ERROR,
+  URIError: BaseErrorCode.VALIDATION_ERROR,
+  EvalError: BaseErrorCode.INTERNAL_ERROR,
 };
 
 /**
@@ -73,21 +74,46 @@ const ERROR_TYPE_MAPPINGS: Record<string, BaseErrorCode> = {
  */
 const COMMON_ERROR_PATTERNS: BaseErrorMapping[] = [
   // Authentication related errors
-  { pattern: /auth|unauthorized|unauthenticated|not.*logged.*in|invalid.*token|expired.*token/i, errorCode: BaseErrorCode.UNAUTHORIZED },
+  {
+    pattern:
+      /auth|unauthorized|unauthenticated|not.*logged.*in|invalid.*token|expired.*token/i,
+    errorCode: BaseErrorCode.UNAUTHORIZED,
+  },
   // Permission related errors
-  { pattern: /permission|forbidden|access.*denied|not.*allowed/i, errorCode: BaseErrorCode.FORBIDDEN },
+  {
+    pattern: /permission|forbidden|access.*denied|not.*allowed/i,
+    errorCode: BaseErrorCode.FORBIDDEN,
+  },
   // Not found errors
-  { pattern: /not.*found|missing|no.*such|doesn't.*exist|couldn't.*find/i, errorCode: BaseErrorCode.NOT_FOUND },
+  {
+    pattern: /not.*found|missing|no.*such|doesn't.*exist|couldn't.*find/i,
+    errorCode: BaseErrorCode.NOT_FOUND,
+  },
   // Validation errors
-  { pattern: /invalid|validation|malformed|bad request|wrong format/i, errorCode: BaseErrorCode.VALIDATION_ERROR },
+  {
+    pattern: /invalid|validation|malformed|bad request|wrong format/i,
+    errorCode: BaseErrorCode.VALIDATION_ERROR,
+  },
   // Conflict errors
-  { pattern: /conflict|already.*exists|duplicate|unique.*constraint/i, errorCode: BaseErrorCode.CONFLICT },
+  {
+    pattern: /conflict|already.*exists|duplicate|unique.*constraint/i,
+    errorCode: BaseErrorCode.CONFLICT,
+  },
   // Rate limiting
-  { pattern: /rate.*limit|too.*many.*requests|throttled/i, errorCode: BaseErrorCode.RATE_LIMITED },
+  {
+    pattern: /rate.*limit|too.*many.*requests|throttled/i,
+    errorCode: BaseErrorCode.RATE_LIMITED,
+  },
   // Timeout errors
-  { pattern: /timeout|timed.*out|deadline.*exceeded/i, errorCode: BaseErrorCode.TIMEOUT },
+  {
+    pattern: /timeout|timed.*out|deadline.*exceeded/i,
+    errorCode: BaseErrorCode.TIMEOUT,
+  },
   // External service errors
-  { pattern: /service.*unavailable|bad.*gateway|gateway.*timeout/i, errorCode: BaseErrorCode.SERVICE_UNAVAILABLE }
+  {
+    pattern: /service.*unavailable|bad.*gateway|gateway.*timeout/i,
+    errorCode: BaseErrorCode.SERVICE_UNAVAILABLE,
+  },
 ];
 
 /**
@@ -97,20 +123,18 @@ const COMMON_ERROR_PATTERNS: BaseErrorMapping[] = [
  */
 function getErrorName(error: unknown): string {
   if (error instanceof Error) {
-    return error.name || 'Error';
+    return error.name || "Error";
   }
-  
+
   if (error === null) {
-    return 'NullError';
+    return "NullError";
   }
-  
+
   if (error === undefined) {
-    return 'UndefinedError';
+    return "UndefinedError";
   }
-  
-  return typeof error === 'object' 
-    ? 'ObjectError' 
-    : 'UnknownError';
+
+  return typeof error === "object" ? "ObjectError" : "UnknownError";
 }
 
 /**
@@ -122,18 +146,16 @@ function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  
+
   if (error === null) {
-    return 'Null error occurred';
+    return "Null error occurred";
   }
-  
+
   if (error === undefined) {
-    return 'Undefined error occurred';
+    return "Undefined error occurred";
   }
-  
-  return typeof error === 'string' 
-    ? error 
-    : String(error);
+
+  return typeof error === "string" ? error : String(error);
 }
 
 /**
@@ -153,50 +175,57 @@ export class ErrorHandler {
 
     const errorName = getErrorName(error);
     const errorMessage = getErrorMessage(error);
-    
+
     // Check if the error type has a direct mapping
     if (errorName in ERROR_TYPE_MAPPINGS) {
       return ERROR_TYPE_MAPPINGS[errorName as keyof typeof ERROR_TYPE_MAPPINGS];
     }
-    
+
     // Check for common error patterns
     for (const pattern of COMMON_ERROR_PATTERNS) {
-      const regex = pattern.pattern instanceof RegExp 
-        ? pattern.pattern 
-        : new RegExp(pattern.pattern, 'i');
-        
+      const regex =
+        pattern.pattern instanceof RegExp
+          ? pattern.pattern
+          : new RegExp(pattern.pattern, "i");
+
       if (regex.test(errorMessage) || regex.test(errorName)) {
         return pattern.errorCode;
       }
     }
-    
+
     // Default to internal error if no pattern matches
     return BaseErrorCode.INTERNAL_ERROR;
   }
-  
+
   /**
    * Handle operation errors with consistent logging and transformation
    * @param error The error that occurred
    * @param options Error handling options
    * @returns The transformed error
    */
-  public static handleError(error: unknown, options: ErrorHandlerOptions): Error {
-    const { 
-      context, 
-      operation, 
-      input, 
-      rethrow = false, 
+  public static handleError(
+    error: unknown,
+    options: ErrorHandlerOptions,
+  ): Error {
+    const {
+      context,
+      operation,
+      input,
+      rethrow = false,
       errorCode: explicitErrorCode,
       includeStack = true,
-      critical = false
+      critical = false,
     } = options;
-    
+
     // If it's already an McpError, use it directly but apply additional context
     if (error instanceof McpError) {
       // Add any additional context
       if (context && Object.keys(context).length > 0) {
         // Ensure details is an object before spreading
-        const existingDetails = typeof error.details === 'object' && error.details !== null ? error.details : {};
+        const existingDetails =
+          typeof error.details === "object" && error.details !== null
+            ? error.details
+            : {};
         error.details = { ...existingDetails, ...context };
       }
 
@@ -207,7 +236,7 @@ export class ErrorHandler {
         input: input ? sanitizeInputForLogging(input) : undefined,
         stack: includeStack ? error.stack : undefined,
         critical,
-        ...context
+        ...context,
       });
 
       if (rethrow) {
@@ -220,7 +249,7 @@ export class ErrorHandler {
 
     // Sanitize input for logging
     const sanitizedInput = input ? sanitizeInputForLogging(input) : undefined;
-    
+
     // Log the error with consistent format
     logger.error(`Error ${operation}`, {
       error: getErrorMessage(error), // Use helper function
@@ -229,14 +258,15 @@ export class ErrorHandler {
       requestId: context?.requestId,
       stack: includeStack && error instanceof Error ? error.stack : undefined,
       critical,
-      ...context
+      ...context,
     });
 
     // Choose the error code (explicit > determined > default)
-    const errorCode = explicitErrorCode || 
-                      ErrorHandler.determineErrorCode(error) || 
-                      BaseErrorCode.INTERNAL_ERROR;
-    
+    const errorCode =
+      explicitErrorCode ||
+      ErrorHandler.determineErrorCode(error) ||
+      BaseErrorCode.INTERNAL_ERROR;
+
     // Transform to appropriate error type
     let transformedError: Error;
     if (options.errorMapper) {
@@ -247,8 +277,8 @@ export class ErrorHandler {
         `Error ${operation}: ${getErrorMessage(error)}`, // Use helper function
         {
           originalError: getErrorName(error),
-          ...context
-        }
+          ...context,
+        },
       );
     }
 
@@ -269,9 +299,9 @@ export class ErrorHandler {
    * @returns The mapped error
    */
   public static mapError<T extends Error>(
-    error: unknown, 
-    mappings: ErrorMapping<T>[], 
-    defaultFactory?: (error: unknown, context?: Record<string, unknown>) => T
+    error: unknown,
+    mappings: ErrorMapping<T>[],
+    defaultFactory?: (error: unknown, context?: Record<string, unknown>) => T,
   ): T | Error {
     // If it's already the target type and we have a default factory to check against, return it
     if (defaultFactory && error instanceof Error) {
@@ -280,32 +310,31 @@ export class ErrorHandler {
         return error as T;
       }
     }
-    
+
     const errorMessage = getErrorMessage(error);
-    
+
     // Check each pattern and return the first match
     for (const mapping of mappings) {
-      const matches = mapping.pattern instanceof RegExp
-        ? mapping.pattern.test(errorMessage)
-        : errorMessage.includes(mapping.pattern);
-        
+      const matches =
+        mapping.pattern instanceof RegExp
+          ? mapping.pattern.test(errorMessage)
+          : errorMessage.includes(mapping.pattern);
+
       if (matches) {
         return mapping.factory(error, mapping.additionalContext);
       }
     }
-    
+
     // Return default or original error
     if (defaultFactory) {
       return defaultFactory(error);
     }
-    
-    return error instanceof Error 
-      ? error
-      : new Error(String(error));
+
+    return error instanceof Error ? error : new Error(String(error));
   }
-  
+
   // Removed createErrorMapper method for simplification
-  
+
   /**
    * Format an error for consistent response structure
    * @param error The error to format
@@ -317,7 +346,10 @@ export class ErrorHandler {
         code: error.code,
         message: error.message,
         // Ensure details is an object
-        details: typeof error.details === 'object' && error.details !== null ? error.details : {}
+        details:
+          typeof error.details === "object" && error.details !== null
+            ? error.details
+            : {},
       };
     }
 
@@ -325,17 +357,17 @@ export class ErrorHandler {
       return {
         code: ErrorHandler.determineErrorCode(error),
         message: error.message,
-        details: { errorType: error.name }
+        details: { errorType: error.name },
       };
     }
-    
+
     return {
       code: BaseErrorCode.UNKNOWN_ERROR,
       message: String(error),
-      details: { errorType: typeof error }
+      details: { errorType: typeof error },
     };
   }
-  
+
   /**
    * Safely execute a function and handle any errors
    * @param fn Function to execute
@@ -344,7 +376,7 @@ export class ErrorHandler {
    */
   public static async tryCatch<T>(
     fn: () => Promise<T> | T,
-    options: ErrorHandlerOptions
+    options: ErrorHandlerOptions,
   ): Promise<T> {
     try {
       return await fn();
