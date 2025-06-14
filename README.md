@@ -1,8 +1,8 @@
 # Git MCP Server
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.12.1-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.1.1-blue.svg)](./CHANGELOG.md)
+[![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.12.3-green.svg)](https://modelcontextprotocol.io/)
+[![Version](https://img.shields.io/badge/Version-2.1.2-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/git-mcp-server/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/git-mcp-server?style=social)](https://github.com/cyanheads/git-mcp-server)
@@ -184,9 +184,9 @@ _Note: The `path` parameter for most tools defaults to the session's working dir
 
 ## Resources
 
-**MCP Resources are not implemented in this version (v2.0.14).**
+**MCP Resources are not implemented in this version (v2.1.2).**
 
-This version focuses on the refactored Git tools implementation based on the latest `mcp-ts-template` and MCP SDK v1.12.0. Resource capabilities, previously available, have been temporarily removed during this major update.
+This version focuses on the refactored Git tools implementation based on the latest `mcp-ts-template` and MCP SDK v1.12.3. Resource capabilities, previously available, have been temporarily removed during this major update.
 
 If you require MCP Resource access (e.g., for reading file content directly via the server), please use the stable **[v1.2.4 release](https://github.com/cyanheads/git-mcp-server/releases/tag/v1.2.4)**.
 

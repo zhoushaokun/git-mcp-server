@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.1.2 - 2025-06-14
+
+### Fixed
+
+- (tools) `gitCommit` tool now provides a specific, clearer error message when a pre-commit hook fails, preventing confusion with merge conflicts. (Addresses GitHub Issue [#13](https://github.com/cyanheads/git-mcp-server/issues/13))
+
+### Changed
+
+- (tools) Refactored error handling across all Git tools to use structured `McpError` exceptions with specific `BaseErrorCode`s (e.g., `CONFLICT`, `NOT_FOUND`, `VALIDATION_ERROR`) instead of returning `{ success: false, ... }` objects. This provides more consistent and machine-readable error responses.
+- (tools) Improved logging across all Git tools for better traceability and debugging, ensuring structured context is always included.
+- (tools) Refined success and result objects for several tools (`gitPull`, `gitPush`, `gitMerge`, etc.) to be more consistent and structured.
+
+### Dependencies
+
+- Updated the following dependencies:
+  - `@modelcontextprotocol/inspector` to `^0.14.1`
+  - `@modelcontextprotocol/sdk` to `^1.12.3`
+
 ## v2.1.1 - 2025-06-13
 
 ### Changed
