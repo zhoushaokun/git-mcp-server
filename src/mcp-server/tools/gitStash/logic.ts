@@ -297,10 +297,11 @@ export async function gitStashLogic(
         );
     }
 
-    logger.info(`${operation} executed successfully`, {
+    logger.info(`git stash ${input.mode} executed successfully`, {
       ...context,
       operation,
       path: targetPath,
+      result,
     });
     return result;
   } catch (error: any) {
@@ -328,33 +329,29 @@ export async function gitStashLogic(
         input.mode === "drop") &&
       /no such stash/i.test(errorMessage)
     ) {
-      return {
-        success: false,
-        mode: input.mode,
-        message: `Failed to ${input.mode} stash: Stash '${input.stashRef}' not found.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.NOT_FOUND,
+        `Failed to ${input.mode} stash: Stash '${input.stashRef}' not found. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (
       (input.mode === "apply" || input.mode === "pop") &&
       /conflict/i.test(errorMessage)
     ) {
       // This case might be caught above, but double-check here
-      return {
-        success: false,
-        mode: input.mode,
-        message: `Failed to ${input.mode} stash '${input.stashRef}' due to conflicts. Resolve conflicts manually.`,
-        error: errorMessage,
-        conflicts: true,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Failed to ${input.mode} stash '${input.stashRef}' due to conflicts. Resolve conflicts manually. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
 
-    // Return structured failure for other git errors
-    return {
-      success: false,
-      mode: input.mode,
-      message: `Git stash ${input.mode} failed for path: ${targetPath}.`,
-      error: errorMessage,
-    };
+    // Throw a generic McpError for other failures
+    throw new McpError(
+      BaseErrorCode.INTERNAL_ERROR,
+      `Git stash ${input.mode} failed for path: ${targetPath}. Error: ${errorMessage}`,
+      { context, operation, originalError: error },
+    );
   }
 }

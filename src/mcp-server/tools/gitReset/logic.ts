@@ -133,33 +133,27 @@ export async function resetGitState(
     // Execute command. Reset output is often minimal on success, but stderr might indicate issues.
     const { stdout, stderr } = await execAsync(command);
 
-    logger.info(`Git reset stdout: ${stdout}`, { ...context, operation });
+    logger.debug(`Git reset stdout: ${stdout}`, { ...context, operation });
     if (stderr) {
       // Log stderr as info, as it often contains the primary status message
-      logger.info(`Git reset stderr: ${stderr}`, { ...context, operation });
+      logger.debug(`Git reset stderr: ${stderr}`, { ...context, operation });
     }
 
     // Analyze output (primarily stderr for reset)
-    let message =
+    const message =
       stderr.trim() ||
       stdout.trim() ||
       `Reset successful (mode: ${input.mode || "mixed"}).`; // Default success message
-    let changesSummary: string | undefined = undefined;
+    const changesSummary = stderr.includes("Unstaged changes after reset")
+      ? stderr
+      : undefined;
 
-    if (stderr.includes("Unstaged changes after reset")) {
-      message = `Reset successful (mode: ${input.mode || "mixed"}).`;
-      changesSummary = stderr; // Include the list of unstaged changes
-    } else if (stderr.match(/HEAD is now at [a-f0-9]+ /)) {
-      message = stderr.trim(); // Use the direct message from git
-    } else if (!stderr && !stdout) {
-      // If no output, assume success but provide context
-      message = `Reset successful (mode: ${input.mode || "mixed"}, commit: ${input.commit || "HEAD"}). No specific output.`;
-    }
-
-    logger.info(`${operation} completed successfully. ${message}`, {
+    logger.info("git reset executed successfully", {
       ...context,
       operation,
       path: targetPath,
+      message,
+      changesSummary,
     });
     return { success: true, message, changesSummary };
   } catch (error: any) {

@@ -270,7 +270,7 @@ export async function getGitStatus(
       );
     }
 
-    logger.info(`${operation} command executed, parsing output...`, {
+    logger.debug(`${operation} command executed, parsing output...`, {
       ...context,
       operation,
       path: targetPath,
@@ -304,10 +304,12 @@ export async function getGitStatus(
       }
     }
 
-    logger.info(`${operation} parsed successfully`, {
+    logger.info("git status parsed successfully", {
       ...context,
       operation,
       path: targetPath,
+      isClean: structuredResult.is_clean,
+      currentBranch: structuredResult.current_branch,
     });
     return structuredResult; // Return the structured JSON object
   } catch (error: any) {

@@ -179,52 +179,34 @@ export async function gitMergeLogic(
     if (stderr)
       logger.debug(`Command stderr: ${stderr}`, { ...context, operation }); // Log stderr even on success
 
-    if (input.abort) {
-      return {
-        success: true,
-        message: "Merge aborted successfully.",
-        aborted: true,
-      };
-    }
-
-    // Check stdout/stderr for specific success messages
-    if (stdout.includes("Fast-forward")) {
-      return {
-        success: true,
-        message: `Merge successful (fast-forward): ${stdout.trim()}`,
-        fastForward: true,
-      };
-    }
-    if (stdout.includes("Merge made by") || stdout.includes("merging")) {
-      // Check for recursive strategy message etc.
-      const match = stdout.match(/Merge commit '([a-f0-9]+)'/); // Try to get merge commit hash
-      return {
-        success: true,
-        message: `Merge successful: ${stdout.trim()}`,
-        mergedCommitHash: match ? match[1] : undefined,
-        fastForward: false, // Explicitly not FF
-      };
-    }
-    if (stdout.includes("Squash commit -- not updating HEAD")) {
-      return {
-        success: true,
-        message: `Merge successful (--squash): Changes staged. Manual commit required. ${stdout.trim()}`,
-        needsManualCommit: true,
-      };
-    }
-    if (stdout.includes("Already up to date")) {
-      return {
-        success: true,
-        message: `Already up to date.`,
-        fastForward: true,
-      }; // Treat as success/FF
-    }
-
-    // If none of the above, return generic success based on exit code 0
-    return {
+    const result: GitMergeResult = {
       success: true,
-      message: `Merge command completed: ${stdout.trim()}`,
+      message: stdout.trim() || stderr.trim() || "Merge command executed.",
     };
+
+    if (input.abort) {
+      result.aborted = true;
+      result.message = "Merge aborted successfully.";
+    } else if (stdout.includes("Fast-forward")) {
+      result.fastForward = true;
+    } else if (stdout.includes("Merge made by") || stdout.includes("merging")) {
+      const match = stdout.match(/Merge commit '([a-f0-9]+)'/);
+      result.mergedCommitHash = match ? match[1] : undefined;
+      result.fastForward = false;
+    } else if (stdout.includes("Squash commit -- not updating HEAD")) {
+      result.needsManualCommit = true;
+    } else if (stdout.includes("Already up to date")) {
+      result.fastForward = true;
+    }
+
+    logger.info("git merge executed successfully", {
+      ...context,
+      operation,
+      path: targetPath,
+      result,
+    });
+
+    return result;
   } catch (error: any) {
     const errorMessage = error.stderr || error.stdout || error.message || ""; // Git often puts errors in stdout/stderr
     logger.error(`Git merge command failed`, {
@@ -238,11 +220,11 @@ export async function gitMergeLogic(
     if (input.abort) {
       // If abort failed, it's likely there was no merge in progress
       if (errorMessage.includes("fatal: There is no merge to abort")) {
-        return {
-          success: false,
-          message: "No merge in progress to abort.",
-          aborted: false,
-        };
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          `No merge in progress to abort.`,
+          { context, operation, originalError: error },
+        );
       }
       throw new McpError(
         BaseErrorCode.INTERNAL_ERROR,
@@ -253,11 +235,11 @@ export async function gitMergeLogic(
 
     // Check for specific failure scenarios
     if (errorMessage.includes("CONFLICT")) {
-      return {
-        success: false,
-        message: `Merge failed due to conflicts. Please resolve conflicts and commit. Output: ${errorMessage}`,
-        conflict: true,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Merge failed due to conflicts. Please resolve conflicts and commit. Output: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (errorMessage.includes("refusing to merge unrelated histories")) {
       throw new McpError(
@@ -283,11 +265,11 @@ export async function gitMergeLogic(
       );
     }
     if (errorMessage.includes("fatal: You have not concluded your merge")) {
-      return {
-        success: false,
-        message: `Merge failed: Conflicts still exist from a previous merge. Resolve conflicts or abort. Output: ${errorMessage}`,
-        conflict: true,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Merge failed: Conflicts still exist from a previous merge. Resolve conflicts or abort. Output: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (
       errorMessage.includes(

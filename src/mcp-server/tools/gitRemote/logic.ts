@@ -276,10 +276,11 @@ export async function gitRemoteLogic(
         );
     }
 
-    logger.info(`${operation} executed successfully`, {
+    logger.info(`git remote ${input.mode} executed successfully`, {
       ...context,
       operation,
       path: targetPath,
+      result,
     });
     return result;
   } catch (error: any) {
@@ -305,31 +306,28 @@ export async function gitRemoteLogic(
       input.mode === "add" &&
       errorMessage.toLowerCase().includes("already exists")
     ) {
-      return {
-        success: false,
-        mode: "add",
-        message: `Failed to add remote: Remote '${input.name}' already exists.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Failed to add remote: Remote '${input.name}' already exists. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (
       (input.mode === "remove" || input.mode === "show") &&
       errorMessage.toLowerCase().includes("no such remote")
     ) {
-      return {
-        success: false,
-        mode: input.mode,
-        message: `Failed to ${input.mode} remote: Remote '${input.name}' does not exist.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.NOT_FOUND,
+        `Failed to ${input.mode} remote: Remote '${input.name}' does not exist. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
 
-    // Return structured failure for other git errors
-    return {
-      success: false,
-      mode: input.mode,
-      message: `Git remote ${input.mode} failed for path: ${targetPath}.`,
-      error: errorMessage,
-    };
+    // Throw a generic McpError for other failures
+    throw new McpError(
+      BaseErrorCode.INTERNAL_ERROR,
+      `Git remote ${input.mode} failed for path: ${targetPath}. Error: ${errorMessage}`,
+      { context, operation, originalError: error },
+    );
   }
 }

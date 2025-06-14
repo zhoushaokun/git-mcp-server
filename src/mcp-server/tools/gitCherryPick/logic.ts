@@ -168,12 +168,11 @@ export async function gitCherryPickLogic(
               ? " Changes staged."
               : "");
 
-      logger.info(message, {
+      logger.info("git cherry-pick executed successfully", {
         ...context,
         operation,
         path: targetPath,
-        conflicts,
-        commitCreated,
+        result: { message, conflicts, commitCreated },
       });
       return { success: true, message, commitCreated, conflicts };
     } catch (cherryPickError: any) {
@@ -217,34 +216,33 @@ export async function gitCherryPickLogic(
       );
     }
     if (/bad revision/i.test(errorMessage)) {
-      return {
-        success: false,
-        message: `Failed to cherry-pick: Invalid commit reference '${input.commitRef}'.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        `Failed to cherry-pick: Invalid commit reference '${input.commitRef}'. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (/after resolving the conflicts/i.test(errorMessage)) {
       // This might indicate a previous conflict state
-      return {
-        success: false,
-        message: `Failed to cherry-pick: Unresolved conflicts from a previous operation exist. Resolve conflicts and use 'git cherry-pick --continue' or '--abort'.`,
-        error: errorMessage,
-        conflicts: true,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Failed to cherry-pick: Unresolved conflicts from a previous operation exist. Resolve conflicts and use 'git cherry-pick --continue' or '--abort'. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (/your local changes would be overwritten/i.test(errorMessage)) {
-      return {
-        success: false,
-        message: `Failed to cherry-pick: Your local changes to tracked files would be overwritten. Please commit or stash them.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Failed to cherry-pick: Your local changes to tracked files would be overwritten. Please commit or stash them. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
 
-    // Return structured failure for other git errors
-    return {
-      success: false,
-      message: `Git cherry-pick failed for path: ${targetPath}.`,
-      error: errorMessage,
-    };
+    // Throw a generic McpError for other failures
+    throw new McpError(
+      BaseErrorCode.INTERNAL_ERROR,
+      `Git cherry-pick failed for path: ${targetPath}. Error: ${errorMessage}`,
+      { context, operation, originalError: error },
+    );
   }
 }

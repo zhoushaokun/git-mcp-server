@@ -135,201 +135,39 @@ export async function checkoutGit(
     // Execute command. Checkout often uses stderr for status messages.
     const { stdout, stderr } = await execAsync(command);
 
-    logger.info(`Git checkout stdout: ${stdout}`, { ...context, operation });
-    logger.info(`Git checkout stderr: ${stderr}`, { ...context, operation }); // Log stderr as info
-
-    // Analyze stderr primarily, fallback to stdout
-    let message = stderr.trim() || stdout.trim();
-    let success = true;
-    let previousBranch: string | undefined = undefined;
-    let currentBranch: string | undefined = undefined;
-    let newBranchCreated = !!input.newBranch;
-    let filesRestored: string[] | undefined = undefined;
-    let isDetachedHead = false;
-    let isFileCheckout = false;
-
-    // --- Initial analysis of checkout output ---
-    // Extract previous branch if available
-    const prevBranchMatch = stderr.match(/Switched to.*? from ['"]?(.*?)['"]?/);
-    if (prevBranchMatch) {
-      previousBranch = prevBranchMatch[1];
+    const message = stderr.trim() || stdout.trim();
+    logger.debug(`Git checkout stdout: ${stdout}`, { ...context, operation });
+    if (stderr) {
+      logger.debug(`Git checkout stderr: ${stderr}`, { ...context, operation });
     }
 
-    // Determine primary outcome from stderr/stdout
-    if (stderr.includes("Switched to a new branch")) {
-      const currentBranchMatch = stderr.match(
-        /Switched to a new branch ['"]?(.*?)['"]?/,
+    // Get the current branch name after the checkout operation
+    let currentBranch: string | undefined;
+    try {
+      const { stdout: branchStdout } = await execAsync(
+        `git -C "${targetPath}" branch --show-current`,
       );
-      currentBranch = currentBranchMatch
-        ? currentBranchMatch[1]
-        : input.newBranch; // Use matched or input
-      message = `Switched to new branch '${currentBranch}'.`;
-      newBranchCreated = true;
-    } else if (stderr.includes("Switched to branch")) {
-      const currentBranchMatch = stderr.match(
-        /Switched to branch ['"]?(.*?)['"]?/,
-      );
-      currentBranch = currentBranchMatch
-        ? currentBranchMatch[1]
-        : input.branchOrPath; // Use matched or input
-      message = `Switched to branch '${currentBranch}'.`;
-    } else if (stderr.includes("Already on")) {
-      const currentBranchMatch = stderr.match(/Already on ['"]?(.*?)['"]?/);
-      currentBranch = currentBranchMatch
-        ? currentBranchMatch[1]
-        : input.branchOrPath; // Use matched or input
-      message = `Already on '${currentBranch}'.`;
-    } else if (
-      stderr.includes("Updated N path") ||
-      stdout.includes("Updated N path") ||
-      stderr.includes("Your branch is up to date with")
-    ) {
-      // Checking out files or confirming current state
-      // Check if the input looks like file paths rather than a branch/commit
-      // This is heuristic - might need refinement if branch names look like paths
-      if (
-        input.branchOrPath.includes("/") ||
-        input.branchOrPath.includes(".")
-      ) {
-        isFileCheckout = true;
-        message = `Restored or checked path(s): ${input.branchOrPath}`;
-        filesRestored = input.branchOrPath
-          .split("\n")
-          .map((p) => p.trim())
-          .filter((p) => p.length > 0);
-      } else {
-        // Assume it was just confirming the current branch state
-        message =
-          stderr.trim() ||
-          stdout.trim() ||
-          `Checked out ${input.branchOrPath}.`;
-      }
-    } else if (
-      stderr.includes("Previous HEAD position was") &&
-      stderr.includes("HEAD is now at")
-    ) {
-      // Detached HEAD
-      message = `Checked out commit ${input.branchOrPath} (Detached HEAD state).`;
+      currentBranch = branchStdout.trim();
+    } catch (e) {
+      // This can fail in detached HEAD state, which is not an error for checkout
       currentBranch = "Detached HEAD";
-      isDetachedHead = true;
-    } else if (
-      stderr.includes("Note: switching to") ||
-      stderr.includes("Note: checking out")
-    ) {
-      // Other detached HEAD variants
-      message = `Checked out ${input.branchOrPath} (Detached HEAD state).`;
-      currentBranch = "Detached HEAD";
-      isDetachedHead = true;
-    } else if (message.includes("fatal:")) {
-      success = false;
-      message = `Checkout failed: ${message}`;
-      logger.error(`Git checkout command indicated failure: ${message}`, {
-        ...context,
-        operation,
-        stdout,
-        stderr,
-      });
-    } else if (!message && !stdout && !stderr) {
-      message = "Checkout command executed silently."; // Assume success, will verify branch below
-      logger.info(message, { ...context, operation });
-    } else {
-      // Some other message, treat as informational for now
-      message = stderr.trim() || stdout.trim();
-      logger.info(`Git checkout produced message: ${message}`, {
-        ...context,
-        operation,
-      });
     }
 
-    // --- Get definitive current branch IF checkout was successful AND not file checkout/detached HEAD ---
-    if (success && !isFileCheckout && !isDetachedHead) {
-      try {
-        logger.debug(
-          "Attempting to get current branch via git branch --show-current",
-          { ...context, operation },
-        );
-        const statusResult = await execAsync(
-          `git -C "${targetPath}" branch --show-current`,
-        );
-        const definitiveCurrentBranch = statusResult.stdout.trim();
-        if (definitiveCurrentBranch) {
-          currentBranch = definitiveCurrentBranch;
-          logger.info(`Confirmed current branch: ${currentBranch}`, {
-            ...context,
-            operation,
-          });
-          // Refine message if it wasn't specific before
-          if (
-            message.startsWith("Checkout command executed silently") ||
-            message.startsWith("Checked out ")
-          ) {
-            message = `Checked out '${currentBranch}'.`;
-          } else if (
-            message.startsWith("Already on") &&
-            !message.includes(`'${currentBranch}'`)
-          ) {
-            message = `Already on '${currentBranch}'.`; // Update if initial parse was wrong
-          } else if (
-            message.startsWith("Switched to branch") &&
-            !message.includes(`'${currentBranch}'`)
-          ) {
-            message = `Switched to branch '${currentBranch}'.`; // Update if initial parse was wrong
-          }
-        } else {
-          // Command succeeded but returned empty - might be detached HEAD after all?
-          logger.warning(
-            "git branch --show-current returned empty, possibly detached HEAD?",
-            { ...context, operation },
-          );
-          // Keep potentially parsed 'Detached HEAD' or fallback to input if needed
-          currentBranch = currentBranch || "Unknown (possibly detached)";
-          if (!message.includes("Detached HEAD"))
-            message += " (Could not confirm branch name).";
-        }
-      } catch (statusError: any) {
-        logger.warning("Could not determine current branch after checkout", {
-          ...context,
-          operation,
-          error: statusError.message,
-        });
-        // Keep potentially parsed 'Detached HEAD' or fallback to input if needed
-        currentBranch = currentBranch || "Unknown (error checking)";
-        if (!message.includes("Detached HEAD"))
-          message += " (Error checking branch name).";
-      }
-    } else if (success && isFileCheckout) {
-      // If it was a file checkout, still try to get the branch name for context
-      try {
-        const statusResult = await execAsync(
-          `git -C "${targetPath}" branch --show-current`,
-        );
-        currentBranch =
-          statusResult.stdout.trim() || "Unknown (possibly detached)";
-      } catch {
-        currentBranch = "Unknown (error checking)";
-      }
-      logger.info(`Current branch after file checkout: ${currentBranch}`, {
-        ...context,
-        operation,
-      });
-    }
+    const result: GitCheckoutResult = {
+      success: true,
+      message,
+      currentBranch,
+      newBranchCreated: !!input.newBranch,
+    };
 
-    logger.info(`${operation} completed`, {
+    logger.info("git checkout executed successfully", {
       ...context,
       operation,
       path: targetPath,
-      success,
-      message,
-      currentBranch,
+      result,
     });
-    return {
-      success,
-      message,
-      previousBranch,
-      currentBranch,
-      newBranchCreated,
-      filesRestored,
-    };
+
+    return result;
   } catch (error: any) {
     logger.error(`Failed to execute git checkout command`, {
       ...context,

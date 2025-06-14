@@ -136,41 +136,20 @@ export async function fetchGitRemote(
     // Execute command. Fetch output is primarily on stderr.
     const { stdout, stderr } = await execAsync(command);
 
-    logger.info(`Git fetch stdout: ${stdout}`, { ...context, operation }); // stdout is usually empty
-    logger.info(`Git fetch stderr: ${stderr}`, { ...context, operation }); // stderr contains fetch details
-
-    // Analyze stderr for success/summary
-    let message = stderr.trim() || "Fetch command executed."; // Use stderr as the primary message
-    let summary: string | undefined = undefined;
-
-    // Check for common patterns in stderr
-    if (
-      stderr.includes("Updating") ||
-      stderr.includes("->") ||
-      stderr.includes("new tag") ||
-      stderr.includes("new branch")
-    ) {
-      message = "Fetch successful.";
-      summary = stderr.trim(); // Use the full stderr as summary
-    } else if (stderr.trim() === "") {
-      // Sometimes fetch completes successfully with no output if nothing changed
-      message = "Fetch successful (no changes detected).";
-    } else if (message.includes("fatal:")) {
-      // Should be caught by catch block, but double-check
-      logger.error(`Git fetch command indicated failure: ${message}`, {
-        ...context,
-        operation,
-        stdout,
-        stderr,
-      });
-      // Re-throw as an internal error if not caught below
-      throw new Error(`Fetch failed: ${message}`);
+    logger.debug(`Git fetch stdout: ${stdout}`, { ...context, operation }); // stdout is usually empty
+    if (stderr) {
+      logger.debug(`Git fetch stderr: ${stderr}`, { ...context, operation }); // stderr contains fetch details
     }
 
-    logger.info(`${operation} completed successfully. ${message}`, {
+    // Analyze stderr for success/summary
+    const message = "Fetch successful.";
+    const summary = stderr.trim() || "No changes detected.";
+
+    logger.info(message, {
       ...context,
       operation,
       path: targetPath,
+      summary,
     });
     return { success: true, message, summary };
   } catch (error: any) {

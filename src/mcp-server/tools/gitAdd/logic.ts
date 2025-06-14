@@ -177,21 +177,22 @@ export async function addGitFiles(
       });
     }
 
-    logger.info(`${operation} executed successfully`, {
+    const filesAddedDesc = Array.isArray(filesToStage)
+      ? filesToStage.join(", ")
+      : filesToStage;
+    const successMessage = `Successfully staged: ${filesAddedDesc}`;
+    logger.info(successMessage, {
       ...context,
       operation,
       path: targetPath,
       files: filesToStage,
     });
-    const filesAddedDesc = Array.isArray(filesToStage)
-      ? filesToStage.join(", ")
-      : filesToStage;
     const reminder =
       "Remember to write clear, concise commit messages using the Conventional Commits format (e.g., 'feat(scope): subject').";
     // Use statusMessage and add reminder
     return {
       success: true,
-      statusMessage: `Successfully staged: ${filesAddedDesc}. ${reminder}`,
+      statusMessage: `${successMessage}. ${reminder}`,
       filesStaged: filesToStage,
     };
   } catch (error: any) {

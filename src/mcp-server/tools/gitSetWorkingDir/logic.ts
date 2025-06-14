@@ -57,11 +57,7 @@ export async function gitSetWorkingDirLogic(
   }, // Assuming context provides session info and setter
 ): Promise<GitSetWorkingDirResult> {
   const operation = "gitSetWorkingDirLogic";
-  logger.info("Executing git_set_working_dir logic", {
-    ...context,
-    operation,
-    inputPath: input.path,
-  });
+  logger.debug(`Executing ${operation}`, { ...context, input });
 
   let sanitizedPath: string;
   try {
@@ -184,10 +180,8 @@ export async function gitSetWorkingDirLogic(
   // We assume the context provides a way to set the working directory for the current session.
   try {
     context.setWorkingDirectory(sanitizedPath);
-    logger.info(
-      `Working directory set for session ${context.sessionId || "stdio"} to: ${sanitizedPath}`,
-      { ...context, operation },
-    );
+    const message = `Working directory set for session ${context.sessionId || "stdio"} to: ${sanitizedPath}`;
+    logger.info(message, { ...context, operation });
   } catch (error: any) {
     logger.error("Failed to set working directory in session state", error, {
       ...context,

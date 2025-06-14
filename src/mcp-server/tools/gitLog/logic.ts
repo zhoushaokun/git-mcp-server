@@ -326,7 +326,7 @@ export async function logGitHistory(
       commitCount > 0
         ? `${commitCount} commit(s) found.`
         : "No commits found matching criteria.";
-    logger.info(`${operation} completed successfully. ${message}`, {
+    logger.info(message, {
       ...context,
       operation,
       path: targetPath,

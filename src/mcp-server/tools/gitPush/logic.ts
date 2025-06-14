@@ -221,83 +221,26 @@ export async function pushGitChanges(
     // Execute command. Note: Git push often uses stderr for progress and success messages.
     const { stdout, stderr } = await execAsync(command);
 
-    logger.info(`Git push stdout: ${stdout}`, { ...context, operation });
-    logger.info(`Git push stderr: ${stderr}`, { ...context, operation }); // Log stderr as info as it's commonly used
-
-    // Analyze stderr primarily, fallback to stdout
-    let message = stderr.trim() || stdout.trim();
-    let success = true;
-    let rejected = false;
-    let deleted = false;
-    let summary: string | undefined = undefined;
-
-    // Check for common success/status messages in stderr
-    if (message.includes("Everything up-to-date")) {
-      message = "Everything up-to-date.";
-    } else if (
-      message.match(/->\s+\[new branch\]/) ||
-      message.match(/->\s+\[new tag\]/)
-    ) {
-      message = "Push successful (new branch/tag created).";
-      // Extract summary if possible (e.g., commit range)
-      const summaryMatch = message.match(
-        /([a-f0-9]+\.\.[a-f0-9]+)\s+\S+\s+->\s+\S+/,
-      );
-      if (summaryMatch) summary = summaryMatch[1];
-    } else if (message.includes("Done.")) {
-      // Common part of successful push output
-      // Try to find a more specific message
-      if (stderr.includes("updating") || stdout.includes("updating")) {
-        message = "Push successful.";
-        const summaryMatch = message.match(
-          /([a-f0-9]+\.\.[a-f0-9]+)\s+\S+\s+->\s+\S+/,
-        );
-        if (summaryMatch) summary = summaryMatch[1];
-      } else {
-        message = "Push completed (check logs for details)."; // Generic success if specific pattern not found
-      }
-    } else if (message.includes("[rejected]")) {
-      message = "Push rejected.";
-      success = false;
-      rejected = true;
-      // Extract reason if possible
-      const reasonMatch = message.match(/\[rejected\].*->.*?\((.*?)\)/);
-      if (reasonMatch) {
-        message += ` Reason: ${reasonMatch[1]}.`;
-        if (reasonMatch[1].includes("non-fast-forward")) {
-          message +=
-            " Hint: Try pulling first or use force options if necessary.";
-        }
-      }
-    } else if (message.includes("[deleted]")) {
-      message = "Remote branch deleted successfully.";
-      deleted = true;
-    } else if (message.includes("fatal:")) {
-      // If a fatal error wasn't caught by execAsync but is in stderr/stdout
-      success = false;
-      message = `Push failed: ${message}`;
-      logger.error(`Git push command indicated failure: ${message}`, {
-        ...context,
-        operation,
-        stdout,
-        stderr,
-      });
-    } else if (!message && !stdout && !stderr) {
-      // If command succeeds with no output (can happen in some cases)
-      message = "Push command executed, but no output received.";
-      logger.warning(message, { ...context, operation });
+    logger.debug(`Git push stdout: ${stdout}`, { ...context, operation });
+    if (stderr) {
+      logger.debug(`Git push stderr: ${stderr}`, { ...context, operation });
     }
 
-    logger.info(`${operation} completed`, {
+    // Analyze stderr primarily, fallback to stdout
+    const message = stderr.trim() || stdout.trim() || "Push command executed.";
+    const summary = message;
+    const rejected = message.includes("[rejected]");
+    const deleted = message.includes("[deleted]");
+
+    logger.info("git push executed successfully", {
       ...context,
       operation,
       path: targetPath,
-      success,
-      message,
+      summary,
       rejected,
       deleted,
     });
-    return { success, message, summary, rejected, deleted };
+    return { success: true, message, summary, rejected, deleted };
   } catch (error: any) {
     logger.error(`Failed to execute git push command`, {
       ...context,
@@ -334,17 +277,11 @@ export async function pushGitChanges(
       errorMessage.includes("failed to push some refs")
     ) {
       // This might be caught here if execAsync throws due to non-zero exit code on rejection
-      logger.warning("Push rejected (caught as error)", {
-        ...context,
-        operation,
-        path: targetPath,
-        errorMessage,
-      });
-      return {
-        success: false,
-        message: `Push rejected: ${errorMessage}`,
-        rejected: true,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Push rejected: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (
       errorMessage.includes("Authentication failed") ||

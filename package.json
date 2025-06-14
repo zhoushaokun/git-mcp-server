@@ -38,8 +38,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@modelcontextprotocol/inspector": "^0.14.0",
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/inspector": "^0.14.1",
+    "@modelcontextprotocol/sdk": "^1.12.3",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^24.0.1",
     "@types/sanitize-html": "^2.16.0",

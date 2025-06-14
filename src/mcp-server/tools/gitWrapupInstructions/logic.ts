@@ -58,6 +58,9 @@ export async function getWrapupInstructions(
     getWorkingDirectory: () => string | undefined;
   },
 ): Promise<GitWrapupInstructionsResult> {
+  const operation = "getWrapupInstructions";
+  logger.debug(`Executing ${operation}`, { ...context, input });
+
   let finalInstructions = WRAPUP_INSTRUCTIONS;
   if (
     input.updateAgentMetaFiles &&

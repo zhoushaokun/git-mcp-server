@@ -157,11 +157,10 @@ export async function gitShowLogic(
       });
     }
 
-    logger.info(`${operation} executed successfully`, {
+    logger.info(`git show executed successfully for ref: ${refSpec}`, {
       ...context,
       operation,
       path: targetPath,
-      refSpec,
     });
     return { success: true, content: stdout }; // Return raw stdout content
   } catch (error: any) {
@@ -189,25 +188,25 @@ export async function gitShowLogic(
       const target = input.filePath
         ? `${input.ref}:${input.filePath}`
         : input.ref;
-      return {
-        success: false,
-        message: `Failed to show: Reference or pathspec '${target}' not found.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.NOT_FOUND,
+        `Failed to show: Reference or pathspec '${target}' not found. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (/ambiguous argument/i.test(errorMessage)) {
-      return {
-        success: false,
-        message: `Failed to show: Reference '${input.ref}' is ambiguous. Provide a more specific reference.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        `Failed to show: Reference '${input.ref}' is ambiguous. Provide a more specific reference. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
 
-    // Return structured failure for other git errors
-    return {
-      success: false,
-      message: `Git show failed for path: ${targetPath}, ref: ${input.ref}.`,
-      error: errorMessage,
-    };
+    // Throw a generic McpError for other failures
+    throw new McpError(
+      BaseErrorCode.INTERNAL_ERROR,
+      `Git show failed for path: ${targetPath}, ref: ${input.ref}. Error: ${errorMessage}`,
+      { context, operation, originalError: error },
+    );
   }
 }

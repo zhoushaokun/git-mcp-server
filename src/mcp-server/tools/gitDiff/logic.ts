@@ -286,10 +286,11 @@ export async function diffGitChanges(
       message += ` Included ${untrackedFilesCount} untracked file(s).`;
     }
 
-    logger.info(`${operation} completed successfully. ${message}`, {
+    logger.info(message, {
       ...context,
       operation,
       path: targetPath,
+      untrackedFilesProcessed: untrackedFilesCount,
     });
     return {
       success: true,

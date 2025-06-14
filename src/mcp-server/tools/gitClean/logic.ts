@@ -195,7 +195,7 @@ export async function gitCleanLogic(
       ? `Dry run complete. Files that would be removed: ${filesAffected.length}`
       : `Clean operation complete. Files removed: ${filesAffected.length}`;
 
-    logger.info(`${operation} executed successfully`, {
+    logger.info(message, {
       ...context,
       operation,
       path: targetPath,
@@ -225,12 +225,11 @@ export async function gitCleanLogic(
     // Git clean usually doesn't fail with specific messages like others,
     // but returns non-zero exit code on general failure.
 
-    // Return structured failure for other git errors
-    return {
-      success: false,
-      message: `Git clean failed for path: ${targetPath}.`,
-      error: errorMessage,
-      dryRun: input.dryRun, // Still report dryRun status
-    };
+    // Throw a generic McpError for other failures
+    throw new McpError(
+      BaseErrorCode.INTERNAL_ERROR,
+      `Git clean failed for path: ${targetPath}. Error: ${errorMessage}`,
+      { context, operation, originalError: error },
+    );
   }
 }

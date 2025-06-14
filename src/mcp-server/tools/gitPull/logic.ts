@@ -155,63 +155,24 @@ export async function pullGitChanges(
 
     const { stdout, stderr } = await execAsync(command);
 
-    logger.info(`Git pull stdout: ${stdout}`, { ...context, operation });
+    logger.debug(`Git pull stdout: ${stdout}`, { ...context, operation });
     if (stderr) {
-      // Stderr might contain progress or non-error info, log as warning unless it indicates a clear failure handled below
-      logger.warning(`Git pull stderr: ${stderr}`, { ...context, operation });
+      logger.debug(`Git pull stderr: ${stderr}`, { ...context, operation });
     }
 
     // Analyze stdout/stderr to determine the outcome
-    let message = stdout.trim() || stderr.trim(); // Use stdout first, fallback to stderr for message
-    let success = true;
-    let conflict = false;
-    let summary: string | undefined = undefined;
+    const message = stdout.trim() || stderr.trim() || "Pull command executed.";
+    const summary = message;
+    const conflict = message.includes("CONFLICT");
 
-    if (message.includes("Already up to date")) {
-      message = "Already up to date.";
-    } else if (message.includes("Fast-forward")) {
-      message = "Pull successful (fast-forward).";
-      // Try to extract summary
-      const summaryMatch = stdout.match(/(\d+ files? changed.*)/);
-      if (summaryMatch) summary = summaryMatch[1];
-    } else if (
-      message.includes("Merge made by the") ||
-      message.includes("merging")
-    ) {
-      // Covers recursive and octopus
-      message = "Pull successful (merge).";
-      const summaryMatch = stdout.match(/(\d+ files? changed.*)/);
-      if (summaryMatch) summary = summaryMatch[1];
-    } else if (
-      message.includes(
-        "Automatic merge failed; fix conflicts and then commit the result.",
-      )
-    ) {
-      message = "Pull resulted in merge conflicts.";
-      success = false; // Indicate failure due to conflicts
-      conflict = true;
-    } else if (message.includes("fatal:")) {
-      // If a fatal error wasn't caught by the execAsync catch block but is in stdout/stderr
-      success = false;
-      message = `Pull failed: ${message}`;
-      logger.error(`Git pull command indicated failure: ${message}`, {
-        ...context,
-        operation,
-        stdout,
-        stderr,
-      });
-    }
-    // Add more specific checks based on git pull output variations if needed
-
-    logger.info(`${operation} completed`, {
+    logger.info("git pull executed successfully", {
       ...context,
       operation,
       path: targetPath,
-      success,
-      message,
+      summary,
       conflict,
     });
-    return { success, message, summary, conflict };
+    return { success: true, message, summary, conflict };
   } catch (error: any) {
     logger.error(`Failed to execute git pull command`, {
       ...context,
@@ -247,17 +208,11 @@ export async function pullGitChanges(
       errorMessage.includes("fix conflicts")
     ) {
       // This might be caught here if execAsync throws due to non-zero exit code during conflict
-      logger.warning("Pull resulted in merge conflicts (caught as error)", {
-        ...context,
-        operation,
-        path: targetPath,
-        errorMessage,
-      });
-      return {
-        success: false,
-        message: "Pull resulted in merge conflicts.",
-        conflict: true,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Pull resulted in merge conflicts. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (
       errorMessage.includes("You have unstaged changes") ||

@@ -383,14 +383,15 @@ export async function commitGitChanges(
       }
     }
 
-    logger.info(`${operation} executed successfully`, {
+    const successMessage = `Commit successful: ${commitHash}`;
+    logger.info(successMessage, {
       ...context,
       operation,
       path: targetPath,
       commitHash,
-      signed: !commitResult,
+      signed: !commitResult, // Log if it was signed (not fallback)
       committedFilesCount: committedFiles.length,
-    }); // Log if it was signed (not fallback)
+    });
     return {
       success: true,
       statusMessage: finalStatusMsg, // Use potentially modified message
@@ -415,6 +416,18 @@ export async function commitGitChanges(
       throw new McpError(
         BaseErrorCode.NOT_FOUND,
         `Path is not a Git repository: ${targetPath}`,
+        { context, operation, originalError: error },
+      );
+    }
+
+    // Check for pre-commit hook failures before checking for generic conflicts
+    if (
+      errorMessage.toLowerCase().includes("pre-commit hook") ||
+      errorMessage.toLowerCase().includes("hook failed")
+    ) {
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        `Commit failed due to pre-commit hook failure. Details: ${errorMessage}`,
         { context, operation, originalError: error },
       );
     }

@@ -427,9 +427,11 @@ export async function gitWorktreeLogic(
         );
     }
 
-    logger.info(`${operation} executed successfully`, {
+    logger.info(`git worktree ${input.mode} executed successfully`, {
       ...context,
+      operation,
       path: targetPath,
+      result,
     });
     return result;
   } catch (error: any) {
@@ -451,49 +453,45 @@ export async function gitWorktreeLogic(
     }
     // Add more specific error handling based on `git worktree` messages
     if (input.mode === "add" && errorMessage.includes("already exists")) {
-      return {
-        success: false,
-        mode: "add",
-        message: `Failed to add worktree: Path '${input.worktreePath}' already exists or is a worktree.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Failed to add worktree: Path '${input.worktreePath}' already exists or is a worktree. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (input.mode === "add" && errorMessage.includes("is a submodule")) {
-      return {
-        success: false,
-        mode: "add",
-        message: `Failed to add worktree: Path '${input.worktreePath}' is a submodule.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        `Failed to add worktree: Path '${input.worktreePath}' is a submodule. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (
       input.mode === "remove" &&
       errorMessage.includes("cannot remove the current worktree")
     ) {
-      return {
-        success: false,
-        mode: "remove",
-        message: `Failed to remove worktree: Cannot remove the current worktree.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        `Failed to remove worktree: Cannot remove the current worktree. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (
       input.mode === "remove" &&
       errorMessage.includes("has unclean changes")
     ) {
-      return {
-        success: false,
-        mode: "remove",
-        message: `Failed to remove worktree: '${input.worktreePath}' has uncommitted changes. Use force=true to remove.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Failed to remove worktree: '${input.worktreePath}' has uncommitted changes. Use force=true to remove. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
 
-    return {
-      success: false,
-      mode: input.mode,
-      message: `Git worktree ${input.mode} failed for path: ${targetPath}.`,
-      error: errorMessage,
-    };
+    // Throw a generic McpError for other failures
+    throw new McpError(
+      BaseErrorCode.INTERNAL_ERROR,
+      `Git worktree ${input.mode} failed for path: ${targetPath}. Error: ${errorMessage}`,
+      { context, operation, originalError: error },
+    );
   }
 }

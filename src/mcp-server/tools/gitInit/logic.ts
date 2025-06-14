@@ -146,7 +146,8 @@ export async function gitInitLogic(
       });
     }
     if (stdout && !input.quiet) {
-      logger.info(`Git init command produced stdout`, {
+      // Log stdout at debug level for cleaner info logs
+      logger.debug(`Git init command produced stdout`, {
         ...context,
         operation,
         stdout,
@@ -166,16 +167,17 @@ export async function gitInitLogic(
       );
     }
 
-    const successMessage =
-      stdout.trim() || `Initialized empty Git repository in ${targetPath}`;
-    logger.info(`${operation} executed successfully`, {
+    const successMessage = `Successfully initialized Git repository in ${targetPath}`;
+    logger.info(successMessage, {
       ...context,
       operation,
       path: targetPath,
+      bare: input.bare,
+      initialBranch: input.initialBranch || "default",
     });
     return {
       success: true,
-      message: successMessage,
+      message: stdout.trim() || successMessage, // Return stdout to user if available
       path: targetPath,
       gitDirExists: gitDirExists,
     };

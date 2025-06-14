@@ -220,82 +220,14 @@ export async function gitRebaseLogic(
       const { stdout, stderr } = await execAsync(command);
       const output = stdout + stderr;
 
-      // Check for common success messages
-      if (
-        /successfully rebased and updated/i.test(output) ||
-        (input.mode === "abort" && !stderr) ||
-        (input.mode === "skip" && !stderr) ||
-        (input.mode === "continue" && /applying/i.test(stdout))
-      ) {
-        const message =
-          input.mode === "start"
-            ? `Rebase started successfully. Output: ${output.trim()}`
-            : `Rebase ${input.mode} executed successfully. Output: ${output.trim()}`;
-        logger.info(message, { ...context, operation, path: targetPath });
-        return {
-          success: true,
-          mode: input.mode,
-          message,
-          rebaseCompleted: /successfully rebased/.test(output),
-          needsManualAction: false,
-        };
-      }
-
-      // Check for interactive rebase start
-      if (
-        input.mode === "start" &&
-        input.interactive &&
-        /noop/i.test(stderr) &&
-        /hint: use 'git rebase --edit-todo'/i.test(stderr)
-      ) {
-        const message = `Interactive rebase started. Edit the todo list in your editor. Output: ${output.trim()}`;
-        logger.info(message, { ...context, operation, path: targetPath });
-        return {
-          success: true,
-          mode: input.mode,
-          message,
-          rebaseCompleted: false,
-          needsManualAction: true,
-        };
-      }
-      if (
-        input.mode === "start" &&
-        input.interactive &&
-        /applying/i.test(stdout)
-      ) {
-        const message = `Interactive rebase started and processing commits. Output: ${output.trim()}`;
-        logger.info(message, { ...context, operation, path: targetPath });
-        return {
-          success: true,
-          mode: input.mode,
-          message,
-          rebaseCompleted: false,
-          needsManualAction: false,
-        }; // Might complete or hit conflict/edit
-      }
-
-      // Check for conflicts even if exit code is 0 (can happen with --continue sometimes)
-      if (/conflict/i.test(output)) {
-        const message = `Rebase ${input.mode} resulted in conflicts. Resolve conflicts and use 'git rebase --continue'. Output: ${output.trim()}`;
-        logger.warning(message, { ...context, operation, path: targetPath });
-        return {
-          success: true,
-          mode: input.mode,
-          message,
-          rebaseCompleted: false,
-          needsManualAction: true,
-        };
-      }
-
-      // Default success message if no specific pattern matched but no error thrown
-      const defaultMessage = `Rebase ${input.mode} command finished. Output: ${output.trim()}`;
-      logger.info(defaultMessage, { ...context, operation, path: targetPath });
+      const message = `Rebase ${input.mode} executed successfully. Output: ${output.trim()}`;
+      logger.info(message, { ...context, operation, path: targetPath });
       return {
         success: true,
         mode: input.mode,
-        message: defaultMessage,
-        rebaseCompleted: !/applying|stopped/i.test(output),
-        needsManualAction: /stopped at|edit/.test(output),
+        message,
+        rebaseCompleted: /successfully rebased/.test(output),
+        needsManualAction: /conflict|stopped at|edit/i.test(output),
       };
     } catch (rebaseError: any) {
       const errorMessage =
@@ -311,53 +243,46 @@ export async function gitRebaseLogic(
 
       // Handle specific error cases
       if (/conflict/i.test(errorMessage)) {
-        return {
-          success: false,
-          mode: input.mode,
-          message: `Rebase ${input.mode} failed due to conflicts. Resolve conflicts and use 'git rebase --continue'.`,
-          error: errorMessage,
-          conflicts: true,
-        };
+        throw new McpError(
+          BaseErrorCode.CONFLICT,
+          `Rebase ${input.mode} failed due to conflicts. Resolve conflicts and use 'git rebase --continue'. Error: ${errorMessage}`,
+          { context, operation, originalError: rebaseError },
+        );
       }
       if (/no rebase in progress/i.test(errorMessage)) {
-        return {
-          success: false,
-          mode: input.mode,
-          message: `Failed to ${input.mode} rebase: No rebase is currently in progress.`,
-          error: errorMessage,
-        };
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          `Failed to ${input.mode} rebase: No rebase is currently in progress. Error: ${errorMessage}`,
+          { context, operation, originalError: rebaseError },
+        );
       }
       if (/cannot rebase onto multiple branches/i.test(errorMessage)) {
-        return {
-          success: false,
-          mode: "start",
-          message: `Failed to start rebase: Cannot rebase onto multiple branches. Check your 'upstream' parameter.`,
-          error: errorMessage,
-        };
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          `Failed to start rebase: Cannot rebase onto multiple branches. Check your 'upstream' parameter. Error: ${errorMessage}`,
+          { context, operation, originalError: rebaseError },
+        );
       }
       if (/does not point to a valid commit/i.test(errorMessage)) {
-        return {
-          success: false,
-          mode: "start",
-          message: `Failed to start rebase: Invalid upstream, branch, or onto reference provided.`,
-          error: errorMessage,
-        };
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          `Failed to start rebase: Invalid upstream, branch, or onto reference provided. Error: ${errorMessage}`,
+          { context, operation, originalError: rebaseError },
+        );
       }
       if (/your local changes would be overwritten/i.test(errorMessage)) {
-        return {
-          success: false,
-          mode: input.mode,
-          message: `Failed to ${input.mode} rebase: Your local changes to tracked files would be overwritten. Please commit or stash them.`,
-          error: errorMessage,
-        };
+        throw new McpError(
+          BaseErrorCode.CONFLICT,
+          `Failed to ${input.mode} rebase: Your local changes to tracked files would be overwritten. Please commit or stash them. Error: ${errorMessage}`,
+          { context, operation, originalError: rebaseError },
+        );
       }
       if (/interactive rebase already started/i.test(errorMessage)) {
-        return {
-          success: false,
-          mode: "start",
-          message: `Failed to start rebase: An interactive rebase is already in progress. Use 'continue', 'abort', or 'skip'.`,
-          error: errorMessage,
-        };
+        throw new McpError(
+          BaseErrorCode.CONFLICT,
+          `Failed to start rebase: An interactive rebase is already in progress. Use 'continue', 'abort', or 'skip'. Error: ${errorMessage}`,
+          { context, operation, originalError: rebaseError },
+        );
       }
 
       // Throw McpError for critical issues like non-existent repo
@@ -369,13 +294,12 @@ export async function gitRebaseLogic(
         );
       }
 
-      // Return structured failure for other git errors
-      return {
-        success: false,
-        mode: input.mode,
-        message: `Git rebase ${input.mode} failed for path: ${targetPath}.`,
-        error: errorMessage,
-      };
+      // Throw a generic McpError for other failures
+      throw new McpError(
+        BaseErrorCode.INTERNAL_ERROR,
+        `Git rebase ${input.mode} failed for path: ${targetPath}. Error: ${errorMessage}`,
+        { context, operation, originalError: rebaseError },
+      );
     }
   } catch (error: any) {
     // Catch errors from path resolution or unexpected issues before command execution

@@ -371,10 +371,11 @@ export async function gitBranchLogic(
         );
     }
 
-    logger.info(`${operation} executed successfully`, {
+    logger.info(`git branch ${input.mode} executed successfully`, {
       ...context,
       operation,
       path: targetPath,
+      result,
     });
     return result;
   } catch (error: any) {
@@ -437,12 +438,11 @@ export async function gitBranchLogic(
       };
     }
 
-    // Return structured failure for other git errors
-    return {
-      success: false,
-      mode: input.mode,
-      message: `Git branch ${input.mode} failed for path: ${targetPath}.`,
-      error: errorMessage,
-    };
+    // Throw a generic McpError for other failures
+    throw new McpError(
+      BaseErrorCode.INTERNAL_ERROR,
+      `Git branch ${input.mode} failed for path: ${targetPath}. Error: ${errorMessage}`,
+      { context, operation, originalError: error },
+    );
   }
 }

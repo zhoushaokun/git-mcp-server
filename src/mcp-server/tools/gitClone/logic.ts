@@ -206,7 +206,7 @@ export async function gitCloneLogic(
     }
 
     const successMessage = `Repository cloned successfully into ${sanitizedTargetPath}`;
-    logger.info(`${operation} executed successfully`, {
+    logger.info(successMessage, {
       ...context,
       operation,
       path: sanitizedTargetPath,

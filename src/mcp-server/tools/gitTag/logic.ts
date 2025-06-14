@@ -259,10 +259,11 @@ export async function gitTagLogic(
         );
     }
 
-    logger.info(`${operation} executed successfully`, {
+    logger.info(`git tag ${input.mode} executed successfully`, {
       ...context,
       operation,
       path: targetPath,
+      result,
     });
     return result;
   } catch (error: any) {
@@ -288,23 +289,21 @@ export async function gitTagLogic(
       input.mode === "create" &&
       errorMessage.toLowerCase().includes("already exists")
     ) {
-      return {
-        success: false,
-        mode: "create",
-        message: `Failed to create tag: Tag '${input.tagName}' already exists.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.CONFLICT,
+        `Failed to create tag: Tag '${input.tagName}' already exists. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (
       input.mode === "delete" &&
       errorMessage.toLowerCase().includes("not found")
     ) {
-      return {
-        success: false,
-        mode: "delete",
-        message: `Failed to delete tag: Tag '${input.tagName}' not found.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.NOT_FOUND,
+        `Failed to delete tag: Tag '${input.tagName}' not found. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
     if (
       input.mode === "create" &&
@@ -313,20 +312,18 @@ export async function gitTagLogic(
         .toLowerCase()
         .includes("unknown revision or path not in the working tree")
     ) {
-      return {
-        success: false,
-        mode: "create",
-        message: `Failed to create tag: Commit reference '${input.commitRef}' not found.`,
-        error: errorMessage,
-      };
+      throw new McpError(
+        BaseErrorCode.NOT_FOUND,
+        `Failed to create tag: Commit reference '${input.commitRef}' not found. Error: ${errorMessage}`,
+        { context, operation, originalError: error },
+      );
     }
 
-    // Return structured failure for other git errors
-    return {
-      success: false,
-      mode: input.mode,
-      message: `Git tag ${input.mode} failed for path: ${targetPath}.`,
-      error: errorMessage,
-    };
+    // Throw a generic McpError for other failures
+    throw new McpError(
+      BaseErrorCode.INTERNAL_ERROR,
+      `Git tag ${input.mode} failed for path: ${targetPath}. Error: ${errorMessage}`,
+      { context, operation, originalError: error },
+    );
   }
 }
