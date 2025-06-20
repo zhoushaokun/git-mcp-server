@@ -29,10 +29,9 @@ This server equips your AI with a comprehensive suite of tools to interact with 
 
 ## Table of Contents
 
-| [Overview](#overview)           | [Features](#features)                   | [Installation](#installation) |
-| :------------------------------ | :-------------------------------------- | :---------------------------- | ------------------- |
+| [Overview](#overview) | [Features](#features) | [Installation](#installation) |
 | [Configuration](#configuration) | [Project Structure](#project-structure) |
-| [Tools](#tools)                 | [Resources](#resources)                 | [Development](#development)   | [License](#license) |
+| [Tools](#tools) | [Resources](#resources) | [Development](#development) | [License](#license) |
 
 ## Overview
 
