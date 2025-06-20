@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.1.3 - 2025-06-20
+
+### Changed
+
+- (docs) Updated `README.md` to improve clarity, add a core capabilities table, and reflect new dependency versions.
+- (docs) Updated `README.md` installation instructions to recommend `npx` for easier setup.
+
+### Dependencies
+
+- Updated the following dependencies:
+  - `@modelcontextprotocol/inspector` to `^0.14.3`
+  - `@modelcontextprotocol/sdk` to `^1.13.0`
+  - `@types/jsonwebtoken` to `^9.0.10`
+  - `@types/node` to `^24.0.3`
+  - `@types/validator` to `^13.15.2`
+  - `openai` to `^5.6.0`
+  - `zod` to `^3.25.67`
+
 ## v2.1.2 - 2025-06-14
 
 ### Fixed
