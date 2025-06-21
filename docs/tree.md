@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-06-14 17:17:48
+Generated on: 2025-06-20 23:05:34
 
 
 ```
@@ -118,8 +118,18 @@ git-mcp-server
     │   │   │   ├── logic.ts
     │   │   │   └── registration.ts
     │   ├── transports
-    │   │   ├── authentication
-    │   │   │   └── authMiddleware.ts
+    │   │   ├── auth
+    │   │   │   ├── core
+    │   │   │   │   ├── authContext.ts
+    │   │   │   │   ├── authTypes.ts
+    │   │   │   │   └── authUtils.ts
+    │   │   │   ├── strategies
+    │   │   │   │   ├── jwt
+    │   │   │   │   │   └── jwtMiddleware.ts
+    │   │   │   │   └── oauth
+    │   │   │   │   │   └── oauthMiddleware.ts
+    │   │   │   └── index.ts
+    │   │   ├── httpErrorHandler.ts
     │   │   ├── httpTransport.ts
     │   │   └── stdioTransport.ts
     │   └── server.ts

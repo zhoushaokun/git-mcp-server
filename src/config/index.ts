@@ -43,14 +43,22 @@ export const config = {
   mcpAllowedOrigins: process.env.MCP_ALLOWED_ORIGINS?.split(",") || [],
   /** Flag to enable GPG signing for commits made by the git_commit tool. Requires server-side GPG setup. */
   gitSignCommits: process.env.GIT_SIGN_COMMITS === "true",
+  /** The authentication mode ('jwt', 'oauth', or 'none'). Defaults to 'none'. */
+  mcpAuthMode: process.env.MCP_AUTH_MODE || "none",
+  /** Secret key for signing/verifying JWTs. Required if mcpAuthMode is 'jwt'. */
+  mcpAuthSecretKey: process.env.MCP_AUTH_SECRET_KEY,
+  /** The OIDC issuer URL for OAuth token validation. Required if mcpAuthMode is 'oauth'. */
+  oauthIssuerUrl: process.env.OAUTH_ISSUER_URL,
+  /** The audience claim for OAuth token validation. Required if mcpAuthMode is 'oauth'. */
+  oauthAudience: process.env.OAUTH_AUDIENCE,
+  /** The JWKS URI for fetching public keys for OAuth. Optional, can be derived from issuer URL. */
+  oauthJwksUri: process.env.OAUTH_JWKS_URI,
   /** Security-related configurations. */
   security: {
     // Placeholder for security settings
     // Example: authRequired: process.env.AUTH_REQUIRED === 'true'
     /** Indicates if authentication is required for server operations. */
     authRequired: false,
-    /** Secret key for signing/verifying authentication tokens (required if authRequired is true). */
-    mcpAuthSecretKey: process.env.MCP_AUTH_SECRET_KEY || "", // Default to empty string, validation should happen elsewhere
   },
   // Note: mcpClient configuration is now loaded separately from mcp-config.json
 };

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.1.4 - 2025-06-20
+
+### Changed
+
+- **HTTP Transport Layer**: Migrated the entire HTTP transport from Express to Hono for improved performance and a more modern API. This includes new middleware for CORS, rate limiting, and error handling.
+- **Authentication Architecture**: Refactored the authentication system into a modular, strategy-based architecture.
+  - Supports both JWT and OAuth 2.1 bearer token validation.
+  - Configuration is managed via `MCP_AUTH_MODE` environment variable.
+  - Uses `AsyncLocalStorage` for safer, context-aware access to authentication info.
+- **Session Management**: Simplified session state management by centralizing the working directory logic within the main server instance, removing transport-specific state handlers.
+
 ## v2.1.3 - 2025-06-20
 
 ### Changed

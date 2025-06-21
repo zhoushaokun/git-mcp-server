@@ -123,17 +123,9 @@ import {
   registerGitWrapupInstructionsTool,
 } from "./tools/gitWrapupInstructions/index.js";
 
-// Import transport setup functions AND state accessors
-import {
-  getHttpSessionWorkingDirectory,
-  setHttpSessionWorkingDirectory,
-  startHttpTransport,
-} from "./transports/httpTransport.js";
-import {
-  connectStdioTransport,
-  getStdioWorkingDirectory,
-  setStdioWorkingDirectory,
-} from "./transports/stdioTransport.js";
+// Import transport setup functions
+import { startHttpTransport } from "./transports/httpTransport.js";
+import { connectStdioTransport } from "./transports/stdioTransport.js";
 
 /**
  * Creates and configures a new instance of the McpServer.
@@ -168,7 +160,9 @@ import {
  */
 // Removed sessionId parameter, it will be retrieved from context within tool handlers
 async function createMcpServerInstance(): Promise<McpServer> {
-  const context = { operation: "createMcpServerInstance" };
+  const context = requestContextService.createRequestContext({
+    operation: "createMcpServerInstance",
+  });
   logger.info("Initializing MCP server instance", context);
 
   // Configure the request context service (used for correlating logs/errors).
@@ -204,6 +198,10 @@ async function createMcpServerInstance(): Promise<McpServer> {
     }, // Declared capabilities
   );
 
+  // Each server instance is isolated per session. This variable will hold the
+  // working directory for the duration of this session.
+  let sessionWorkingDirectory: string | undefined = undefined;
+
   // --- Define Unified State Accessor Functions ---
   // These functions abstract away the transport type to get/set session state.
 
@@ -215,44 +213,27 @@ async function createMcpServerInstance(): Promise<McpServer> {
     return (toolContext as RequestContext)?.sessionId;
   };
 
-  /** Gets the working directory based on transport type and session ID. */
+  /** Gets the working directory for the current session. */
   const getWorkingDirectory = (
     sessionId: string | undefined,
   ): string | undefined => {
-    if (config.mcpTransportType === "http") {
-      if (!sessionId) {
-        logger.warning(
-          "Attempted to get HTTP working directory without session ID",
-          { ...context, caller: "getWorkingDirectory" },
-        );
-        return undefined;
-      }
-      return getHttpSessionWorkingDirectory(sessionId);
-    } else {
-      // For stdio, there's only one implicit session, ID is not needed.
-      return getStdioWorkingDirectory();
-    }
+    // The working directory is now stored in a variable scoped to this server instance.
+    // The sessionId is kept for potential logging or more complex future state management.
+    return sessionWorkingDirectory;
   };
 
-  /** Sets the working directory based on transport type and session ID. */
+  /** Sets the working directory for the current session. */
   const setWorkingDirectory = (
     sessionId: string | undefined,
     dir: string,
   ): void => {
-    if (config.mcpTransportType === "http") {
-      if (!sessionId) {
-        logger.error(
-          "Attempted to set HTTP working directory without session ID",
-          { ...context, caller: "setWorkingDirectory", dir },
-        );
-        // Optionally throw an error or just log
-        return;
-      }
-      setHttpSessionWorkingDirectory(sessionId, dir);
-    } else {
-      // For stdio, set the single session's directory.
-      setStdioWorkingDirectory(dir);
-    }
+    // The working directory is now stored in a variable scoped to this server instance.
+    logger.debug("Setting session working directory", {
+      ...context,
+      sessionId,
+      newDirectory: dir,
+    });
+    sessionWorkingDirectory = dir;
   };
 
   // --- Initialize Tool State Accessors BEFORE Registration ---
@@ -437,7 +418,10 @@ async function createMcpServerInstance(): Promise<McpServer> {
 async function startTransport(): Promise<McpServer | void> {
   // Determine the transport type from the validated configuration.
   const transportType = config.mcpTransportType;
-  const context = { operation: "startTransport", transport: transportType };
+  const context = requestContextService.createRequestContext({
+    operation: "startTransport",
+    transport: transportType,
+  });
   logger.info(`Starting transport: ${transportType}`, context);
 
   // --- HTTP Transport Setup ---
@@ -489,7 +473,9 @@ async function startTransport(): Promise<McpServer | void> {
  * @returns {Promise<void | McpServer>} Resolves upon successful startup (void for http, McpServer for stdio). Rejects on critical failure.
  */
 export async function initializeAndStartServer(): Promise<void | McpServer> {
-  const context = { operation: "initializeAndStartServer" };
+  const context = requestContextService.createRequestContext({
+    operation: "initializeAndStartServer",
+  });
   logger.info("MCP Server initialization sequence started.", context);
   try {
     // Initiate the transport setup based on configuration.
@@ -507,7 +493,11 @@ export async function initializeAndStartServer(): Promise<void | McpServer> {
       stack: err instanceof Error ? err.stack : undefined,
     });
     // Use the centralized error handler for consistent critical error reporting.
-    ErrorHandler.handleError(err, { ...context, critical: true });
+    ErrorHandler.handleError(err, {
+      ...context,
+      operation: "initializeAndStartServer_Catch",
+      critical: true,
+    });
     // Exit the process with a non-zero code to indicate failure.
     logger.info(
       "Exiting process due to critical initialization error.",

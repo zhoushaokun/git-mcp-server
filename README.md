@@ -2,7 +2,7 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.13.0-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.1.3-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-2.1.4-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/git-mcp-server/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/git-mcp-server?style=social)](https://github.com/cyanheads/git-mcp-server)
@@ -60,7 +60,7 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 - **Input Validation/Sanitization**: Uses `zod` for schema validation and custom sanitization logic (crucial for paths).
 - **Request Context**: Tracking and correlation of operations via unique request IDs using `AsyncLocalStorage`.
 - **Type Safety**: Strong typing enforced by TypeScript and Zod schemas.
-- **HTTP Transport**: High-performance HTTP server using **Hono**, featuring session management with garbage collection, CORS, and IP-based rate limiting.
+- **HTTP Transport**: High-performance HTTP server using **Hono**, featuring session management, CORS, and authentication support.
 - **Deployment**: Multi-stage `Dockerfile` for creating small, secure production images with native dependency support.
 
 ### Git Integration
@@ -99,7 +99,7 @@ Add the following to your MCP client's configuration file (e.g., `cline_mcp_sett
 }
 ```
 
-### If running manually (not via MCP client for development or testing)
+### If running manually (not via MCP client) for development or testing
 
 #### Install via npm
 
@@ -142,7 +142,10 @@ Configure the server using environment variables. These environmental variables 
 | `MCP_ALLOWED_ORIGINS` | Comma-separated list of allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).                                                      | (none)      |
 | `MCP_LOG_LEVEL`       | Logging level (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`). Inherited from template.                     | `info`      |
 | `GIT_SIGN_COMMITS`    | Set to `"true"` to enable signing attempts for commits made by the `git_commit` tool. Requires server-side Git/key setup (see below). | `false`     |
-| `MCP_AUTH_SECRET_KEY` | Secret key for signing/verifying authentication tokens (required if auth is enabled in the future).                                   | `''`        |
+| `MCP_AUTH_MODE`       | Authentication mode: `jwt`, `oauth`, or `none`.                                                                                       | `none`      |
+| `MCP_AUTH_SECRET_KEY` | Secret key for JWT validation (if `MCP_AUTH_MODE=jwt`).                                                                               | `''`        |
+| `OAUTH_ISSUER_URL`    | OIDC issuer URL for OAuth validation (if `MCP_AUTH_MODE=oauth`).                                                                      | `''`        |
+| `OAUTH_AUDIENCE`      | Audience claim for OAuth validation (if `MCP_AUTH_MODE=oauth`).                                                                       | `''`        |
 
 ## Project Structure
 
@@ -200,7 +203,7 @@ _Note: The `path` parameter for most tools defaults to the session's working dir
 
 ## Resources
 
-**MCP Resources are not implemented in this version (v2.1.2).**
+**MCP Resources are not implemented in this version (v2.1.4).**
 
 This version focuses on the refactored Git tools implementation based on the latest `mcp-ts-template` and MCP SDK v1.13.0. Resource capabilities, previously available, have been temporarily removed during this major update.
 
