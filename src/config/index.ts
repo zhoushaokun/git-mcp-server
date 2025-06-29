@@ -4,14 +4,15 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 // Removed logger import to break circular dependency
 
-dotenv.config(); // Load environment variables from .env file
+// Suppress dotenv debug output which can interfere with stdio transport
+dotenv.config({ debug: false }); // Load environment variables from .env file
 
 // Determine the directory name of the current module
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Construct the path to package.json relative to the current file
 const pkgPath = join(__dirname, "../../package.json");
 // Default package information in case package.json is unreadable
-let pkg = { name: "obsidian-mcp-server", version: "0.0.0" };
+let pkg = { name: "git-mcp-server-SOMETHINGBROKE", version: "0.0.0" };
 
 try {
   // Read and parse package.json to get server name and version

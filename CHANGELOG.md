@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.1.7 - 2025-06-29
+
+### Changed
+- Suppressed `dotenv` debug output to prevent interference with the stdio transport.
+- Updated the fallback package name in the configuration for better error identification.
+
+
 ## v2.1.6 - 2025-06-29
 
 ### Dependencies
