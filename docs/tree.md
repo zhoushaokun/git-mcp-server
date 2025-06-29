@@ -2,7 +2,6 @@
 
 Generated on: 2025-06-20 23:05:34
 
-
 ```
 git-mcp-server
 ├── docs

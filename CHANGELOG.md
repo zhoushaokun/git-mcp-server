@@ -2,9 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.1.6 - 2025-06-29
+
+### Dependencies
+- Updated the following dependencies:
+  - `@modelcontextprotocol/sdk` to `^1.13.2`
+  - `@types/node` to `^24.0.7`
+  - `dotenv` to `^17.0.0`
+  - `hono` to `^4.8.3`
+  - `openai` to `^5.8.2`
+  - `winston-transport` to `^4.9.0`
+- Updated the following devDependencies:
+  - `prettier` to `^3.6.2`
+  - `typedoc` to `^0.28.6`
+
+### Changed
+- Minor formatting changes across several files.
+
 ## v2.1.5 - 2025-06-29
 
 ### Security
+
 - Patched a command injection vulnerability where unsanitized user input could be passed to `child_process.exec`. All `exec` calls have been replaced with the safer `execFile` method, which treats arguments as distinct values rather than executable script parts. Thank you to [@dellalibera](https://github.com/dellalibera) for the disclosure. For more details, see the security advisory: [GHSA-3q26-f695-pp76](https://github.com/cyanheads/git-mcp-server/security/advisories/GHSA-3q26-f695-pp76).
 
 ## v2.1.4 - 2025-06-20

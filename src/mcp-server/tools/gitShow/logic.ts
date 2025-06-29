@@ -136,7 +136,9 @@ export async function gitShowLogic(
 
   try {
     // Construct the refspec, combining ref and filePath if needed
-    const refSpec = input.filePath ? `${input.ref}:${input.filePath}` : input.ref;
+    const refSpec = input.filePath
+      ? `${input.ref}:${input.filePath}`
+      : input.ref;
 
     // Construct the command
     const args = ["-C", targetPath, "show", refSpec];

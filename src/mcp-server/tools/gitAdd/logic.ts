@@ -107,9 +107,7 @@ export async function addGitFiles(
     );
   }
 
-  const filesToStage = Array.isArray(input.files)
-    ? input.files
-    : [input.files];
+  const filesToStage = Array.isArray(input.files) ? input.files : [input.files];
   if (filesToStage.length === 0) {
     filesToStage.push("."); // Default to staging all if array is empty
   }

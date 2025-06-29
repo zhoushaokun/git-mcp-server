@@ -285,7 +285,13 @@ export async function getGitStatus(
     // This handles the case of an empty repo after init but before first commit
     if (structuredResult.is_clean && !structuredResult.current_branch) {
       try {
-        const branchArgs = ["-C", targetPath, "rev-parse", "--abbrev-ref", "HEAD"];
+        const branchArgs = [
+          "-C",
+          targetPath,
+          "rev-parse",
+          "--abbrev-ref",
+          "HEAD",
+        ];
         const { stdout: branchStdout } = await execFileAsync("git", branchArgs);
         const currentBranchName = branchStdout.trim(); // Renamed variable for clarity
         if (currentBranchName && currentBranchName !== "HEAD") {
