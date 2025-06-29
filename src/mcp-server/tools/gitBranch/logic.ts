@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the BASE input schema for the git_branch tool using Zod
 export const GitBranchBaseSchema = z.object({
@@ -221,22 +221,24 @@ export async function gitBranchLogic(
   }
 
   try {
-    let command: string;
+    let args: string[];
     let result: GitBranchResult;
 
     switch (input.mode) {
       case "list":
-        command = `git -C "${targetPath}" branch --list --no-color`; // Start with basic list
-        if (input.all)
-          command += " -a"; // Add -a if requested
-        else if (input.remote) command += " -r"; // Add -r if requested (exclusive with -a)
-        command += " --verbose"; // Add verbose for commit info
+        args = ["-C", targetPath, "branch", "--list", "--no-color"]; // Start with basic list
+        if (input.all) {
+          args.push("-a"); // Add -a if requested
+        } else if (input.remote) {
+          args.push("-r"); // Add -r if requested (exclusive with -a)
+        }
+        args.push("--verbose"); // Add verbose for commit info
 
-        logger.debug(`Executing command: ${command}`, {
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        const { stdout: listStdout } = await execAsync(command);
+        const { stdout: listStdout } = await execFileAsync("git", args);
 
         const branches: BranchInfo[] = listStdout
           .trim()
@@ -269,16 +271,20 @@ export async function gitBranchLogic(
 
       case "create":
         // branchName is validated by Zod refine
-        command = `git -C "${targetPath}" branch `;
-        if (input.force) command += "-f ";
-        command += `"${input.branchName!}"`; // branchName is guaranteed by refine
-        if (input.startPoint) command += ` "${input.startPoint}"`;
+        args = ["-C", targetPath, "branch"];
+        if (input.force) {
+          args.push("-f");
+        }
+        args.push(input.branchName!); // branchName is guaranteed by refine
+        if (input.startPoint) {
+          args.push(input.startPoint);
+        }
 
-        logger.debug(`Executing command: ${command}`, {
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        await execAsync(command);
+        await execFileAsync("git", args);
         result = {
           success: true,
           mode: "create",
@@ -289,16 +295,18 @@ export async function gitBranchLogic(
 
       case "delete":
         // branchName is validated by Zod refine
-        command = `git -C "${targetPath}" branch `;
-        if (input.remote) command += "-r ";
-        command += input.force ? "-D " : "-d ";
-        command += `"${input.branchName!}"`; // branchName is guaranteed by refine
+        args = ["-C", targetPath, "branch"];
+        if (input.remote) {
+          args.push("-r");
+        }
+        args.push(input.force ? "-D" : "-d");
+        args.push(input.branchName!); // branchName is guaranteed by refine
 
-        logger.debug(`Executing command: ${command}`, {
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        const { stdout: deleteStdout } = await execAsync(command);
+        const { stdout: deleteStdout } = await execFileAsync("git", args);
         result = {
           success: true,
           mode: "delete",
@@ -312,15 +320,15 @@ export async function gitBranchLogic(
 
       case "rename":
         // branchName and newBranchName validated by Zod refine
-        command = `git -C "${targetPath}" branch `;
-        command += input.force ? "-M " : "-m ";
-        command += `"${input.branchName!}" "${input.newBranchName!}"`;
+        args = ["-C", targetPath, "branch"];
+        args.push(input.force ? "-M" : "-m");
+        args.push(input.branchName!, input.newBranchName!);
 
-        logger.debug(`Executing command: ${command}`, {
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        await execAsync(command);
+        await execFileAsync("git", args);
         result = {
           success: true,
           mode: "rename",
@@ -331,13 +339,13 @@ export async function gitBranchLogic(
         break;
 
       case "show-current":
-        command = `git -C "${targetPath}" branch --show-current`;
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "branch", "--show-current"];
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
         try {
-          const { stdout: currentStdout } = await execAsync(command);
+          const { stdout: currentStdout } = await execFileAsync("git", args);
           const currentBranchName = currentStdout.trim();
           result = {
             success: true,

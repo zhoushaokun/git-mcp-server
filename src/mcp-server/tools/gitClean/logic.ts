@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_clean tool using Zod
 // No refinements needed here, but the 'force' check is critical in the logic
@@ -155,20 +155,23 @@ export async function gitCleanLogic(
   try {
     // Construct the command
     // Force (-f) is always added because the logic checks input.force
-    let command = `git -C "${targetPath}" clean -f`;
+    const args = ["-C", targetPath, "clean", "-f"];
     if (input.dryRun) {
-      command += " -n";
+      args.push("-n");
     }
     if (input.directories) {
-      command += " -d";
+      args.push("-d");
     }
     if (input.ignored) {
-      command += " -x";
+      args.push("-x");
     }
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execFileAsync("git", args);
 
     if (stderr) {
       // Log stderr as warning, as git clean might report non-fatal issues here

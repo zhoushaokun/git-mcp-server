@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js"; // Keep direct import for types-global
@@ -11,7 +11,7 @@ import { sanitization } from "../../../utils/index.js";
 // Import config to check signing flag
 import { config } from "../../../config/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_commit tool using Zod
 export const GitCommitInputSchema = z.object({
@@ -157,15 +157,12 @@ export async function commitGitChanges(
             sanitization.sanitizePath(file, { rootDir: targetPath })
               .sanitizedPath,
         ); // Sanitize relative to repo root
-        const filesToAddString = sanitizedFiles
-          .map((file) => `"${file}"`)
-          .join(" "); // Quote paths for safety
-        const addCommand = `git -C "${targetPath}" add -- ${filesToAddString}`;
-        logger.debug(`Executing git add command: ${addCommand}`, {
+        const addArgs = ["-C", targetPath, "add", "--", ...sanitizedFiles];
+        logger.debug(`Executing git add command: git ${addArgs.join(" ")}`, {
           ...context,
           operation,
         });
-        await execAsync(addCommand);
+        await execFileAsync("git", addArgs);
         logger.info(
           `Successfully staged specified files: ${sanitizedFiles.join(", ")}`,
           { ...context, operation },
@@ -187,49 +184,37 @@ export async function commitGitChanges(
     }
     // --- End staging files ---
 
-    // Escape message for shell safety
-    const escapeShellArg = (arg: string): string => {
-      // Escape backslashes first, then other special chars
-      return arg
-        .replace(/\\/g, "\\\\")
-        .replace(/"/g, '\\"')
-        .replace(/`/g, "\\`")
-        .replace(/\$/g, "\\$");
-    };
-    const escapedMessage = escapeShellArg(input.message);
-
     // Construct the git commit command using the resolved targetPath
-    let command = `git -C "${targetPath}" commit -m "${escapedMessage}"`;
+    const args = ["-C", targetPath];
+
+    if (input.author) {
+      args.push(
+        "-c",
+        `user.name=${input.author.name}`,
+        "-c",
+        `user.email=${input.author.email}`,
+      );
+    }
+
+    args.push("commit", "-m", input.message);
 
     if (input.allowEmpty) {
-      command += " --allow-empty";
+      args.push("--allow-empty");
     }
     if (input.amend) {
-      command += " --amend --no-edit";
+      args.push("--amend", "--no-edit");
     }
-    if (input.author) {
-      // Escape author details as well
-      const escapedAuthorName = escapeShellArg(input.author.name);
-      const escapedAuthorEmail = escapeShellArg(input.author.email); // Email typically safe, but escape anyway
-      // Use -c flags to override author for this commit, using the already escaped message
-      command = `git -C "${targetPath}" -c user.name="${escapedAuthorName}" -c user.email="${escapedAuthorEmail}" commit -m "${escapedMessage}"`;
-    }
-    // Append common flags (ensure they are appended to the potentially modified command from author block)
-    if (input.allowEmpty && !command.includes(" --allow-empty"))
-      command += " --allow-empty";
-    if (input.amend && !command.includes(" --amend"))
-      command += " --amend --no-edit"; // Avoid double adding if author block modified command
 
     // Append signing flag if configured via GIT_SIGN_COMMITS env var
     if (config.gitSignCommits) {
-      command += " -S"; // Add signing flag (-S)
+      args.push("-S"); // Add signing flag (-S)
       logger.info(
         "Signing enabled via GIT_SIGN_COMMITS=true, adding -S flag.",
         { ...context, operation },
       );
     }
 
-    logger.debug(`Executing initial command attempt: ${command}`, {
+    logger.debug(`Executing initial command attempt: git ${args.join(" ")}`, {
       ...context,
       operation,
     });
@@ -240,7 +225,7 @@ export async function commitGitChanges(
 
     try {
       // Initial attempt (potentially with -S flag)
-      const execResult = await execAsync(command);
+      const execResult = await execFileAsync("git", args);
       stdout = execResult.stdout;
       stderr = execResult.stderr;
     } catch (error: any) {
@@ -255,38 +240,17 @@ export async function commitGitChanges(
           { ...context, operation, initialError: initialErrorMessage },
         );
 
-        // Construct command *without* -S flag, using escaped message/author
-        const escapeShellArg = (arg: string): string => {
-          return arg
-            .replace(/\\/g, "\\\\")
-            .replace(/"/g, '\\"')
-            .replace(/`/g, "\\`")
-            .replace(/\$/g, "\\$");
-        };
-        const escapedMessage = escapeShellArg(input.message);
-        let unsignedCommand = `git -C "${targetPath}" commit -m "${escapedMessage}"`;
-
-        if (input.allowEmpty) unsignedCommand += " --allow-empty";
-        if (input.amend) unsignedCommand += " --amend --no-edit";
-        if (input.author) {
-          const escapedAuthorName = escapeShellArg(input.author.name);
-          const escapedAuthorEmail = escapeShellArg(input.author.email);
-          unsignedCommand = `git -C "${targetPath}" -c user.name="${escapedAuthorName}" -c user.email="${escapedAuthorEmail}" commit -m "${escapedMessage}"`;
-          // Re-append common flags if author block overwrote command
-          if (input.allowEmpty && !unsignedCommand.includes(" --allow-empty"))
-            unsignedCommand += " --allow-empty";
-          if (input.amend && !unsignedCommand.includes(" --amend"))
-            unsignedCommand += " --amend --no-edit";
-        }
+        // Construct command *without* -S flag
+        const unsignedArgs = args.filter((arg) => arg !== "-S");
 
         logger.debug(
-          `Executing unsigned fallback command: ${unsignedCommand}`,
+          `Executing unsigned fallback command: git ${unsignedArgs.join(" ")}`,
           { ...context, operation },
         );
 
         try {
           // Retry commit without signing
-          const fallbackResult = await execAsync(unsignedCommand);
+          const fallbackResult = await execFileAsync("git", unsignedArgs);
           stdout = fallbackResult.stdout;
           stderr = fallbackResult.stderr;
           // Add a note to the status message indicating signing was skipped
@@ -359,12 +323,19 @@ export async function commitGitChanges(
     if (commitHash) {
       try {
         // Get the list of files included in this specific commit
-        const showCommand = `git -C "${targetPath}" show --pretty="" --name-only ${commitHash}`;
-        logger.debug(`Executing git show command: ${showCommand}`, {
+        const showArgs = [
+          "-C",
+          targetPath,
+          "show",
+          "--pretty=",
+          "--name-only",
+          commitHash,
+        ];
+        logger.debug(`Executing git show command: git ${showArgs.join(" ")}`, {
           ...context,
           operation,
         });
-        const { stdout: showStdout } = await execAsync(showCommand);
+        const { stdout: showStdout } = await execFileAsync("git", showArgs);
         committedFiles = showStdout.trim().split("\n").filter(Boolean); // Split by newline, remove empty lines
         logger.debug(`Retrieved committed files list for ${commitHash}`, {
           ...context,

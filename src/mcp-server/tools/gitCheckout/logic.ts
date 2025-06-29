@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_checkout tool using Zod
 export const GitCheckoutInputSchema = z.object({
@@ -113,27 +113,26 @@ export async function checkoutGit(
     );
   }
 
-  // Basic sanitization for branch/path argument
-  const safeBranchOrPath = input.branchOrPath.replace(/[`$&;*()|<>]/g, ""); // Remove potentially dangerous characters
-
   try {
     // Construct the git checkout command
-    let command = `git -C "${targetPath}" checkout`;
+    const args = ["-C", targetPath, "checkout"];
 
     if (input.force) {
-      command += " --force";
+      args.push("--force");
     }
     if (input.newBranch) {
-      const safeNewBranch = input.newBranch.replace(/[^a-zA-Z0-9_.\-/]/g, ""); // Sanitize new branch name
-      command += ` -b ${safeNewBranch}`;
+      args.push("-b", input.newBranch);
     }
 
-    command += ` ${safeBranchOrPath}`; // Add the target branch/path
+    args.push(input.branchOrPath); // Add the target branch/path
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
     // Execute command. Checkout often uses stderr for status messages.
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execFileAsync("git", args);
 
     const message = stderr.trim() || stdout.trim();
     logger.debug(`Git checkout stdout: ${stdout}`, { ...context, operation });
@@ -144,9 +143,12 @@ export async function checkoutGit(
     // Get the current branch name after the checkout operation
     let currentBranch: string | undefined;
     try {
-      const { stdout: branchStdout } = await execAsync(
-        `git -C "${targetPath}" branch --show-current`,
-      );
+      const { stdout: branchStdout } = await execFileAsync("git", [
+        "-C",
+        targetPath,
+        "branch",
+        "--show-current",
+      ]);
       currentBranch = branchStdout.trim();
     } catch (e) {
       // This can fail in detached HEAD state, which is not an error for checkout

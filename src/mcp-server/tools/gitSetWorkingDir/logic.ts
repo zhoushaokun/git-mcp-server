@@ -1,11 +1,11 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import fs from "fs/promises";
 import { promisify } from "util";
 import { z } from "zod";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js"; // Direct import for types-global
 import { RequestContext, logger, sanitization } from "../../../utils/index.js"; // RequestContext (./utils/internal/requestContext.js), logger (./utils/internal/logger.js), sanitization (./utils/security/sanitization.js)
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the Zod schema for input validation
 export const GitSetWorkingDirInputSchema = z.object({
@@ -111,9 +111,13 @@ export async function gitSetWorkingDirLogic(
   let initializedRepo = false;
 
   try {
-    const { stdout } = await execAsync("git rev-parse --is-inside-work-tree", {
-      cwd: sanitizedPath,
-    });
+    const { stdout } = await execFileAsync(
+      "git",
+      ["rev-parse", "--is-inside-work-tree"],
+      {
+        cwd: sanitizedPath,
+      },
+    );
     if (stdout.trim() === "true") {
       isGitRepo = true;
       logger.debug("Path is already a Git repository", {
@@ -141,7 +145,9 @@ export async function gitSetWorkingDirLogic(
       { ...context, operation, path: sanitizedPath },
     );
     try {
-      await execAsync("git init --initial-branch=main", { cwd: sanitizedPath });
+      await execFileAsync("git", ["init", "--initial-branch=main"], {
+        cwd: sanitizedPath,
+      });
       initializedRepo = true;
       isGitRepo = true; // Now it is a git repo
       logger.info(

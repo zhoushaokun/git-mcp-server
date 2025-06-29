@@ -1,11 +1,11 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { logger, sanitization } from "../../../utils/index.js";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import { RequestContext } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the BASE input schema for the git_worktree tool using Zod
 export const GitWorktreeBaseSchema = z.object({
@@ -279,18 +279,20 @@ export async function gitWorktreeLogic(
   }
 
   try {
-    let command = `git -C "${targetPath}" worktree `;
+    let args: string[];
     let result: GitWorktreeResult;
 
     switch (input.mode) {
       case "list":
-        command += "list";
-        if (input.verbose) command += " --porcelain"; // Use porcelain for structured output
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "worktree", "list"];
+        if (input.verbose) {
+          args.push("--porcelain");
+        } // Use porcelain for structured output
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        const { stdout: listStdout } = await execAsync(command);
+        const { stdout: listStdout } = await execFileAsync("git", args);
         if (input.verbose) {
           const worktrees = parsePorcelainWorktreeList(listStdout);
           result = { success: true, mode: "list", worktrees };
@@ -320,18 +322,26 @@ export async function gitWorktreeLogic(
           input.worktreePath!,
           { allowAbsolute: true, rootDir: targetPath },
         ).sanitizedPath;
-        command += `add `;
-        if (input.force) command += "--force ";
-        if (input.detach) command += "--detach ";
-        if (input.newBranch) command += `-b "${input.newBranch}" `;
-        command += `"${sanitizedWorktreePathAdd}"`;
-        if (input.commitish) command += ` "${input.commitish}"`;
+        args = ["-C", targetPath, "worktree", "add"];
+        if (input.force) {
+          args.push("--force");
+        }
+        if (input.detach) {
+          args.push("--detach");
+        }
+        if (input.newBranch) {
+          args.push("-b", input.newBranch);
+        }
+        args.push(sanitizedWorktreePathAdd);
+        if (input.commitish) {
+          args.push(input.commitish);
+        }
 
-        logger.debug(`Executing command: ${command}`, {
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        await execAsync(command);
+        await execFileAsync("git", args);
         // To get the HEAD of the new worktree, we might need another command or parse output if available
         // For simplicity, we'll report success. A more robust solution might `git -C new_worktree_path rev-parse HEAD`
         result = {
@@ -350,15 +360,17 @@ export async function gitWorktreeLogic(
           input.worktreePath!,
           { allowAbsolute: true, rootDir: targetPath },
         ).sanitizedPath;
-        command += `remove `;
-        if (input.force) command += "--force ";
-        command += `"${sanitizedWorktreePathRemove}"`;
+        args = ["-C", targetPath, "worktree", "remove"];
+        if (input.force) {
+          args.push("--force");
+        }
+        args.push(sanitizedWorktreePathRemove);
 
-        logger.debug(`Executing command: ${command}`, {
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        const { stdout: removeStdout } = await execAsync(command);
+        const { stdout: removeStdout } = await execFileAsync("git", args);
         result = {
           success: true,
           mode: "remove",
@@ -379,13 +391,20 @@ export async function gitWorktreeLogic(
           allowAbsolute: true,
           rootDir: targetPath,
         }).sanitizedPath;
-        command += `move "${sanitizedOldPathMove}" "${sanitizedNewPathMove}"`;
+        args = [
+          "-C",
+          targetPath,
+          "worktree",
+          "move",
+          sanitizedOldPathMove,
+          sanitizedNewPathMove,
+        ];
 
-        logger.debug(`Executing command: ${command}`, {
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        await execAsync(command);
+        await execFileAsync("git", args);
         result = {
           success: true,
           mode: "move",
@@ -396,17 +415,23 @@ export async function gitWorktreeLogic(
         break;
 
       case "prune":
-        command += "prune ";
-        if (input.dryRun) command += "--dry-run ";
-        if (input.verbose) command += "--verbose ";
-        if (input.expire) command += `--expire "${input.expire}" `;
+        args = ["-C", targetPath, "worktree", "prune"];
+        if (input.dryRun) {
+          args.push("--dry-run");
+        }
+        if (input.verbose) {
+          args.push("--verbose");
+        }
+        if (input.expire) {
+          args.push(`--expire=${input.expire}`);
+        }
 
-        logger.debug(`Executing command: ${command}`, {
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
         const { stdout: pruneStdout, stderr: pruneStderr } =
-          await execAsync(command);
+          await execFileAsync("git", args);
         // Prune often outputs to stderr even on success for verbose/dry-run
         const pruneMessage =
           pruneStdout.trim() ||

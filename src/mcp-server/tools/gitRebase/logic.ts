@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the BASE input schema for the git_rebase tool using Zod
 export const GitRebaseBaseSchema = z.object({
@@ -182,28 +182,38 @@ export async function gitRebaseLogic(
   }
 
   try {
-    let command = `git -C "${targetPath}" rebase`;
+    const args = ["-C", targetPath, "rebase"];
 
     switch (input.mode) {
       case "start":
-        if (input.interactive) command += " -i";
-        if (input.strategy) command += ` --strategy=${input.strategy}`;
-        if (input.strategyOption) command += ` -X${input.strategyOption}`; // Note: -X for strategy options
-        if (input.onto)
-          command += ` --onto "${input.onto.replace(/"/g, '\\"')}"`;
+        if (input.interactive) {
+          args.push("-i");
+        }
+        if (input.strategy) {
+          args.push(`--strategy=${input.strategy}`);
+        }
+        if (input.strategyOption) {
+          args.push(`-X${input.strategyOption}`);
+        } // Note: -X for strategy options
+        if (input.onto) {
+          args.push("--onto", input.onto);
+        }
         // Upstream is required by refine unless interactive
-        if (input.upstream)
-          command += ` "${input.upstream.replace(/"/g, '\\"')}"`;
-        if (input.branch) command += ` "${input.branch.replace(/"/g, '\\"')}"`;
+        if (input.upstream) {
+          args.push(input.upstream);
+        }
+        if (input.branch) {
+          args.push(input.branch);
+        }
         break;
       case "continue":
-        command += " --continue";
+        args.push("--continue");
         break;
       case "abort":
-        command += " --abort";
+        args.push("--abort");
         break;
       case "skip":
-        command += " --skip";
+        args.push("--skip");
         break;
       default:
         // Should not happen due to Zod validation
@@ -214,10 +224,13 @@ export async function gitRebaseLogic(
         );
     }
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
     try {
-      const { stdout, stderr } = await execAsync(command);
+      const { stdout, stderr } = await execFileAsync("git", args);
       const output = stdout + stderr;
 
       const message = `Rebase ${input.mode} executed successfully. Output: ${output.trim()}`;

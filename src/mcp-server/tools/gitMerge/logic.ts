@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -10,7 +10,7 @@ import { RequestContext } from "../../../utils/index.js";
 import path from "path"; // Import path module
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_merge tool
 export const GitMergeInputSchema = z.object({
@@ -150,31 +150,38 @@ export async function gitMergeLogic(
   }
 
   // --- Construct the git merge command ---
-  let command = `git -C "${targetPath}" merge`;
+  const args = ["-C", targetPath, "merge"];
 
   if (input.abort) {
-    command += " --abort";
+    args.push("--abort");
   } else {
     // Standard merge options
-    if (input.noFf) command += " --no-ff";
-    if (input.squash) command += " --squash";
+    if (input.noFf) {
+      args.push("--no-ff");
+    }
+    if (input.squash) {
+      args.push("--squash");
+    }
     if (input.commitMessage && !input.squash) {
       // Commit message only relevant if not squashing (squash requires separate commit)
-      command += ` -m "${input.commitMessage.replace(/"/g, '\\"')}"`;
+      args.push("-m", input.commitMessage);
     } else if (input.squash && input.commitMessage) {
       logger.warning(
         "Commit message provided with --squash, but it will be ignored. Squash requires a separate commit.",
         { ...context, operation },
       );
     }
-    command += ` "${input.branch.replace(/"/g, '\\"')}"`; // Add branch to merge
+    args.push(input.branch); // Add branch to merge
   }
 
-  logger.debug(`Executing command: ${command}`, { ...context, operation });
+  logger.debug(`Executing command: git ${args.join(" ")}`, {
+    ...context,
+    operation,
+  });
 
   // --- Execute and Parse ---
   try {
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execFileAsync("git", args);
     logger.debug(`Command stdout: ${stdout}`, { ...context, operation });
     if (stderr)
       logger.debug(`Command stderr: ${stderr}`, { ...context, operation }); // Log stderr even on success

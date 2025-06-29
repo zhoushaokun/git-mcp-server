@@ -1,10 +1,10 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js"; // Direct import for types-global
 import { logger, RequestContext, sanitization } from "../../../utils/index.js"; // logger (./utils/internal/logger.js), RequestContext (./utils/internal/requestContext.js), sanitization (./utils/security/sanitization.js)
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_show tool using Zod
 // No refinements needed here, so we don't need a separate BaseSchema
@@ -136,17 +136,18 @@ export async function gitShowLogic(
 
   try {
     // Construct the refspec, combining ref and filePath if needed
-    const refSpec = input.filePath
-      ? `${input.ref}:"${input.filePath}"`
-      : `"${input.ref}"`;
+    const refSpec = input.filePath ? `${input.ref}:${input.filePath}` : input.ref;
 
     // Construct the command
-    const command = `git -C "${targetPath}" show ${refSpec}`;
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    const args = ["-C", targetPath, "show", refSpec];
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
     // Execute command. Note: git show might write to stderr for non-error info (like commit details before diff)
     // We primarily care about stdout for the content. Errors usually have non-zero exit code.
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execFileAsync("git", args);
 
     if (stderr) {
       // Log stderr as debug info, as it might contain commit details etc.

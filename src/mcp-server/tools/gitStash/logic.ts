@@ -1,10 +1,10 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js"; // Direct import for types-global
 import { logger, RequestContext, sanitization } from "../../../utils/index.js"; // logger (./utils/internal/logger.js), RequestContext (./utils/internal/requestContext.js), sanitization (./utils/security/sanitization.js)
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the BASE input schema for the git_stash tool using Zod
 export const GitStashBaseSchema = z.object({
@@ -168,17 +168,17 @@ export async function gitStashLogic(
   }
 
   try {
-    let command: string;
+    let args: string[];
     let result: GitStashResult;
 
     switch (input.mode) {
       case "list":
-        command = `git -C "${targetPath}" stash list`;
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "stash", "list"];
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        const { stdout: listStdout } = await execAsync(command);
+        const { stdout: listStdout } = await execFileAsync("git", args);
         const stashes: GitStashListResult["stashes"] = listStdout
           .trim()
           .split("\n")
@@ -203,13 +203,13 @@ export async function gitStashLogic(
       case "pop":
         // stashRef is validated by Zod refine
         const stashRefApplyPop = input.stashRef!;
-        command = `git -C "${targetPath}" stash ${input.mode} ${stashRefApplyPop}`;
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "stash", input.mode, stashRefApplyPop];
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
         try {
-          const { stdout, stderr } = await execAsync(command);
+          const { stdout, stderr } = await execFileAsync("git", args);
           // Check stdout/stderr for conflict messages, although exit code 0 usually means success
           const conflicts =
             /conflict/i.test(stdout) || /conflict/i.test(stderr);
@@ -250,12 +250,12 @@ export async function gitStashLogic(
       case "drop":
         // stashRef is validated by Zod refine
         const stashRefDrop = input.stashRef!;
-        command = `git -C "${targetPath}" stash drop ${stashRefDrop}`;
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "stash", "drop", stashRefDrop];
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        await execAsync(command);
+        await execFileAsync("git", args);
         result = {
           success: true,
           mode: "drop",
@@ -265,16 +265,15 @@ export async function gitStashLogic(
         break;
 
       case "save":
-        command = `git -C "${targetPath}" stash save`;
+        args = ["-C", targetPath, "stash", "save"];
         if (input.message) {
-          // Ensure message is properly quoted for the shell
-          command += ` "${input.message.replace(/"/g, '\\"')}"`;
+          args.push(input.message);
         }
-        logger.debug(`Executing command: ${command}`, {
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        const { stdout: saveStdout } = await execAsync(command);
+        const { stdout: saveStdout } = await execFileAsync("git", args);
         const stashCreated = !/no local changes to save/i.test(saveStdout);
         const saveMessage = stashCreated
           ? `Changes stashed successfully.` +

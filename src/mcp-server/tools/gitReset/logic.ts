@@ -1,10 +1,10 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js"; // Direct import for types-global
 import { logger, RequestContext, sanitization } from "../../../utils/index.js"; // logger (./utils/internal/logger.js), RequestContext (./utils/internal/requestContext.js), sanitization (./utils/security/sanitization.js)
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the reset modes
 const ResetModeEnum = z.enum(["soft", "mixed", "hard", "merge", "keep"]);
@@ -109,29 +109,29 @@ export async function resetGitState(
     );
   }
 
-  // Basic sanitization for commit ref
-  const safeCommit = input.commit?.replace(/[`$&;*()|<>]/g, "");
-
   try {
     // Construct the git reset command
-    let command = `git -C "${targetPath}" reset`;
+    const args = ["-C", targetPath, "reset"];
 
     if (input.mode) {
-      command += ` --${input.mode}`;
+      args.push(`--${input.mode}`);
     }
 
-    if (safeCommit) {
-      command += ` ${safeCommit}`;
+    if (input.commit) {
+      args.push(input.commit);
     }
     // Handling file paths requires careful command construction, often without a commit ref.
     // Example: `git reset HEAD -- path/to/file` or `git reset -- path/to/file` (unstages)
     // For simplicity, this initial version focuses on resetting the whole HEAD/index/tree.
     // Add file path logic here if needed, adjusting command structure.
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
     // Execute command. Reset output is often minimal on success, but stderr might indicate issues.
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execFileAsync("git", args);
 
     logger.debug(`Git reset stdout: ${stdout}`, { ...context, operation });
     if (stderr) {

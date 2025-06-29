@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_push tool using Zod
 export const GitPushInputSchema = z.object({
@@ -171,55 +171,49 @@ export async function pushGitChanges(
 
   try {
     // Construct the git push command
-    let command = `git -C "${targetPath}" push`;
+    const args = ["-C", targetPath, "push"];
 
     if (input.force) {
-      command += " --force";
+      args.push("--force");
     } else if (input.forceWithLease) {
-      command += " --force-with-lease";
+      args.push("--force-with-lease");
     }
 
     if (input.setUpstream) {
-      command += " --set-upstream";
+      args.push("--set-upstream");
     }
     if (input.tags) {
-      command += " --tags";
+      args.push("--tags");
     }
     if (input.delete) {
-      command += " --delete";
+      args.push("--delete");
     }
 
     // Add remote and branch specification
-    const remote = input.remote
-      ? input.remote.replace(/[^a-zA-Z0-9_.\-/]/g, "")
-      : "origin"; // Default to origin
-    command += ` ${remote}`;
+    const remote = input.remote || "origin"; // Default to origin
+    args.push(remote);
 
     if (input.branch) {
-      const localBranch = input.branch.replace(/[^a-zA-Z0-9_.\-/]/g, "");
-      command += ` ${localBranch}`;
       if (input.remoteBranch && !input.delete) {
-        // remoteBranch only makes sense if not deleting
-        const remoteBranch = input.remoteBranch.replace(
-          /[^a-zA-Z0-9_.\-/]/g,
-          "",
-        );
-        command += `:${remoteBranch}`;
+        args.push(`${input.branch}:${input.remoteBranch}`);
+      } else {
+        args.push(input.branch);
       }
     } else if (!input.tags && !input.delete) {
       // If no branch, tags, or delete specified, push the current branch by default
-      // Git might handle this automatically, but being explicit can be clearer
-      // command += ' HEAD'; // Or let git figure out the default push behavior
       logger.debug(
         "No specific branch, tags, or delete specified. Relying on default git push behavior for current branch.",
         { ...context, operation },
       );
     }
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
     // Execute command. Note: Git push often uses stderr for progress and success messages.
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execFileAsync("git", args);
 
     logger.debug(`Git push stdout: ${stdout}`, { ...context, operation });
     if (stderr) {

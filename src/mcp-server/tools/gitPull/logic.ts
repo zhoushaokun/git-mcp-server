@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_pull tool using Zod
 export const GitPullInputSchema = z.object({
@@ -125,35 +125,34 @@ export async function pullGitChanges(
 
   try {
     // Construct the git pull command
-    let command = `git -C "${targetPath}" pull`;
+    const args = ["-C", targetPath, "pull"];
 
     if (input.rebase) {
-      command += " --rebase";
+      args.push("--rebase");
     }
     if (input.ffOnly) {
-      command += " --ff-only";
+      args.push("--ff-only");
     }
     if (input.remote) {
-      // Sanitize remote and branch names - basic alphanumeric + common chars
-      const safeRemote = input.remote.replace(/[^a-zA-Z0-9_.\-/]/g, "");
-      command += ` ${safeRemote}`;
+      args.push(input.remote);
       if (input.branch) {
-        const safeBranch = input.branch.replace(/[^a-zA-Z0-9_.\-/]/g, "");
-        command += ` ${safeBranch}`;
+        args.push(input.branch);
       }
     } else if (input.branch) {
       // If only branch is specified, assume 'origin' or tracked remote
-      const safeBranch = input.branch.replace(/[^a-zA-Z0-9_.\-/]/g, "");
-      command += ` origin ${safeBranch}`; // Defaulting to origin if remote not specified but branch is
+      args.push("origin", input.branch); // Defaulting to origin if remote not specified but branch is
       logger.warning(
         `Remote not specified, defaulting to 'origin' for branch pull`,
         { ...context, operation },
       );
     }
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execFileAsync("git", args);
 
     logger.debug(`Git pull stdout: ${stdout}`, { ...context, operation });
     if (stderr) {

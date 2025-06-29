@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import fs from "fs/promises";
 import { promisify } from "util";
 import { z } from "zod";
@@ -10,7 +10,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_clone tool using Zod
 export const GitCloneInputSchema = z.object({
@@ -152,24 +152,28 @@ export async function gitCloneLogic(
 
   try {
     // Construct the git clone command
-    // Use placeholders and pass args safely if possible, but exec requires string command. Be careful with quoting.
-    let command = `git clone`;
+    const args = ["clone"];
     if (input.quiet) {
-      command += " --quiet";
+      args.push("--quiet");
     }
     if (input.branch) {
-      command += ` --branch "${input.branch.replace(/"/g, '\\"')}"`;
+      args.push("--branch", input.branch);
     }
     if (input.depth) {
-      command += ` --depth ${input.depth}`;
+      args.push("--depth", String(input.depth));
     }
-    // Add repo URL and target path (ensure they are quoted)
-    command += ` "${sanitizedRepoUrl}" "${sanitizedTargetPath}"`;
+    // Add repo URL and target path
+    args.push(sanitizedRepoUrl, sanitizedTargetPath);
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
     // Increase timeout for clone operations as they can take time
-    const { stdout, stderr } = await execAsync(command, { timeout: 300000 }); // 5 minutes timeout
+    const { stdout, stderr } = await execFileAsync("git", args, {
+      timeout: 300000,
+    }); // 5 minutes timeout
 
     if (stderr && !input.quiet) {
       // Stderr often contains progress info, log as info if quiet is false

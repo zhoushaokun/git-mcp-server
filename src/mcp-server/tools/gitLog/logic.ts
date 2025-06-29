@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the structure for a single commit entry
 export const CommitEntrySchema = z.object({
@@ -171,53 +171,43 @@ export async function logGitHistory(
   }
 
   try {
-    let command: string;
+    const args = ["-C", targetPath, "log"];
     let isRawOutput = false; // Flag to indicate if we should parse or return raw
 
     if (input.showSignature) {
       isRawOutput = true;
-      command = `git -C "${targetPath}" log --show-signature`;
+      args.push("--show-signature");
       logger.info("Show signature requested, returning raw output.", {
         ...context,
         operation,
       });
-      // Append other filters if provided
-      if (input.maxCount) command += ` -n ${input.maxCount}`;
-      if (input.author)
-        command += ` --author="${input.author.replace(/[`"$&;*()|<>]/g, "")}"`;
-      if (input.since)
-        command += ` --since="${input.since.replace(/[`"$&;*()|<>]/g, "")}"`;
-      if (input.until)
-        command += ` --until="${input.until.replace(/[`"$&;*()|<>]/g, "")}"`;
-      if (input.branchOrFile)
-        command += ` ${input.branchOrFile.replace(/[`"$&;*()|<>]/g, "")}`;
     } else {
-      // Construct the git log command with the fixed format for parsing
-      command = `git -C "${targetPath}" log ${GIT_LOG_FORMAT}`;
-      if (input.maxCount) command += ` -n ${input.maxCount}`;
+      args.push(GIT_LOG_FORMAT);
+    }
+
+    if (input.maxCount) {
+      args.push(`-n${input.maxCount}`);
     }
     if (input.author) {
-      // Basic sanitization for author string
-      const safeAuthor = input.author.replace(/[`"$&;*()|<>]/g, "");
-      command += ` --author="${safeAuthor}"`;
+      args.push(`--author=${input.author}`);
     }
     if (input.since) {
-      const safeSince = input.since.replace(/[`"$&;*()|<>]/g, "");
-      command += ` --since="${safeSince}"`;
+      args.push(`--since=${input.since}`);
     }
     if (input.until) {
-      const safeUntil = input.until.replace(/[`"$&;*()|<>]/g, "");
-      command += ` --until="${safeUntil}"`;
+      args.push(`--until=${input.until}`);
     }
     if (input.branchOrFile) {
-      const safeBranchOrFile = input.branchOrFile.replace(/[`"$&;*()|<>]/g, "");
-      command += ` ${safeBranchOrFile}`; // Add branch or file path at the end
+      args.push(input.branchOrFile);
     }
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
     // Increase maxBuffer if logs can be large
-    const { stdout, stderr } = await execAsync(command, {
+    const { stdout, stderr } = await execFileAsync("git", args, {
       maxBuffer: 1024 * 1024 * 10,
     }); // 10MB buffer
 

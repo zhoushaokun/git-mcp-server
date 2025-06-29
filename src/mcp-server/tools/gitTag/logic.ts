@@ -1,10 +1,10 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js"; // Direct import for types-global
 import { logger, RequestContext, sanitization } from "../../../utils/index.js"; // logger (./utils/internal/logger.js), RequestContext (./utils/internal/requestContext.js), sanitization (./utils/security/sanitization.js)
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the base input schema for the git_tag tool using Zod
 // We export this separately to access its .shape for registration
@@ -190,17 +190,17 @@ export async function gitTagLogic(
   }
 
   try {
-    let command: string;
+    let args: string[];
     let result: GitTagResult;
 
     switch (input.mode) {
       case "list":
-        command = `git -C "${targetPath}" tag --list`;
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "tag", "--list"];
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        const { stdout: listStdout } = await execAsync(command);
+        const { stdout: listStdout } = await execFileAsync("git", args);
         const tags = listStdout
           .trim()
           .split("\n")
@@ -211,20 +211,20 @@ export async function gitTagLogic(
       case "create":
         // TagName is validated by Zod refine
         const tagNameCreate = input.tagName!;
-        command = `git -C "${targetPath}" tag`;
+        args = ["-C", targetPath, "tag"];
         if (input.annotate) {
           // Message is validated by Zod refine
-          command += ` -a -m "${input.message!.replace(/"/g, '\\"')}"`;
+          args.push("-a", "-m", input.message!);
         }
-        command += ` "${tagNameCreate}"`;
+        args.push(tagNameCreate);
         if (input.commitRef) {
-          command += ` "${input.commitRef}"`;
+          args.push(input.commitRef);
         }
-        logger.debug(`Executing command: ${command}`, {
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        await execAsync(command);
+        await execFileAsync("git", args);
         result = {
           success: true,
           mode: "create",
@@ -236,12 +236,12 @@ export async function gitTagLogic(
       case "delete":
         // TagName is validated by Zod refine
         const tagNameDelete = input.tagName!;
-        command = `git -C "${targetPath}" tag -d "${tagNameDelete}"`;
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "tag", "-d", tagNameDelete];
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        await execAsync(command);
+        await execFileAsync("git", args);
         result = {
           success: true,
           mode: "delete",

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.1.5 - 2025-06-29
+
+### Security
+- Patched a command injection vulnerability where unsanitized user input could be passed to `child_process.exec`. All `exec` calls have been replaced with the safer `execFile` method, which treats arguments as distinct values rather than executable script parts. Thank you to [@dellalibera](https://github.com/dellalibera) for the disclosure. For more details, see the security advisory: [GHSA-3q26-f695-pp76](https://github.com/cyanheads/git-mcp-server/security/advisories/GHSA-3q26-f695-pp76).
+
 ## v2.1.4 - 2025-06-20
 
 ### Changed

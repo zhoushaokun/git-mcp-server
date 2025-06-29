@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the base input schema without refinement
 const GitDiffInputBaseSchema = z.object({
@@ -144,17 +144,17 @@ export async function diffGitChanges(
 
   try {
     // Construct the standard git diff command
-    let standardDiffCommand = `git -C "${targetPath}" diff`;
+    const standardDiffArgs = ["-C", targetPath, "diff"];
 
     if (input.staged) {
-      standardDiffCommand += " --staged"; // Or --cached
+      standardDiffArgs.push("--staged"); // Or --cached
     } else {
       // Add commit references if not doing staged diff
       if (safeCommit1) {
-        standardDiffCommand += ` ${safeCommit1}`;
+        standardDiffArgs.push(safeCommit1);
       }
       if (safeCommit2) {
-        standardDiffCommand += ` ${safeCommit2}`;
+        standardDiffArgs.push(safeCommit2);
       }
     }
 
@@ -162,17 +162,20 @@ export async function diffGitChanges(
     // Note: `input.file` will not apply to the untracked files part unless we explicitly filter them.
     // For simplicity, `includeUntracked` will show all untracked files if `input.file` is also set.
     if (safeFile) {
-      standardDiffCommand += ` -- "${safeFile}"`; // Use '--' to separate paths from revisions
+      standardDiffArgs.push("--", safeFile); // Use '--' to separate paths from revisions
     }
 
-    logger.debug(`Executing standard diff command: ${standardDiffCommand}`, {
-      ...context,
-      operation,
-    });
-    const { stdout: standardStdout, stderr: standardStderr } = await execAsync(
-      standardDiffCommand,
-      { maxBuffer: 1024 * 1024 * 20 },
+    logger.debug(
+      `Executing standard diff command: git ${standardDiffArgs.join(" ")}`,
+      {
+        ...context,
+        operation,
+      },
     );
+    const { stdout: standardStdout, stderr: standardStderr } =
+      await execFileAsync("git", standardDiffArgs, {
+        maxBuffer: 1024 * 1024 * 20,
+      });
 
     if (standardStderr) {
       logger.warning(`Git diff (standard) stderr: ${standardStderr}`, {
@@ -185,10 +188,18 @@ export async function diffGitChanges(
     // Handle untracked files if requested
     if (input.includeUntracked) {
       logger.debug("Including untracked files.", { ...context, operation });
-      const listUntrackedCommand = `git -C "${targetPath}" ls-files --others --exclude-standard`;
+      const listUntrackedArgs = [
+        "-C",
+        targetPath,
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+      ];
       try {
-        const { stdout: untrackedFilesStdOut } =
-          await execAsync(listUntrackedCommand);
+        const { stdout: untrackedFilesStdOut } = await execFileAsync(
+          "git",
+          listUntrackedArgs,
+        );
         const untrackedFiles = untrackedFilesStdOut
           .trim()
           .split("\n")
@@ -210,14 +221,23 @@ export async function diffGitChanges(
             // Skip if file path becomes empty after sanitization (unlikely but safe)
             if (!safeUntrackedFile) continue;
 
-            const untrackedDiffCommand = `git -C "${targetPath}" diff --no-index /dev/null "${safeUntrackedFile}"`;
+            const untrackedDiffArgs = [
+              "-C",
+              targetPath,
+              "diff",
+              "--no-index",
+              "/dev/null",
+              safeUntrackedFile,
+            ];
             logger.debug(
-              `Executing diff for untracked file: ${untrackedDiffCommand}`,
+              `Executing diff for untracked file: git ${untrackedDiffArgs.join(" ")}`,
               { ...context, operation, file: safeUntrackedFile },
             );
             try {
-              const { stdout: untrackedFileDiffOut } =
-                await execAsync(untrackedDiffCommand);
+              const { stdout: untrackedFileDiffOut } = await execFileAsync(
+                "git",
+                untrackedDiffArgs,
+              );
               individualUntrackedDiffs += untrackedFileDiffOut;
               untrackedFilesCount++;
             } catch (untrackedError: any) {

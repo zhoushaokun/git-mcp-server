@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_add tool using Zod
 export const GitAddInputSchema = z.object({
@@ -107,66 +107,28 @@ export async function addGitFiles(
     );
   }
 
-  // Prepare the files argument for the command, ensuring proper quoting
-  let filesArg: string;
-  const filesToStage = input.files; // Keep original for reporting
+  const filesToStage = Array.isArray(input.files)
+    ? input.files
+    : [input.files];
+  if (filesToStage.length === 0) {
+    filesToStage.push("."); // Default to staging all if array is empty
+  }
+
   try {
-    if (Array.isArray(filesToStage)) {
-      if (filesToStage.length === 0) {
-        logger.warning(
-          "Empty array provided for files, defaulting to staging all changes.",
-          { ...context, operation },
-        );
-        filesArg = "."; // Default to staging all if array is empty
-      } else {
-        // Quote each file path individually
-        filesArg = filesToStage
-          .map((file) => {
-            const sanitizedFile = file.startsWith("-") ? `./${file}` : file; // Prefix with './' if it starts with a dash
-            return `"${sanitizedFile.replace(/"/g, '\\"')}"`; // Escape quotes within path
-          })
-          .join(" ");
-      }
-    } else {
-      // Single string case
-      const sanitizedFile = filesToStage.startsWith("-")
-        ? `./${filesToStage}`
-        : filesToStage; // Prefix with './' if it starts with a dash
-      filesArg = `"${sanitizedFile.replace(/"/g, '\\"')}"`;
-    }
-  } catch (err) {
-    logger.error("File path validation/quoting failed", {
+    const args = ["-C", targetPath, "add", "--"];
+    filesToStage.forEach((file) => {
+      // Sanitize each file path. Although execFile is safer,
+      // this prevents arguments like "-v" from being treated as flags by git.
+      const sanitizedFile = file.startsWith("-") ? `./${file}` : file;
+      args.push(sanitizedFile);
+    });
+
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
       ...context,
       operation,
-      files: filesToStage,
-      error: err,
     });
-    throw new McpError(
-      BaseErrorCode.VALIDATION_ERROR,
-      `Invalid file path/pattern provided: ${err instanceof Error ? err.message : String(err)}`,
-      { context, operation, originalError: err },
-    );
-  }
 
-  // This check should ideally not be needed now due to the logic above
-  if (!filesArg) {
-    logger.error(
-      "Internal error: filesArg is unexpectedly empty after processing.",
-      { ...context, operation },
-    );
-    throw new McpError(
-      BaseErrorCode.INTERNAL_ERROR,
-      "Internal error preparing git add command.",
-      { context, operation },
-    );
-  }
-
-  try {
-    // Use the resolved targetPath
-    const command = `git -C "${targetPath}" add -- ${filesArg}`;
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
-
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execFileAsync("git", args);
 
     if (stderr) {
       // Log stderr as warning, as 'git add' can produce warnings but still succeed.
@@ -216,7 +178,7 @@ export async function addGitFiles(
       // Still throw an error, but return structured info in the catch block of the registration
       throw new McpError(
         BaseErrorCode.NOT_FOUND,
-        `Specified files/patterns did not match any files in ${targetPath}: ${filesArg}`,
+        `Specified files/patterns did not match any files in ${targetPath}: ${filesToStage.join(", ")}`,
         { context, operation, originalError: error, filesStaged: filesToStage },
       );
     }

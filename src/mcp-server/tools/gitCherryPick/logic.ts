@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_cherry-pick tool using Zod
 export const GitCherryPickInputSchema = z.object({
@@ -140,20 +140,31 @@ export async function gitCherryPickLogic(
   }
 
   try {
-    let command = `git -C "${targetPath}" cherry-pick`;
+    const args = ["-C", targetPath, "cherry-pick"];
 
-    if (input.mainline) command += ` -m ${input.mainline}`;
-    if (input.strategy) command += ` -X${input.strategy}`; // Note: -X for strategy options
-    if (input.noCommit) command += " --no-commit";
-    if (input.signoff) command += " --signoff";
+    if (input.mainline) {
+      args.push("-m", String(input.mainline));
+    }
+    if (input.strategy) {
+      args.push(`-X${input.strategy}`);
+    } // Note: -X for strategy options
+    if (input.noCommit) {
+      args.push("--no-commit");
+    }
+    if (input.signoff) {
+      args.push("--signoff");
+    }
 
-    // Add the commit reference(s) - ensure it's treated as a single argument potentially containing special chars like '..'
-    command += ` "${input.commitRef.replace(/"/g, '\\"')}"`;
+    // Add the commit reference(s)
+    args.push(input.commitRef);
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
     try {
-      const { stdout, stderr } = await execAsync(command);
+      const { stdout, stderr } = await execFileAsync("git", args);
       // Check stdout/stderr for conflict messages, although exit code 0 usually means success
       const output = stdout + stderr;
       const conflicts = /conflict/i.test(output);

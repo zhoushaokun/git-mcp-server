@@ -1,10 +1,10 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js"; // Direct import for types-global
 import { logger, RequestContext, sanitization } from "../../../utils/index.js"; // Logger (./utils/internal/logger.js) & RequestContext (./utils/internal/requestContext.js) & sanitization (./utils/security/sanitization.js)
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_remote tool using Zod
 export const GitRemoteInputSchema = z.object({
@@ -139,17 +139,17 @@ export async function gitRemoteLogic(
   }
 
   try {
-    let command: string;
+    let args: string[];
     let result: GitRemoteResult;
 
     switch (input.mode) {
       case "list":
-        command = `git -C "${targetPath}" remote -v`;
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "remote", "-v"];
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        const { stdout: listStdout } = await execAsync(command);
+        const { stdout: listStdout } = await execFileAsync("git", args);
         const remotes: GitRemoteListResult["remotes"] = [];
         const lines = listStdout.trim().split("\n");
         const remoteMap = new Map<
@@ -202,12 +202,12 @@ export async function gitRemoteLogic(
             { context, operation },
           );
         }
-        command = `git -C "${targetPath}" remote add "${input.name}" "${input.url}"`;
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "remote", "add", input.name, input.url];
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        await execAsync(command);
+        await execFileAsync("git", args);
         result = {
           success: true,
           mode: "add",
@@ -230,12 +230,12 @@ export async function gitRemoteLogic(
             { context, operation },
           );
         }
-        command = `git -C "${targetPath}" remote remove "${input.name}"`;
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "remote", "remove", input.name];
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        await execAsync(command);
+        await execFileAsync("git", args);
         result = {
           success: true,
           mode: "remove",
@@ -258,12 +258,12 @@ export async function gitRemoteLogic(
             { context, operation },
           );
         }
-        command = `git -C "${targetPath}" remote show "${input.name}"`;
-        logger.debug(`Executing command: ${command}`, {
+        args = ["-C", targetPath, "remote", "show", input.name];
+        logger.debug(`Executing command: git ${args.join(" ")}`, {
           ...context,
           operation,
         });
-        const { stdout: showStdout } = await execAsync(command);
+        const { stdout: showStdout } = await execFileAsync("git", args);
         result = { success: true, mode: "show", details: showStdout.trim() };
         break;
 

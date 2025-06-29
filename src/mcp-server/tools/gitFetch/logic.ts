@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 // Import utils from barrel (logger from ../utils/internal/logger.js)
@@ -9,7 +9,7 @@ import { RequestContext } from "../../../utils/index.js";
 // Import utils from barrel (sanitization from ../utils/security/sanitization.js)
 import { sanitization } from "../../../utils/index.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_fetch tool using Zod
 export const GitFetchInputSchema = z.object({
@@ -111,30 +111,30 @@ export async function fetchGitRemote(
     );
   }
 
-  // Basic sanitization for remote name
-  const safeRemote = input.remote?.replace(/[^a-zA-Z0-9_.\-/]/g, "");
-
   try {
     // Construct the git fetch command
-    let command = `git -C "${targetPath}" fetch`;
+    const args = ["-C", targetPath, "fetch"];
 
     if (input.prune) {
-      command += " --prune";
+      args.push("--prune");
     }
     if (input.tags) {
-      command += " --tags";
+      args.push("--tags");
     }
     if (input.all) {
-      command += " --all";
-    } else if (safeRemote) {
-      command += ` ${safeRemote}`; // Fetch specific remote if 'all' is not used
+      args.push("--all");
+    } else if (input.remote) {
+      args.push(input.remote); // Fetch specific remote if 'all' is not used
     }
     // If neither 'all' nor 'remote' is specified, git fetch defaults to 'origin' or configured upstream.
 
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
     // Execute command. Fetch output is primarily on stderr.
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execFileAsync("git", args);
 
     logger.debug(`Git fetch stdout: ${stdout}`, { ...context, operation }); // stdout is usually empty
     if (stderr) {

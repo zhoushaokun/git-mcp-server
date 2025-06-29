@@ -1,10 +1,10 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js"; // Direct import for types-global
 import { logger, RequestContext, sanitization } from "../../../utils/index.js"; // logger (./utils/internal/logger.js), RequestContext (./utils/internal/requestContext.js), sanitization (./utils/security/sanitization.js)
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Define the input schema for the git_status tool using Zod
 export const GitStatusInputSchema = z.object({
@@ -256,11 +256,13 @@ export async function getGitStatus(
 
   try {
     // Using --porcelain=v1 for stable, scriptable output and -b for branch info
-    // Ensure the path passed to -C is correctly quoted for the shell
-    const command = `git -C "${targetPath}" status --porcelain=v1 -b`;
-    logger.debug(`Executing command: ${command}`, { ...context, operation });
+    const args = ["-C", targetPath, "status", "--porcelain=v1", "-b"];
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
 
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execFileAsync("git", args);
 
     if (stderr) {
       // Log stderr as warning but proceed to parse stdout
@@ -283,8 +285,8 @@ export async function getGitStatus(
     // This handles the case of an empty repo after init but before first commit
     if (structuredResult.is_clean && !structuredResult.current_branch) {
       try {
-        const branchCommand = `git -C "${targetPath}" rev-parse --abbrev-ref HEAD`;
-        const { stdout: branchStdout } = await execAsync(branchCommand);
+        const branchArgs = ["-C", targetPath, "rev-parse", "--abbrev-ref", "HEAD"];
+        const { stdout: branchStdout } = await execFileAsync("git", branchArgs);
         const currentBranchName = branchStdout.trim(); // Renamed variable for clarity
         if (currentBranchName && currentBranchName !== "HEAD") {
           structuredResult.current_branch = currentBranchName;
