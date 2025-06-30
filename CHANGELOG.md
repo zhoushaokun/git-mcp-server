@@ -2,16 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.1.8 - 2025-06-29
+
+### Fixed
+
+- Downgraded `dotenv` to `^16.6.1` to suppress `dotenvx` promotional logging messages in v17.0 that were interfering with the stdio transport.
+- Added `dotenv` to the `reject` list in `.ncurc.json` to prevent future automatic upgrades to problematic versions.
+
 ## v2.1.7 - 2025-06-29
 
 ### Changed
+
 - Suppressed `dotenv` debug output to prevent interference with the stdio transport.
 - Updated the fallback package name in the configuration for better error identification.
-
 
 ## v2.1.6 - 2025-06-29
 
 ### Dependencies
+
 - Updated the following dependencies:
   - `@modelcontextprotocol/sdk` to `^1.13.2`
   - `@types/node` to `^24.0.7`
@@ -24,6 +32,7 @@ All notable changes to this project will be documented in this file.
   - `typedoc` to `^0.28.6`
 
 ### Changed
+
 - Minor formatting changes across several files.
 
 ## v2.1.5 - 2025-06-29
