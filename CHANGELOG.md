@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## v2.2.0 - 2025-07-16
 
+### Fixed
+
+- **Validation Enforcement**: Corrected a critical flaw in two tool registration handlers (`gitTag`, `gitWorktree`) where the base Zod schema was used for registration instead of the refined schema. This meant that conditional validation rules (e.g., required fields for specific modes) were not being enforced. The handlers now explicitly parse incoming parameters with the full, refined schema, ensuring all validation logic is correctly applied before execution.
+
 ### Changed
 
 - **Architectural Refactor**: Aligned the entire server with the latest architectural standards and the MCP specification (2025-06-18). This includes:
