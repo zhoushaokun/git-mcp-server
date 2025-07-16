@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.2.0 - 2025-07-16
+
+### Changed
+
+- **Architectural Refactor**: Aligned the entire server with the latest architectural standards and the MCP specification (2025-06-18). This includes:
+  - **Standardized Schemas**: All tools now use explicit Zod schemas for both input and output, ensuring type safety and clear data contracts. This enables structured output, a newer feature of the MCP specification. Not all MCP Clients support structured output so we keep backwards compatibility by returning stringified JSON.
+  - **Logic/Handler Separation**: Core tool logic is now isolated in `logic.ts` files, with error handling managed by a dedicated `ErrorHandler` in the `registration.ts` handlers. This enforces the 'Logic Throws, Handler Catches' principle.
+  - **Simplified State Management**: Removed state accessor initializers in favor of passing `getWorkingDirectory` and `getSessionId` functions directly to tool registration, cleaning up the server initialization process.
+- **Tool Response Cleanup**: Refactored `git_push` and `git_pull` tools to remove redundant `summary` fields from their output, providing a cleaner and more concise response.
+- **Tool Annotations**: Added descriptive annotations to all tool registrations to provide richer metadata to the client/LLM, improving tool discovery and usage.
+
+### Dependencies
+
+- Updated the following dependencies:
+  - `@modelcontextprotocol/sdk` to `^1.15.1`
+  - `@hono/node-server` to `^1.16.0`
+  - `@types/node` to `^24.0.14`
+  - `hono` to `^4.8.5`
+  - `jose` to `^6.0.12`
+  - `openai` to `^5.9.2`
+- Updated the following devDependencies:
+  - `typedoc` to `^0.28.7`
+
 ## v2.1.8 - 2025-06-29
 
 ### Fixed
