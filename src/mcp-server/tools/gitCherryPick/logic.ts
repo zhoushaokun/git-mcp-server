@@ -13,7 +13,7 @@ const execFileAsync = promisify(execFile);
 
 // 1. DEFINE the Zod input schema.
 export const GitCherryPickInputSchema = z.object({
-  path: z.string().default(".").describe("Path to the local Git repository."),
+  path: z.string().default(".").describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   commitRef: z.string().min(1).describe("The commit reference(s) to cherry-pick."),
   mainline: z.number().int().min(1).optional().describe("The parent number (1-based) for a merge commit."),
   strategy: z.enum(["recursive", "resolve", "ours", "theirs", "octopus", "subtree"]).optional().describe("The merge strategy to use."),

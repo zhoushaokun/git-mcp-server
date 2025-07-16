@@ -13,7 +13,7 @@ const execFileAsync = promisify(execFile);
 
 // 1. DEFINE the Zod input schema.
 export const GitBranchBaseSchema = z.object({
-  path: z.string().default(".").describe("Path to the Git repository."),
+  path: z.string().default(".").describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   mode: z.enum(["list", "create", "delete", "rename", "show-current"]).describe("The branch operation to perform."),
   branchName: z.string().optional().describe("The name of the branch for create, delete, or rename operations."),
   newBranchName: z.string().optional().describe("The new name for the branch when renaming."),

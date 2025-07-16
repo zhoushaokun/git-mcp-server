@@ -13,7 +13,7 @@ const execFileAsync = promisify(execFile);
 
 // 1. DEFINE the Zod input schema.
 export const GitFetchInputSchema = z.object({
-  path: z.string().default(".").describe("Path to the Git repository."),
+  path: z.string().default(".").describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   remote: z.string().optional().describe("The remote repository to fetch from (e.g., 'origin')."),
   prune: z.boolean().default(false).describe("Remove remote-tracking references that no longer exist on the remote."),
   tags: z.boolean().default(false).describe("Fetch all tags from the remote."),

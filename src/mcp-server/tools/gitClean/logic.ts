@@ -13,7 +13,7 @@ const execFileAsync = promisify(execFile);
 
 // 1. DEFINE the Zod input schema.
 export const GitCleanInputSchema = z.object({
-  path: z.string().default(".").describe("Path to the local Git repository."),
+  path: z.string().default(".").describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   force: z.boolean().describe("REQUIRED confirmation. Must be true to run the destructive clean operation."),
   dryRun: z.boolean().default(false).describe("Show what would be deleted without actually deleting."),
   directories: z.boolean().default(false).describe("Remove untracked directories in addition to files."),

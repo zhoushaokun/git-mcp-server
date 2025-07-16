@@ -13,7 +13,7 @@ const execFileAsync = promisify(execFile);
 
 // 1. DEFINE the Zod input schema.
 export const GitCheckoutInputSchema = z.object({
-  path: z.string().default(".").describe("Path to the Git repository."),
+  path: z.string().default(".").describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   branchOrPath: z.string().min(1).describe("The branch, commit, tag, or file path to checkout."),
   newBranch: z.string().optional().describe("Create a new branch with this name before checking out."),
   force: z.boolean().default(false).describe("Force checkout, discarding local changes."),

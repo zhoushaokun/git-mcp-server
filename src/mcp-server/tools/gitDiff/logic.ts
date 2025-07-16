@@ -13,7 +13,7 @@ const execFileAsync = promisify(execFile);
 
 // 1. DEFINE the Zod input schema.
 export const GitDiffBaseSchema = z.object({
-  path: z.string().default(".").describe("Path to the Git repository."),
+  path: z.string().default(".").describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
   commit1: z.string().optional().describe("First commit, branch, or ref for comparison."),
   commit2: z.string().optional().describe("Second commit, branch, or ref for comparison."),
   staged: z.boolean().default(false).describe("Show diff of changes staged for the next commit."),
