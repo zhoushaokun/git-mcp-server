@@ -36,7 +36,6 @@ export const GitPushInputSchema = GitPushBaseSchema.refine(data => !(data.delete
 export const GitPushOutputSchema = z.object({
   success: z.boolean().describe("Indicates if the command was successful."),
   message: z.string().describe("A summary message of the result."),
-  summary: z.string().optional().describe("A more detailed summary from the push operation, if available."),
   rejected: z.boolean().optional().describe("True if the push was rejected."),
   deleted: z.boolean().optional().describe("True if a remote branch was deleted."),
 });
@@ -83,7 +82,6 @@ export async function pushGitChanges(
     return {
       success: true,
       message,
-      summary: message,
       rejected: message.includes("[rejected]"),
       deleted: message.includes("[deleted]"),
     };
