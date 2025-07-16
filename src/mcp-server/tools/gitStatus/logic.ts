@@ -68,7 +68,7 @@ function parseGitStatus(porcelainOutput: string): GitStatusOutput {
         } else if (staged === 'U' || unstaged === 'U' || (staged === 'A' && unstaged === 'A') || (staged === 'D' && unstaged === 'D')) {
             result.conflicted_files.push(file);
         } else {
-            const mapStatus = (char: string, changeSet: any) => {
+            const mapStatus = (char: string, changeSet: z.infer<typeof ChangesSchema>) => {
                 let statusKey: keyof typeof changeSet;
                 switch (char) {
                     case 'M': statusKey = 'Modified'; break;
@@ -79,8 +79,10 @@ function parseGitStatus(porcelainOutput: string): GitStatusOutput {
                     case 'T': statusKey = 'TypeChanged'; break;
                     default: return;
                 }
-                if (!changeSet[statusKey]) changeSet[statusKey] = [];
-                changeSet[statusKey].push(file);
+                if (!changeSet[statusKey]) {
+                  changeSet[statusKey] = [];
+                }
+                (changeSet[statusKey] as string[]).push(file);
             };
             mapStatus(staged, result.staged_changes);
             mapStatus(unstaged, result.unstaged_changes);
@@ -104,8 +106,11 @@ export async function getGitStatus(
   const workingDir = context.getWorkingDirectory();
   const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
 
+  const args = ["status", "--porcelain=v1", "-b"];
+
   try {
-    const { stdout } = await execFileAsync("git", ["status", "--porcelain=v1", "-b"], { cwd: targetPath });
+    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation, cwd: targetPath });
+    const { stdout } = await execFileAsync("git", args, { cwd: targetPath });
     return parseGitStatus(stdout);
   } catch (error: any) {
     const errorMessage = error.stderr || error.message || "";

@@ -61,26 +61,31 @@ export async function gitStashLogic(
   const workingDir = context.getWorkingDirectory();
   const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const args = ["-C", targetPath, "stash"];
-  
-  switch (params.mode) {
+  const buildArgs = () => {
+    const baseArgs = ["stash", params.mode];
+    switch (params.mode) {
       case "list":
-          args.push("list");
-          break;
+        // No extra args needed
+        break;
       case "apply":
       case "pop":
       case "drop":
-          args.push(params.mode, params.stashRef!);
-          break;
+        baseArgs.push(params.stashRef!);
+        break;
       case "save":
-          args.push("save");
-          if (params.message) args.push(params.message);
-          break;
-  }
+        if (params.message) {
+          baseArgs.push(params.message);
+        }
+        break;
+    }
+    return baseArgs;
+  };
+
+  const args = buildArgs();
 
   try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args);
+    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation, cwd: targetPath });
+    const { stdout, stderr } = await execFileAsync("git", args, { cwd: targetPath });
 
     if (params.mode === 'list') {
         const stashes = stdout.trim().split("\n").filter(Boolean).map(line => {

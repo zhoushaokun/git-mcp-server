@@ -27,9 +27,23 @@ export const GitWorktreeBaseSchema = z.object({
 });
 
 export const GitWorktreeInputSchema = GitWorktreeBaseSchema.refine(
-  (data) => !(data.mode === "add" && !data.worktreePath), { message: "A 'worktreePath' is required for 'add' mode.", path: ["worktreePath"] }
-).refine((data) => !(data.mode === "remove" && !data.worktreePath), { message: "A 'worktreePath' is required for 'remove' mode.", path: ["worktreePath"] }
-).refine((data) => !(data.mode === "move" && (!data.worktreePath || !data.newPath)), { message: "Both 'worktreePath' and 'newPath' are required for 'move' mode.", path: ["worktreePath", "newPath"] });
+  (data) => !(data.mode === "add" && !data.worktreePath),
+  {
+    message: "A 'worktreePath' is required for 'add' mode.",
+    path: ["worktreePath"],
+  },
+).refine((data) => !(data.mode === "remove" && !data.worktreePath), {
+  message: "A 'worktreePath' is required for 'remove' mode.",
+  path: ["worktreePath"],
+})
+.refine(
+  (data) => !(data.mode === "move" && (!data.worktreePath || !data.newPath)),
+  {
+    message:
+      "Both 'worktreePath' (old path) and 'newPath' are required for 'move' mode.",
+    path: ["worktreePath", "newPath"],
+  },
+);
 
 // 2. DEFINE the Zod response schema.
 const WorktreeInfoSchema = z.object({
@@ -84,20 +98,41 @@ export async function gitWorktreeLogic(
   const workingDir = context.getWorkingDirectory();
   const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const args = ["-C", targetPath, "worktree", params.mode];
-  if (params.verbose && (params.mode === 'list' || params.mode === 'prune')) args.push("--verbose");
-  if (params.force) args.push("--force");
-  if (params.dryRun && params.mode === 'prune') args.push("--dry-run");
-  if (params.expire && params.mode === 'prune') args.push(`--expire=${params.expire}`);
-  if (params.detach && params.mode === 'add') args.push("--detach");
-  if (params.newBranch && params.mode === 'add') args.push("-b", params.newBranch);
-  if (params.worktreePath && (params.mode === 'add' || params.mode === 'remove' || params.mode === 'move')) args.push(params.worktreePath);
-  if (params.newPath && params.mode === 'move') args.push(params.newPath);
-  if (params.commitish && params.mode === 'add') args.push(params.commitish);
+  const buildArgs = () => {
+    const baseArgs = ["worktree", params.mode];
+    switch (params.mode) {
+      case "list":
+        if (params.verbose) baseArgs.push("--verbose");
+        break;
+      case "add":
+        if (params.force) baseArgs.push("--force");
+        if (params.detach) baseArgs.push("--detach");
+        if (params.newBranch) baseArgs.push("-b", params.newBranch);
+        if (params.worktreePath) baseArgs.push(params.worktreePath);
+        if (params.commitish) baseArgs.push(params.commitish);
+        break;
+      case "remove":
+        if (params.force) baseArgs.push("--force");
+        if (params.worktreePath) baseArgs.push(params.worktreePath);
+        break;
+      case "move":
+        if (params.worktreePath) baseArgs.push(params.worktreePath);
+        if (params.newPath) baseArgs.push(params.newPath);
+        break;
+      case "prune":
+        if (params.verbose) baseArgs.push("--verbose");
+        if (params.dryRun) baseArgs.push("--dry-run");
+        if (params.expire) baseArgs.push(`--expire=${params.expire}`);
+        break;
+    }
+    return baseArgs;
+  };
+
+  const args = buildArgs();
 
   try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args.filter(Boolean));
+    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation, cwd: targetPath });
+    const { stdout } = await execFileAsync("git", args, { cwd: targetPath });
 
     if (params.mode === 'list' && params.verbose) {
         return { success: true, mode: params.mode, worktrees: parsePorcelainWorktreeList(stdout) };
