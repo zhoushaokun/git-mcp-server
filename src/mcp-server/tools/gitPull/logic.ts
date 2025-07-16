@@ -24,7 +24,6 @@ export const GitPullInputSchema = z.object({
 export const GitPullOutputSchema = z.object({
   success: z.boolean().describe("Indicates if the command was successful."),
   message: z.string().describe("A summary message of the result."),
-  summary: z.string().optional().describe("A more detailed summary from the pull operation, if available."),
   conflict: z.boolean().optional().describe("True if a merge conflict occurred."),
 });
 
@@ -57,7 +56,7 @@ export async function pullGitChanges(
     const { stdout, stderr } = await execFileAsync("git", args);
 
     const message = stdout.trim() || stderr.trim() || "Pull command executed successfully.";
-    return { success: true, message, summary: message, conflict: message.includes("CONFLICT") };
+    return { success: true, message, conflict: message.includes("CONFLICT") };
 
   } catch (error: any) {
     const errorMessage = error.stderr || error.stdout || error.message || "";
