@@ -56,8 +56,10 @@ export const registerGitTagTool = async (
       });
 
       try {
+        // Explicitly parse with the refined schema to enforce validation rules
+        const validatedParams = GitTagInputSchema.parse(params);
         const sessionId = getSessionId(handlerContext);
-        const result = await gitTagLogic(params, {
+        const result = await gitTagLogic(validatedParams, {
             ...handlerContext,
             getWorkingDirectory: () => getWorkingDirectory(sessionId),
         });

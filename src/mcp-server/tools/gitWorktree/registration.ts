@@ -56,8 +56,10 @@ export const registerGitWorktreeTool = async (
       });
 
       try {
+        // Explicitly parse with the refined schema to enforce validation rules
+        const validatedParams = GitWorktreeInputSchema.parse(params);
         const sessionId = getSessionId(handlerContext);
-        const result = await gitWorktreeLogic(params, {
+        const result = await gitWorktreeLogic(validatedParams, {
             ...handlerContext,
             getWorkingDirectory: () => getWorkingDirectory(sessionId),
         });
