@@ -33,7 +33,7 @@ export type GitSetWorkingDirOutput = z.infer<typeof GitSetWorkingDirOutputSchema
 
 async function checkIsGitRepo(path: string): Promise<boolean> {
     try {
-        const { stdout } = await execFileAsync("git", ["-C", path, "rev-parse", "--is-inside-work-tree"]);
+        const { stdout } = await execFileAsync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: path });
         return stdout.trim() === "true";
     } catch {
         return false;
@@ -68,7 +68,7 @@ export async function gitSetWorkingDirLogic(
 
   if (!isGitRepo && params.initializeIfNotPresent) {
     try {
-      await execFileAsync("git", ["-C", sanitizedPath, "init", "--initial-branch=main"]);
+      await execFileAsync("git", ["init", "--initial-branch=main"], { cwd: sanitizedPath });
       initializedRepo = true;
       isGitRepo = true;
     } catch (initError: any) {

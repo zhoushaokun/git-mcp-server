@@ -41,7 +41,7 @@ async function stageFiles(targetPath: string, files: string[], context: RequestC
   logger.debug(`Staging files: ${files.join(", ")}`, { ...context, operation });
   try {
     const sanitizedFiles = files.map(file => sanitization.sanitizePath(file, { rootDir: targetPath }).sanitizedPath);
-    await execFileAsync("git", ["-C", targetPath, "add", "--", ...sanitizedFiles]);
+    await execFileAsync("git", ["add", "--", ...sanitizedFiles], { cwd: targetPath });
   } catch (error: any) {
     throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to stage files: ${error.stderr || error.message}`);
   }
@@ -49,7 +49,7 @@ async function stageFiles(targetPath: string, files: string[], context: RequestC
 
 async function getCommittedFiles(targetPath: string, commitHash: string, context: RequestContext): Promise<string[]> {
     try {
-        const { stdout } = await execFileAsync("git", ["-C", targetPath, "show", "--pretty=", "--name-only", commitHash]);
+        const { stdout } = await execFileAsync("git", ["show", "--pretty=", "--name-only", commitHash], { cwd: targetPath });
         return stdout.trim().split("\n").filter(Boolean);
     } catch (error: any) {
         logger.warning("Failed to retrieve committed files list", { ...context, commitHash, error: error.message });
@@ -75,7 +75,7 @@ export async function commitGitChanges(
     await stageFiles(targetPath, params.filesToStage, context);
   }
 
-  const args = ["-C", targetPath];
+  const args: string[] = [];
   if (params.author) args.push("-c", `user.name=${params.author.name}`, "-c", `user.email=${params.author.email}`);
   args.push("commit", "-m", params.message);
   if (params.allowEmpty) args.push("--allow-empty");
@@ -84,8 +84,8 @@ export async function commitGitChanges(
   const attemptCommit = async (withSigning: boolean): Promise<{stdout: string, stderr: string}> => {
     const finalArgs = [...args];
     if (withSigning) finalArgs.push("-S");
-    logger.debug(`Executing command: git ${finalArgs.join(" ")}`, { ...context, operation });
-    return await execFileAsync("git", finalArgs);
+    logger.debug(`Executing command: git ${finalArgs.join(" ")} in ${targetPath}`, { ...context, operation });
+    return await execFileAsync("git", finalArgs, { cwd: targetPath });
   };
 
   try {

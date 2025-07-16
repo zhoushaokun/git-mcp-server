@@ -105,7 +105,7 @@ export async function getGitStatus(
   const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
 
   try {
-    const { stdout } = await execFileAsync("git", ["-C", targetPath, "status", "--porcelain=v1", "-b"]);
+    const { stdout } = await execFileAsync("git", ["status", "--porcelain=v1", "-b"], { cwd: targetPath });
     return parseGitStatus(stdout);
   } catch (error: any) {
     const errorMessage = error.stderr || error.message || "";

@@ -45,21 +45,21 @@ export async function checkoutGit(
   const workingDir = context.getWorkingDirectory();
   const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const args = ["-C", targetPath, "checkout"];
+  const args = ["checkout"];
   if (params.force) args.push("--force");
   if (params.newBranch) args.push("-b", params.newBranch);
   args.push(params.branchOrPath);
 
   try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args);
+    logger.debug(`Executing command: git ${args.join(" ")} in ${targetPath}`, { ...context, operation });
+    const { stdout, stderr } = await execFileAsync("git", args, { cwd: targetPath });
 
     const message = stderr.trim() || stdout.trim();
     logger.info("git checkout executed successfully", { ...context, operation, message });
 
     let currentBranch: string | undefined;
     try {
-      const { stdout: branchStdout } = await execFileAsync("git", ["-C", targetPath, "branch", "--show-current"]);
+      const { stdout: branchStdout } = await execFileAsync("git", ["branch", "--show-current"], { cwd: targetPath });
       currentBranch = branchStdout.trim();
     } catch {
       currentBranch = "Detached HEAD";

@@ -38,14 +38,14 @@ export type GitDiffInput = z.infer<typeof GitDiffInputSchema>;
 export type GitDiffOutput = z.infer<typeof GitDiffOutputSchema>;
 
 async function getUntrackedFilesDiff(targetPath: string, context: RequestContext): Promise<string> {
-    const { stdout } = await execFileAsync("git", ["-C", targetPath, "ls-files", "--others", "--exclude-standard"]);
+    const { stdout } = await execFileAsync("git", ["ls-files", "--others", "--exclude-standard"], { cwd: targetPath, shell: true });
     const untrackedFiles = stdout.trim().split("\n").filter(Boolean);
     if (untrackedFiles.length === 0) return "";
 
     let diffs = "";
     for (const file of untrackedFiles) {
         try {
-            const { stdout: diffOut } = await execFileAsync("git", ["-C", targetPath, "diff", "--no-index", "/dev/null", file]);
+            const { stdout: diffOut } = await execFileAsync("git", ["diff", "--no-index", "/dev/null", file], { cwd: targetPath, shell: true });
             diffs += diffOut;
         } catch (error: any) {
             if (error.stdout) diffs += error.stdout;
@@ -69,7 +69,7 @@ export async function diffGitChanges(
   const workingDir = context.getWorkingDirectory();
   const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const args = ["-C", targetPath, "diff"];
+  const args = ["diff"];
   if (params.staged) {
     args.push("--staged");
   } else {
@@ -79,8 +79,8 @@ export async function diffGitChanges(
   if (params.file) args.push("--", params.file);
 
   try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args, { maxBuffer: 1024 * 1024 * 20 });
+    logger.debug(`Executing command: git ${args.join(" ")} in ${targetPath}`, { ...context, operation });
+    const { stdout } = await execFileAsync("git", args, { cwd: targetPath, maxBuffer: 1024 * 1024 * 20, shell: true });
     let combinedDiff = stdout;
 
     if (params.includeUntracked) {
