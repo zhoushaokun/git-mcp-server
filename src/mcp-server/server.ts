@@ -66,24 +66,28 @@ async function createMcpServerInstance(): Promise<McpServer> {
     },
   );
 
-  let sessionWorkingDirectory: string | undefined = undefined;
+  const sessionWorkingDirectories = new Map<string, string>();
+  const STDIO_SESSION_ID = "stdio_session"; // Constant for single-session transports
 
   const getSessionIdFromContext = (toolContext: Record<string, any>): string | undefined => {
     return (toolContext as RequestContext)?.sessionId;
   };
 
   const getWorkingDirectory = (sessionId: string | undefined): string | undefined => {
-    return sessionWorkingDirectory;
+    const id = sessionId ?? STDIO_SESSION_ID;
+    return sessionWorkingDirectories.get(id);
   };
 
   const setWorkingDirectory = (sessionId: string | undefined, dir: string): void => {
-    logger.debug("Setting session working directory", { ...context, sessionId, newDirectory: dir });
-    sessionWorkingDirectory = dir;
+    const id = sessionId ?? STDIO_SESSION_ID;
+    logger.debug("Setting session working directory", { ...context, sessionId: id, newDirectory: dir });
+    sessionWorkingDirectories.set(id, dir);
   };
-  
+
   const clearWorkingDirectory = (sessionId: string | undefined): void => {
-    logger.debug("Clearing session working directory", { ...context, sessionId });
-    sessionWorkingDirectory = undefined;
+    const id = sessionId ?? STDIO_SESSION_ID;
+    logger.debug("Clearing session working directory", { ...context, sessionId: id });
+    sessionWorkingDirectories.delete(id);
   };
 
   try {
@@ -134,13 +138,14 @@ async function startTransport(): Promise<McpServer | void> {
   });
   logger.info(`Starting transport: ${transportType}`, context);
 
+  const server = await createMcpServerInstance();
+
   if (transportType === "http") {
-    await startHttpTransport(createMcpServerInstance, context);
+    await startHttpTransport(server, context);
     return;
   }
 
   if (transportType === "stdio") {
-    const server = await createMcpServerInstance();
     await connectStdioTransport(server, context);
     return server;
   }

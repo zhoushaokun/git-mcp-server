@@ -100,10 +100,16 @@ export async function gitWorktreeLogic(
   logger.debug(`Executing ${operation}`, { ...context, params });
 
   const workingDir = context.getWorkingDirectory();
-  const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
+  if (params.path === "." && !workingDir) {
+    throw new McpError(
+      BaseErrorCode.VALIDATION_ERROR,
+      "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
+    );
+  }
+  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
   const buildArgs = () => {
-    const baseArgs = ["worktree", params.mode];
+    const baseArgs = ["-C", targetPath, "worktree", params.mode];
     switch (params.mode) {
       case "list":
         if (params.verbose) baseArgs.push("--verbose");
@@ -135,8 +141,8 @@ export async function gitWorktreeLogic(
   const args = buildArgs();
 
   try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation, cwd: targetPath });
-    const { stdout } = await execFileAsync("git", args, { cwd: targetPath });
+    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+    const { stdout } = await execFileAsync("git", args);
 
     if (params.mode === 'list' && params.verbose) {
         return { success: true, mode: params.mode, worktrees: parsePorcelainWorktreeList(stdout) };

@@ -45,7 +45,13 @@ export async function gitCherryPickLogic(
   logger.debug(`Executing ${operation}`, { ...context, params });
 
   const workingDir = context.getWorkingDirectory();
-  const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
+  if (params.path === "." && !workingDir) {
+    throw new McpError(
+      BaseErrorCode.VALIDATION_ERROR,
+      "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
+    );
+  }
+  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
   const args = ["-C", targetPath, "cherry-pick"];
   if (params.mainline) args.push("-m", String(params.mainline));

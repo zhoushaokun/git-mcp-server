@@ -132,7 +132,7 @@ function startHttpServerWithRetry(
 }
 
 export async function startHttpTransport(
-  createServerInstanceFn: () => Promise<McpServer>,
+  server: McpServer,
   parentContext: RequestContext,
 ): Promise<ServerType> {
   const app = new Hono<{ Bindings: HttpBindings }>();
@@ -230,8 +230,7 @@ export async function startHttpTransport(
         }
       };
 
-      // Connect the new transport to a new server instance.
-      const server = await createServerInstanceFn();
+      // Connect the new transport to the existing server instance.
       await server.connect(newTransport);
       transport = newTransport;
     } else if (!transport) {

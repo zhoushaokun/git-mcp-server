@@ -41,7 +41,7 @@ async function stageFiles(targetPath: string, files: string[], context: RequestC
   logger.debug(`Staging files: ${files.join(", ")}`, { ...context, operation });
   try {
     const sanitizedFiles = files.map(file => sanitization.sanitizePath(file, { rootDir: targetPath }).sanitizedPath);
-    await execFileAsync("git", ["add", "--", ...sanitizedFiles], { cwd: targetPath });
+    await execFileAsync("git", ["-C", targetPath, "add", "--", ...sanitizedFiles]);
   } catch (error: any) {
     throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to stage files: ${error.stderr || error.message}`);
   }
@@ -49,7 +49,7 @@ async function stageFiles(targetPath: string, files: string[], context: RequestC
 
 async function getCommittedFiles(targetPath: string, commitHash: string, context: RequestContext): Promise<string[]> {
     try {
-        const { stdout } = await execFileAsync("git", ["show", "--pretty=", "--name-only", commitHash], { cwd: targetPath });
+        const { stdout } = await execFileAsync("git", ["-C", targetPath, "show", "--pretty=", "--name-only", commitHash]);
         return stdout.trim().split("\n").filter(Boolean);
     } catch (error: any) {
         logger.warning("Failed to retrieve committed files list", { ...context, commitHash, error: error.message });
@@ -69,13 +69,19 @@ export async function commitGitChanges(
   logger.debug(`Executing ${operation}`, { ...context, params });
 
   const workingDir = context.getWorkingDirectory();
-  const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
+  if (params.path === "." && !workingDir) {
+    throw new McpError(
+      BaseErrorCode.VALIDATION_ERROR,
+      "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
+    );
+  }
+  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
   if (params.filesToStage && params.filesToStage.length > 0) {
     await stageFiles(targetPath, params.filesToStage, context);
   }
 
-  const args: string[] = [];
+  const args: string[] = ["-C", targetPath];
   if (params.author) args.push("-c", `user.name=${params.author.name}`, "-c", `user.email=${params.author.email}`);
   args.push("commit", "-m", params.message);
   if (params.allowEmpty) args.push("--allow-empty");
@@ -84,8 +90,8 @@ export async function commitGitChanges(
   const attemptCommit = async (withSigning: boolean): Promise<{stdout: string, stderr: string}> => {
     const finalArgs = [...args];
     if (withSigning) finalArgs.push("-S");
-    logger.debug(`Executing command: git ${finalArgs.join(" ")} in ${targetPath}`, { ...context, operation });
-    return await execFileAsync("git", finalArgs, { cwd: targetPath });
+    logger.debug(`Executing command: git ${finalArgs.join(" ")}`, { ...context, operation });
+    return await execFileAsync("git", finalArgs);
   };
 
   try {

@@ -104,13 +104,19 @@ export async function getGitStatus(
   logger.debug(`Executing ${operation}`, { ...context, params });
 
   const workingDir = context.getWorkingDirectory();
-  const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
+  if (params.path === "." && !workingDir) {
+    throw new McpError(
+      BaseErrorCode.VALIDATION_ERROR,
+      "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
+    );
+  }
+  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const args = ["status", "--porcelain=v1", "-b"];
+  const args = ["-C", targetPath, "status", "--porcelain=v1", "-b"];
 
   try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation, cwd: targetPath });
-    const { stdout } = await execFileAsync("git", args, { cwd: targetPath });
+    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+    const { stdout } = await execFileAsync("git", args);
     return parseGitStatus(stdout);
   } catch (error: any) {
     const errorMessage = error.stderr || error.message || "";

@@ -43,23 +43,29 @@ export async function checkoutGit(
   logger.debug(`Executing ${operation}`, { ...context, params });
 
   const workingDir = context.getWorkingDirectory();
-  const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
+  if (params.path === "." && !workingDir) {
+    throw new McpError(
+      BaseErrorCode.VALIDATION_ERROR,
+      "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
+    );
+  }
+  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const args = ["checkout"];
+  const args = ["-C", targetPath, "checkout"];
   if (params.force) args.push("--force");
   if (params.newBranch) args.push("-b", params.newBranch);
   args.push(params.branchOrPath);
 
   try {
-    logger.debug(`Executing command: git ${args.join(" ")} in ${targetPath}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args, { cwd: targetPath });
+    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+    const { stdout, stderr } = await execFileAsync("git", args);
 
     const message = stderr.trim() || stdout.trim();
     logger.info("git checkout executed successfully", { ...context, operation, message });
 
     let currentBranch: string | undefined;
     try {
-      const { stdout: branchStdout } = await execFileAsync("git", ["branch", "--show-current"], { cwd: targetPath });
+      const { stdout: branchStdout } = await execFileAsync("git", ["-C", targetPath, "branch", "--show-current"]);
       currentBranch = branchStdout.trim();
     } catch {
       currentBranch = "Detached HEAD";

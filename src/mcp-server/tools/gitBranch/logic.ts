@@ -6,8 +6,8 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
-import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -67,7 +67,13 @@ export async function gitBranchLogic(
   logger.debug(`Executing ${operation}`, { ...context, params });
 
   const workingDir = context.getWorkingDirectory();
-  const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
+  if (params.path === "." && !workingDir) {
+    throw new McpError(
+      BaseErrorCode.VALIDATION_ERROR,
+      "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
+    );
+  }
+  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
   const args = ["-C", targetPath];
 

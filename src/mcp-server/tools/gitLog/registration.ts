@@ -18,7 +18,7 @@ export type GetSessionIdFn = (context: Record<string, any>) => string | undefine
 
 const TOOL_NAME = "git_log";
 const TOOL_DESCRIPTION =
-  "Shows commit logs for the repository. Supports limiting count, filtering by author, date range, and specific branch/file. Returns a JSON object containing a list of commit objects (`commits` array) by default. If `showSignature: true` is used, it returns a JSON object where the `commits` array is empty and the raw signature verification output is included in the `message` field.";
+  "Shows commit logs for the repository. Supports limiting count, filtering by author, date range, and specific branch/file. Returns a JSON object containing a list of commit objects (`commits` array) by default. If `showSignature: true` is used, it returns a JSON object where the `commits` array is empty and the raw signature verification output is included in the `rawOutput` field.";
 
 /**
  * Registers the git_log tool with the MCP server instance.

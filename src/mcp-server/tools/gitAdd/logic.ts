@@ -32,66 +32,24 @@ export const GitAddOutputSchema = z.object({
 export type GitAddOutput = z.infer<typeof GitAddOutputSchema>;
 
 export async function addGitFiles(
-  input: GitAddInput,
+  params: GitAddInput,
   context: RequestContext & {
-    sessionId?: string;
     getWorkingDirectory: () => string | undefined;
   },
 ): Promise<GitAddOutput> {
   const operation = "addGitFiles";
-  logger.debug(`Executing ${operation}`, { ...context, input });
+  logger.debug(`Executing ${operation}`, { ...context, params });
 
-  let targetPath: string;
-  try {
-    if (input.path && input.path !== ".") {
-      targetPath = input.path;
-      logger.debug(`Using provided path: ${targetPath}`, {
-        ...context,
-        operation,
-      });
-    } else {
-      const workingDir = context.getWorkingDirectory();
-      if (!workingDir) {
-        throw new McpError(
-          BaseErrorCode.VALIDATION_ERROR,
-          "No path provided and no working directory set for the session.",
-          { context, operation },
-        );
-      }
-      targetPath = workingDir;
-      logger.debug(`Using session working directory: ${targetPath}`, {
-        ...context,
-        operation,
-        sessionId: context.sessionId,
-      });
-    }
-
-    const sanitizedPathInfo = sanitization.sanitizePath(targetPath, {
-      allowAbsolute: true,
-    });
-    logger.debug("Sanitized repository path", {
-      ...context,
-      operation,
-      sanitizedPathInfo,
-    });
-    targetPath = sanitizedPathInfo.sanitizedPath;
-  } catch (error) {
-    logger.error("Path resolution or sanitization failed", {
-      ...context,
-      operation,
-      error,
-    });
-    if (error instanceof McpError) {
-      throw error;
-    }
+  const workingDir = context.getWorkingDirectory();
+  if (params.path === "." && !workingDir) {
     throw new McpError(
       BaseErrorCode.VALIDATION_ERROR,
-      `Invalid path: ${error instanceof Error ? error.message : String(error)}`,
-      { context, operation, originalError: error },
+      "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
     );
   }
+  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const filesToStage = Array.isArray(input.files) ? input.files : [input.files];
+  const filesToStage = Array.isArray(params.files) ? params.files : [params.files];
   if (filesToStage.length === 0) {
     filesToStage.push(".");
   }

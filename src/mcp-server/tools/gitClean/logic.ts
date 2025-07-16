@@ -49,7 +49,13 @@ export async function gitCleanLogic(
   logger.warning("Executing 'git clean' with force=true. This is a destructive operation.", { ...context, operation });
 
   const workingDir = context.getWorkingDirectory();
-  const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
+  if (params.path === "." && !workingDir) {
+    throw new McpError(
+      BaseErrorCode.VALIDATION_ERROR,
+      "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
+    );
+  }
+  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
   const args = ["-C", targetPath, "clean", "-f"];
   if (params.dryRun) args.push("-n");
