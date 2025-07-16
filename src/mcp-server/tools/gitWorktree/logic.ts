@@ -71,7 +71,11 @@ type WorktreeInfo = z.infer<typeof WorktreeInfoSchema>;
 function parsePorcelainWorktreeList(stdout: string): WorktreeInfo[] {
     return stdout.trim().split("\n\n").map(entry => {
         const lines = entry.trim().split("\n");
-        const info: Partial<WorktreeInfo> = {};
+        const info: Partial<WorktreeInfo> = {
+            isBare: false,
+            isLocked: false,
+            isPrunable: false,
+        };
         lines.forEach(line => {
             if (line.startsWith("worktree ")) info.path = line.substring(9);
             else if (line.startsWith("HEAD ")) info.head = line.substring(5);
