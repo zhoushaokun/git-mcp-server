@@ -1,10 +1,6 @@
 /**
  * @fileoverview Barrel file for the gitReset tool.
+ * @module src/mcp-server/tools/gitReset/index
  */
 
-export {
-  registerGitResetTool,
-  initializeGitResetStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitResetInput, GitResetResult } from './logic.js';
+export { registerGitResetTool } from "./registration.js";

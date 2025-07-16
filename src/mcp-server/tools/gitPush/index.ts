@@ -1,10 +1,6 @@
 /**
  * @fileoverview Barrel file for the gitPush tool.
+ * @module src/mcp-server/tools/gitPush/index
  */
 
-export {
-  registerGitPushTool,
-  initializeGitPushStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitPushInput, GitPushResult } from './logic.js';
+export { registerGitPushTool } from "./registration.js";

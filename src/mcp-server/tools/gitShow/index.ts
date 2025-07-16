@@ -1,11 +1,6 @@
 /**
- * @fileoverview Barrel file for the git_show tool.
- * Exports the registration function and state accessor initialization function.
+ * @fileoverview Barrel file for the gitShow tool.
+ * @module src/mcp-server/tools/gitShow/index
  */
 
-export {
-  registerGitShowTool,
-  initializeGitShowStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitShowInput, GitShowResult } from './logic.js';
+export { registerGitShowTool } from "./registration.js";

@@ -1,11 +1,6 @@
 /**
- * @fileoverview Barrel file for the git_clean tool.
- * Exports the registration function and state accessor initialization function.
+ * @fileoverview Barrel file for the gitClean tool.
+ * @module src/mcp-server/tools/gitClean/index
  */
 
-export {
-  registerGitCleanTool,
-  initializeGitCleanStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitCleanInput, GitCleanResult } from './logic.js';
+export { registerGitCleanTool } from "./registration.js";

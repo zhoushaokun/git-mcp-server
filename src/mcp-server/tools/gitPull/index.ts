@@ -1,10 +1,6 @@
 /**
  * @fileoverview Barrel file for the gitPull tool.
+ * @module src/mcp-server/tools/gitPull/index
  */
 
-export {
-  registerGitPullTool,
-  initializeGitPullStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitPullInput, GitPullResult } from './logic.js';
+export { registerGitPullTool } from "./registration.js";

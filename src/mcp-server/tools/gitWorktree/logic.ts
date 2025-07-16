@@ -1,522 +1,124 @@
+/**
+ * @fileoverview Defines the core logic, schemas, and types for the git_worktree tool.
+ * @module src/mcp-server/tools/gitWorktree/logic
+ */
+
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
-import { logger, sanitization } from "../../../utils/index.js";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
-import { RequestContext } from "../../../utils/index.js";
+import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
+import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 
 const execFileAsync = promisify(execFile);
 
-// Define the BASE input schema for the git_worktree tool using Zod
+// 1. DEFINE the Zod input schema.
 export const GitWorktreeBaseSchema = z.object({
-  path: z
-    .string()
-    .min(1)
-    .optional()
-    .default(".")
-    .describe(
-      "Path to the local Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set.",
-    ),
-  mode: z
-    .enum(["list", "add", "remove", "move", "prune"])
-    .describe(
-      "The worktree operation to perform: 'list', 'add', 'remove', 'move', 'prune'.",
-    ),
-  // Common optional path for operations
-  worktreePath: z
-    .string()
-    .min(1)
-    .optional()
-    .describe(
-      "Path of the worktree. Required for 'add', 'remove', 'move' modes.",
-    ),
-  // 'add' mode specific
-  commitish: z
-    .string()
-    .min(1)
-    .optional()
-    .describe(
-      "Branch or commit to checkout in the new worktree. Used only in 'add' mode. Defaults to HEAD.",
-    ),
-  newBranch: z
-    .string()
-    .min(1)
-    .optional()
-    .describe("Create a new branch in the worktree. Used only in 'add' mode."),
-  force: z
-    .boolean()
-    .default(false)
-    .describe(
-      "Force the operation (e.g., for 'add' if branch exists, or 'remove' if uncommitted changes).",
-    ),
-  detach: z
-    .boolean()
-    .default(false)
-    .describe("Detach HEAD in the new worktree. Used only in 'add' mode."),
-  // 'move' mode specific
-  newPath: z
-    .string()
-    .min(1)
-    .optional()
-    .describe("The new path for the worktree. Required for 'move' mode."),
-  // 'prune' mode specific
-  verbose: z
-    .boolean()
-    .default(false)
-    .describe(
-      "Provide more detailed output. Used in 'list' and 'prune' modes.",
-    ),
-  dryRun: z
-    .boolean()
-    .default(false)
-    .describe(
-      "Show what would be done without actually doing it. Used in 'prune' mode.",
-    ),
-  expire: z
-    .string()
-    .min(1)
-    .optional()
-    .describe(
-      "Prune entries older than this time (e.g., '1.month.ago'). Used in 'prune' mode.",
-    ),
+  path: z.string().default(".").describe("Path to the local Git repository."),
+  mode: z.enum(["list", "add", "remove", "move", "prune"]).describe("The worktree operation to perform."),
+  worktreePath: z.string().min(1).optional().describe("Path of the worktree."),
+  commitish: z.string().min(1).optional().describe("Branch or commit to checkout in the new worktree."),
+  newBranch: z.string().min(1).optional().describe("Create a new branch in the worktree."),
+  force: z.boolean().default(false).describe("Force the operation."),
+  detach: z.boolean().default(false).describe("Detach HEAD in the new worktree."),
+  newPath: z.string().min(1).optional().describe("The new path for the worktree."),
+  verbose: z.boolean().default(false).describe("Provide more detailed output."),
+  dryRun: z.boolean().default(false).describe("Show what would be done without actually doing it."),
+  expire: z.string().min(1).optional().describe("Prune entries older than this time (e.g., '1.month.ago')."),
 });
 
-// Apply refinements and export the FINAL schema
 export const GitWorktreeInputSchema = GitWorktreeBaseSchema.refine(
-  (data) => !(data.mode === "add" && !data.worktreePath),
-  {
-    message: "A 'worktreePath' is required for 'add' mode.",
-    path: ["worktreePath"],
-  },
-)
-  .refine((data) => !(data.mode === "remove" && !data.worktreePath), {
-    message: "A 'worktreePath' is required for 'remove' mode.",
-    path: ["worktreePath"],
-  })
-  .refine(
-    (data) => !(data.mode === "move" && (!data.worktreePath || !data.newPath)),
-    {
-      message:
-        "Both 'worktreePath' (old path) and 'newPath' are required for 'move' mode.",
-      path: ["worktreePath", "newPath"],
-    },
-  );
+  (data) => !(data.mode === "add" && !data.worktreePath), { message: "A 'worktreePath' is required for 'add' mode.", path: ["worktreePath"] }
+).refine((data) => !(data.mode === "remove" && !data.worktreePath), { message: "A 'worktreePath' is required for 'remove' mode.", path: ["worktreePath"] }
+).refine((data) => !(data.mode === "move" && (!data.worktreePath || !data.newPath)), { message: "Both 'worktreePath' and 'newPath' are required for 'move' mode.", path: ["worktreePath", "newPath"] });
 
+// 2. DEFINE the Zod response schema.
+const WorktreeInfoSchema = z.object({
+    path: z.string(),
+    head: z.string(),
+    branch: z.string().optional(),
+    isBare: z.boolean(),
+    isLocked: z.boolean(),
+    isPrunable: z.boolean(),
+    prunableReason: z.string().optional(),
+});
+
+export const GitWorktreeOutputSchema = z.object({
+  success: z.boolean().describe("Indicates if the command was successful."),
+  mode: z.string().describe("The mode of operation that was performed."),
+  message: z.string().optional().describe("A summary message of the result."),
+  worktrees: z.array(WorktreeInfoSchema).optional().describe("A list of worktrees for the 'list' mode."),
+});
+
+// 3. INFER and export TypeScript types.
 export type GitWorktreeInput = z.infer<typeof GitWorktreeInputSchema>;
+export type GitWorktreeOutput = z.infer<typeof GitWorktreeOutputSchema>;
+type WorktreeInfo = z.infer<typeof WorktreeInfoSchema>;
 
-// --- Result Types ---
-interface WorktreeInfo {
-  path: string;
-  head: string; // Commit SHA
-  branch?: string; // Branch name, if on a branch
-  isBare: boolean;
-  isLocked: boolean;
-  isPrunable: boolean;
-  prunableReason?: string;
-}
-
-interface GitWorktreeListResult {
-  success: true;
-  mode: "list";
-  worktrees: WorktreeInfo[];
-}
-
-interface GitWorktreeAddResult {
-  success: true;
-  mode: "add";
-  worktreePath: string;
-  branch?: string;
-  head: string; // Commit SHA of the new worktree
-  message: string;
-}
-
-interface GitWorktreeRemoveResult {
-  success: true;
-  mode: "remove";
-  worktreePath: string;
-  message: string;
-}
-
-interface GitWorktreeMoveResult {
-  success: true;
-  mode: "move";
-  oldPath: string;
-  newPath: string;
-  message: string;
-}
-
-interface GitWorktreePruneResult {
-  success: true;
-  mode: "prune";
-  message: string; // Output from the prune command
-  prunedItems?: string[]; // Optional: if verbose output can be parsed
-}
-
-interface GitWorktreeFailureResult {
-  success: false;
-  mode: GitWorktreeInput["mode"];
-  message: string;
-  error?: string;
-}
-
-export type GitWorktreeResult =
-  | GitWorktreeListResult
-  | GitWorktreeAddResult
-  | GitWorktreeRemoveResult
-  | GitWorktreeMoveResult
-  | GitWorktreePruneResult
-  | GitWorktreeFailureResult;
-
-/**
- * Parses the output of `git worktree list --porcelain`.
- */
 function parsePorcelainWorktreeList(stdout: string): WorktreeInfo[] {
-  const worktrees: WorktreeInfo[] = [];
-  const entries = stdout.trim().split("\n\n"); // Entries are separated by double newlines
-
-  for (const entry of entries) {
-    const lines = entry.trim().split("\n");
-    let path = "";
-    let head = "";
-    let branch: string | undefined;
-    let isBare = false;
-    let isLocked = false;
-    let isPrunable = false;
-    let prunableReason: string | undefined;
-
-    for (const line of lines) {
-      if (line.startsWith("worktree ")) {
-        path = line.substring("worktree ".length);
-      } else if (line.startsWith("HEAD ")) {
-        head = line.substring("HEAD ".length);
-      } else if (line.startsWith("branch ")) {
-        branch = line.substring("branch ".length);
-      } else if (line.startsWith("bare")) {
-        isBare = true;
-      } else if (line.startsWith("locked")) {
-        isLocked = true;
-        const reasonMatch = line.match(/locked(?: (.+))?/);
-        if (reasonMatch && reasonMatch[1]) {
-          prunableReason = reasonMatch[1]; // Using prunableReason for lock reason too
-        }
-      } else if (line.startsWith("prunable")) {
-        isPrunable = true;
-        const reasonMatch = line.match(/prunable(?: (.+))?/);
-        if (reasonMatch && reasonMatch[1]) {
-          prunableReason = reasonMatch[1];
-        }
-      }
-    }
-    if (path) {
-      // Only add if a path was found
-      worktrees.push({
-        path,
-        head,
-        branch,
-        isBare,
-        isLocked,
-        isPrunable,
-        prunableReason,
-      });
-    }
-  }
-  return worktrees;
+    return stdout.trim().split("\n\n").map(entry => {
+        const lines = entry.trim().split("\n");
+        const info: Partial<WorktreeInfo> = {};
+        lines.forEach(line => {
+            if (line.startsWith("worktree ")) info.path = line.substring(9);
+            else if (line.startsWith("HEAD ")) info.head = line.substring(5);
+            else if (line.startsWith("branch ")) info.branch = line.substring(7);
+            else if (line.startsWith("bare")) info.isBare = true;
+            else if (line.startsWith("locked")) info.isLocked = true;
+            else if (line.startsWith("prunable")) info.isPrunable = true;
+        });
+        return info as WorktreeInfo;
+    }).filter(wt => wt.path);
 }
 
 /**
- * Executes git worktree commands.
+ * 4. IMPLEMENT the core logic function.
+ * @throws {McpError} If the logic encounters an unrecoverable issue.
  */
 export async function gitWorktreeLogic(
-  input: GitWorktreeInput,
-  context: RequestContext & {
-    sessionId?: string;
-    getWorkingDirectory: () => string | undefined;
-  },
-): Promise<GitWorktreeResult> {
-  const operation = `gitWorktreeLogic:${input.mode}`;
-  logger.debug(`Executing ${operation}`, { ...context, input });
+  params: GitWorktreeInput,
+  context: RequestContext & { getWorkingDirectory: () => string | undefined }
+): Promise<GitWorktreeOutput> {
+  const operation = `gitWorktreeLogic:${params.mode}`;
+  logger.debug(`Executing ${operation}`, { ...context, params });
 
-  let targetPath: string;
-  try {
-    const workingDir = context.getWorkingDirectory();
-    targetPath =
-      input.path && input.path !== "." ? input.path : (workingDir ?? ".");
+  const workingDir = context.getWorkingDirectory();
+  const targetPath = sanitization.sanitizePath(params.path === "." ? (workingDir || process.cwd()) : params.path, { allowAbsolute: true }).sanitizedPath;
 
-    if (targetPath === "." && !workingDir) {
-      logger.warning(
-        "Executing git worktree in server's CWD as no path provided and no session WD set.",
-        { ...context, operation },
-      );
-      targetPath = process.cwd();
-    } else if (targetPath === "." && workingDir) {
-      targetPath = workingDir;
-      logger.debug(`Using session working directory: ${targetPath}`, {
-        ...context,
-        operation,
-        sessionId: context.sessionId,
-      });
-    } else {
-      logger.debug(`Using provided path: ${targetPath}`, {
-        ...context,
-        operation,
-      });
-    }
-    targetPath = sanitization.sanitizePath(targetPath, {
-      allowAbsolute: true,
-    }).sanitizedPath;
-  } catch (error) {
-    logger.error("Path resolution or sanitization failed", {
-      ...context,
-      operation,
-      error,
-    });
-    if (error instanceof McpError) throw error;
-    throw new McpError(
-      BaseErrorCode.VALIDATION_ERROR,
-      `Invalid path: ${error instanceof Error ? error.message : String(error)}`,
-      { context, operation, originalError: error },
-    );
-  }
+  const args = ["-C", targetPath, "worktree", params.mode];
+  if (params.verbose && (params.mode === 'list' || params.mode === 'prune')) args.push("--verbose");
+  if (params.force) args.push("--force");
+  if (params.dryRun && params.mode === 'prune') args.push("--dry-run");
+  if (params.expire && params.mode === 'prune') args.push(`--expire=${params.expire}`);
+  if (params.detach && params.mode === 'add') args.push("--detach");
+  if (params.newBranch && params.mode === 'add') args.push("-b", params.newBranch);
+  if (params.worktreePath && (params.mode === 'add' || params.mode === 'remove' || params.mode === 'move')) args.push(params.worktreePath);
+  if (params.newPath && params.mode === 'move') args.push(params.newPath);
+  if (params.commitish && params.mode === 'add') args.push(params.commitish);
 
   try {
-    let args: string[];
-    let result: GitWorktreeResult;
+    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+    const { stdout } = await execFileAsync("git", args.filter(Boolean));
 
-    switch (input.mode) {
-      case "list":
-        args = ["-C", targetPath, "worktree", "list"];
-        if (input.verbose) {
-          args.push("--porcelain");
-        } // Use porcelain for structured output
-        logger.debug(`Executing command: git ${args.join(" ")}`, {
-          ...context,
-          operation,
-        });
-        const { stdout: listStdout } = await execFileAsync("git", args);
-        if (input.verbose) {
-          const worktrees = parsePorcelainWorktreeList(listStdout);
-          result = { success: true, mode: "list", worktrees };
-        } else {
-          // Simple list output parsing (less structured)
-          const worktrees = listStdout
-            .trim()
-            .split("\n")
-            .map((line) => {
-              const parts = line.split(/\s+/);
-              return {
-                path: parts[0],
-                head: parts[1],
-                branch: parts[2]?.replace(/[\[\]]/g, ""), // Remove brackets from branch name
-                isBare: false, // Cannot determine from simple list
-                isLocked: false, // Cannot determine
-                isPrunable: false, // Cannot determine
-              };
-            });
-          result = { success: true, mode: "list", worktrees };
-        }
-        break;
-
-      case "add":
-        // worktreePath is guaranteed by refine
-        const sanitizedWorktreePathAdd = sanitization.sanitizePath(
-          input.worktreePath!,
-          { allowAbsolute: true, rootDir: targetPath },
-        ).sanitizedPath;
-        args = ["-C", targetPath, "worktree", "add"];
-        if (input.force) {
-          args.push("--force");
-        }
-        if (input.detach) {
-          args.push("--detach");
-        }
-        if (input.newBranch) {
-          args.push("-b", input.newBranch);
-        }
-        args.push(sanitizedWorktreePathAdd);
-        if (input.commitish) {
-          args.push(input.commitish);
-        }
-
-        logger.debug(`Executing command: git ${args.join(" ")}`, {
-          ...context,
-          operation,
-        });
-        await execFileAsync("git", args);
-        // To get the HEAD of the new worktree, we might need another command or parse output if available
-        // For simplicity, we'll report success. A more robust solution might `git -C new_worktree_path rev-parse HEAD`
-        result = {
-          success: true,
-          mode: "add",
-          worktreePath: sanitizedWorktreePathAdd,
-          branch: input.newBranch,
-          head: "HEAD", // Placeholder, actual SHA would require another call
-          message: `Worktree '${sanitizedWorktreePathAdd}' added successfully.`,
-        };
-        break;
-
-      case "remove":
-        // worktreePath is guaranteed by refine
-        const sanitizedWorktreePathRemove = sanitization.sanitizePath(
-          input.worktreePath!,
-          { allowAbsolute: true, rootDir: targetPath },
-        ).sanitizedPath;
-        args = ["-C", targetPath, "worktree", "remove"];
-        if (input.force) {
-          args.push("--force");
-        }
-        args.push(sanitizedWorktreePathRemove);
-
-        logger.debug(`Executing command: git ${args.join(" ")}`, {
-          ...context,
-          operation,
-        });
-        const { stdout: removeStdout } = await execFileAsync("git", args);
-        result = {
-          success: true,
-          mode: "remove",
-          worktreePath: sanitizedWorktreePathRemove,
-          message:
-            removeStdout.trim() ||
-            `Worktree '${sanitizedWorktreePathRemove}' removed successfully.`,
-        };
-        break;
-
-      case "move":
-        // worktreePath and newPath are guaranteed by refine
-        const sanitizedOldPathMove = sanitization.sanitizePath(
-          input.worktreePath!,
-          { allowAbsolute: true, rootDir: targetPath },
-        ).sanitizedPath;
-        const sanitizedNewPathMove = sanitization.sanitizePath(input.newPath!, {
-          allowAbsolute: true,
-          rootDir: targetPath,
-        }).sanitizedPath;
-        args = [
-          "-C",
-          targetPath,
-          "worktree",
-          "move",
-          sanitizedOldPathMove,
-          sanitizedNewPathMove,
-        ];
-
-        logger.debug(`Executing command: git ${args.join(" ")}`, {
-          ...context,
-          operation,
-        });
-        await execFileAsync("git", args);
-        result = {
-          success: true,
-          mode: "move",
-          oldPath: sanitizedOldPathMove,
-          newPath: sanitizedNewPathMove,
-          message: `Worktree moved from '${sanitizedOldPathMove}' to '${sanitizedNewPathMove}' successfully.`,
-        };
-        break;
-
-      case "prune":
-        args = ["-C", targetPath, "worktree", "prune"];
-        if (input.dryRun) {
-          args.push("--dry-run");
-        }
-        if (input.verbose) {
-          args.push("--verbose");
-        }
-        if (input.expire) {
-          args.push(`--expire=${input.expire}`);
-        }
-
-        logger.debug(`Executing command: git ${args.join(" ")}`, {
-          ...context,
-          operation,
-        });
-        const { stdout: pruneStdout, stderr: pruneStderr } =
-          await execFileAsync("git", args);
-        // Prune often outputs to stderr even on success for verbose/dry-run
-        const pruneMessage =
-          pruneStdout.trim() ||
-          pruneStderr.trim() ||
-          "Worktree prune operation completed.";
-        result = { success: true, mode: "prune", message: pruneMessage };
-        if (input.verbose && pruneStdout.trim()) {
-          // Attempt to parse verbose output if needed, for now just return raw message
-          // result.prunedItems = ...
-        }
-        break;
-
-      default:
-        throw new McpError(
-          BaseErrorCode.VALIDATION_ERROR,
-          `Invalid mode: ${input.mode}`,
-          { context, operation },
-        );
+    if (params.mode === 'list' && params.verbose) {
+        return { success: true, mode: params.mode, worktrees: parsePorcelainWorktreeList(stdout) };
     }
+    
+    return { success: true, mode: params.mode, message: stdout.trim() || `Worktree ${params.mode} operation successful.` };
 
-    logger.info(`git worktree ${input.mode} executed successfully`, {
-      ...context,
-      operation,
-      path: targetPath,
-      result,
-    });
-    return result;
   } catch (error: any) {
-    const errorMessage = error.stderr || error.stdout || error.message || "";
-    logger.error(`Failed to execute git worktree command`, {
-      ...context,
-      path: targetPath,
-      error: errorMessage,
-      stderr: error.stderr,
-      stdout: error.stdout,
-    });
+    const errorMessage = error.stderr || error.message || "";
+    logger.error(`Failed to execute git worktree command`, { ...context, operation, errorMessage });
 
     if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(
-        BaseErrorCode.NOT_FOUND,
-        `Path is not a Git repository: ${targetPath}`,
-        { context, operation, originalError: error },
-      );
+      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
     }
-    // Add more specific error handling based on `git worktree` messages
-    if (input.mode === "add" && errorMessage.includes("already exists")) {
-      throw new McpError(
-        BaseErrorCode.CONFLICT,
-        `Failed to add worktree: Path '${input.worktreePath}' already exists or is a worktree. Error: ${errorMessage}`,
-        { context, operation, originalError: error },
-      );
+    if (params.mode === "add" && errorMessage.includes("already exists")) {
+      throw new McpError(BaseErrorCode.CONFLICT, `Path '${params.worktreePath}' already exists or is a worktree.`);
     }
-    if (input.mode === "add" && errorMessage.includes("is a submodule")) {
-      throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
-        `Failed to add worktree: Path '${input.worktreePath}' is a submodule. Error: ${errorMessage}`,
-        { context, operation, originalError: error },
-      );
-    }
-    if (
-      input.mode === "remove" &&
-      errorMessage.includes("cannot remove the current worktree")
-    ) {
-      throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
-        `Failed to remove worktree: Cannot remove the current worktree. Error: ${errorMessage}`,
-        { context, operation, originalError: error },
-      );
-    }
-    if (
-      input.mode === "remove" &&
-      errorMessage.includes("has unclean changes")
-    ) {
-      throw new McpError(
-        BaseErrorCode.CONFLICT,
-        `Failed to remove worktree: '${input.worktreePath}' has uncommitted changes. Use force=true to remove. Error: ${errorMessage}`,
-        { context, operation, originalError: error },
-      );
+    if (params.mode === "remove" && errorMessage.includes("has unclean changes")) {
+        throw new McpError(BaseErrorCode.CONFLICT, `Worktree '${params.worktreePath}' has uncommitted changes. Use force=true to remove.`);
     }
 
-    // Throw a generic McpError for other failures
-    throw new McpError(
-      BaseErrorCode.INTERNAL_ERROR,
-      `Git worktree ${input.mode} failed for path: ${targetPath}. Error: ${errorMessage}`,
-      { context, operation, originalError: error },
-    );
+    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git worktree ${params.mode} failed: ${errorMessage}`);
   }
 }

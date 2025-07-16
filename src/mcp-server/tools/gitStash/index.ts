@@ -1,11 +1,6 @@
 /**
- * @fileoverview Barrel file for the git_stash tool.
- * Exports the registration function and state accessor initialization function.
+ * @fileoverview Barrel file for the gitStash tool.
+ * @module src/mcp-server/tools/gitStash/index
  */
 
-export {
-  registerGitStashTool,
-  initializeGitStashStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitStashInput, GitStashResult } from './logic.js';
+export { registerGitStashTool } from "./registration.js";

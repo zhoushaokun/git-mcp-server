@@ -1,87 +1,82 @@
+/**
+ * @fileoverview Handles registration and error handling for the git_clone tool.
+ * @module src/mcp-server/tools/gitClone/registration
+ */
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
+import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 import {
-  CallToolResult,
-  TextContent,
-} from "@modelcontextprotocol/sdk/types.js";
-// Import utils from barrel (ErrorHandler from ../utils/internal/errorHandler.js)
-import { ErrorHandler } from "../../../utils/index.js";
-// Import utils from barrel (logger from ../utils/internal/logger.js)
-import { logger } from "../../../utils/index.js";
-// Import utils from barrel (requestContextService from ../utils/internal/requestContext.js)
-import { requestContextService } from "../../../utils/index.js";
-import {
-  GitCloneInputSchema,
   gitCloneLogic,
   GitCloneInput,
-  GitCloneResult,
+  GitCloneInputSchema,
+  GitCloneOutputSchema,
 } from "./logic.js";
-import { BaseErrorCode } from "../../../types-global/errors.js"; // Keep direct import for types-global
+
+export type GetSessionIdFn = (context: Record<string, any>) => string | undefined;
 
 const TOOL_NAME = "git_clone";
 const TOOL_DESCRIPTION =
   "Clones a Git repository from a given URL into a specified absolute directory path. Supports cloning specific branches and setting clone depth.";
 
 /**
- * Registers the git_clone tool with the MCP server.
- *
- * @param {McpServer} server - The McpServer instance to register the tool with.
- * @returns {Promise<void>}
- * @throws {Error} If registration fails.
+ * Registers the git_clone tool with the MCP server instance.
+ * @param server The MCP server instance.
+ * @param getSessionId Function to get the session ID from context.
  */
 export const registerGitCloneTool = async (
   server: McpServer,
+  getSessionId: GetSessionIdFn, // Added for consistency, though not used in logic
 ): Promise<void> => {
   const operation = "registerGitCloneTool";
   const context = requestContextService.createRequestContext({ operation });
 
-  await ErrorHandler.tryCatch(
-    async () => {
-      server.tool<typeof GitCloneInputSchema.shape>(
-        TOOL_NAME,
-        TOOL_DESCRIPTION,
-        GitCloneInputSchema.shape, // Provide the Zod schema shape
-        async (validatedArgs, callContext): Promise<CallToolResult> => {
-          const toolOperation = "tool:git_clone";
-          const requestContext = requestContextService.createRequestContext({
-            operation: toolOperation,
-            parentContext: callContext,
-          });
-
-          logger.info(`Executing tool: ${TOOL_NAME}`, requestContext);
-
-          return await ErrorHandler.tryCatch<CallToolResult>(
-            async () => {
-              // Call the core logic function
-              const cloneResult: GitCloneResult = await gitCloneLogic(
-                validatedArgs as GitCloneInput,
-                requestContext,
-              );
-
-              // Format the result as a JSON string within TextContent
-              const resultContent: TextContent = {
-                type: "text",
-                text: JSON.stringify(cloneResult, null, 2), // Pretty-print JSON
-                contentType: "application/json",
-              };
-
-              logger.info(
-                `Tool ${TOOL_NAME} executed successfully, returning JSON`,
-                requestContext,
-              );
-              return { content: [resultContent] };
-            },
-            {
-              operation: toolOperation,
-              context: requestContext,
-              input: validatedArgs, // Log sanitized input
-              errorCode: BaseErrorCode.INTERNAL_ERROR, // Default if unexpected error occurs
-            },
-          );
-        },
-      );
-
-      logger.info(`Tool registered: ${TOOL_NAME}`, context);
+  server.registerTool(
+    TOOL_NAME,
+    {
+      title: "Git Clone",
+      description: TOOL_DESCRIPTION,
+      inputSchema: GitCloneInputSchema.shape,
+      outputSchema: GitCloneOutputSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true, // Creates new files/directories
+        idempotentHint: false,
+        openWorldHint: true, // Interacts with remote repositories
+      },
     },
-    { operation, context, critical: true },
-  ); // Mark registration as critical
+    async (params: GitCloneInput, callContext: Record<string, any>) => {
+      const handlerContext = requestContextService.createRequestContext({
+        toolName: TOOL_NAME,
+        parentContext: callContext,
+      });
+
+      try {
+        const result = await gitCloneLogic(params, handlerContext);
+
+        return {
+          structuredContent: result,
+          content: [{ type: "text", text: `Success: ${JSON.stringify(result, null, 2)}` }],
+        };
+      } catch (error) {
+        logger.error(`Error in ${TOOL_NAME} handler`, { error, ...handlerContext });
+        const handledError = ErrorHandler.handleError(error, {
+            operation: `tool:${TOOL_NAME}`,
+            context: handlerContext,
+            input: params,
+        });
+
+        const mcpError = handledError instanceof McpError
+            ? handledError
+            : new McpError(BaseErrorCode.INTERNAL_ERROR, "An unexpected error occurred.", { originalError: handledError });
+
+        return {
+          isError: true,
+          content: [{ type: "text", text: mcpError.message }],
+          structuredContent: mcpError.details,
+        };
+      }
+    }
+  );
+  logger.info(`Tool '${TOOL_NAME}' registered successfully.`, context);
 };

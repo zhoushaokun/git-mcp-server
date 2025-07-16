@@ -1,10 +1,6 @@
 /**
  * @fileoverview Barrel file for the gitFetch tool.
+ * @module src/mcp-server/tools/gitFetch/index
  */
 
-export {
-  registerGitFetchTool,
-  initializeGitFetchStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitFetchInput, GitFetchResult } from './logic.js';
+export { registerGitFetchTool } from "./registration.js";
