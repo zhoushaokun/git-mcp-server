@@ -24,7 +24,6 @@ export const GitFetchInputSchema = z.object({
 export const GitFetchOutputSchema = z.object({
   success: z.boolean().describe("Indicates if the command was successful."),
   message: z.string().describe("A summary message of the result."),
-  summary: z.string().optional().describe("A more detailed summary from the fetch operation, if available."),
 });
 
 // 3. INFER and export TypeScript types.
@@ -58,10 +57,9 @@ export async function fetchGitRemote(
     logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
     const { stderr } = await execFileAsync("git", args);
 
-    const message = "Fetch successful.";
-    const summary = stderr.trim() || "No changes detected.";
+    const message = stderr.trim() || "Fetch successful.";
     
-    return { success: true, message, summary };
+    return { success: true, message };
 
   } catch (error: any) {
     const errorMessage = error.stderr || error.message || "";
