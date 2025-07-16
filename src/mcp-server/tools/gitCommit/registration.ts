@@ -1,50 +1,20 @@
+/**
+ * @fileoverview Handles registration and error handling for the git_commit tool.
+ * @module src/mcp-server/tools/gitCommit/registration
+ */
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-  CallToolResult,
-  TextContent,
-} from "@modelcontextprotocol/sdk/types.js";
-// Import utils from barrel (ErrorHandler from ../utils/internal/errorHandler.js)
-import { ErrorHandler } from "../../../utils/index.js";
-// Import utils from barrel (logger from ../utils/internal/logger.js)
-import { logger } from "../../../utils/index.js";
-// Import utils from barrel (requestContextService from ../utils/internal/requestContext.js)
-import { requestContextService } from "../../../utils/index.js";
-// Import the result type along with the function and input schema
-import { BaseErrorCode } from "../../../types-global/errors.js"; // Keep direct import for types-global
+import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
+import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 import {
   commitGitChanges,
   GitCommitInput,
   GitCommitInputSchema,
-  GitCommitResult,
+  GitCommitOutputSchema,
 } from "./logic.js";
 
-// --- State Accessors ---
-/** Type definition for the function that gets the working directory for a session */
-export type GetWorkingDirectoryFn = (
-  sessionId: string | undefined,
-) => string | undefined;
-/** Type definition for the function that gets the session ID from the context */
-export type GetSessionIdFn = (
-  context: Record<string, any>,
-) => string | undefined;
-
-let _getWorkingDirectory: GetWorkingDirectoryFn | undefined;
-let _getSessionId: GetSessionIdFn | undefined;
-
-/**
- * Initializes the state accessors needed by the tool registration.
- * This should be called once during server setup.
- * @param getWdFn - Function to get the working directory for a session.
- * @param getSidFn - Function to get the session ID from context.
- */
-export function initializeGitCommitStateAccessors(
-  getWdFn: GetWorkingDirectoryFn,
-  getSidFn: GetSessionIdFn,
-): void {
-  _getWorkingDirectory = getWdFn;
-  _getSessionId = getSidFn;
-  logger.info("State accessors initialized for git_commit tool registration.");
-}
+export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | undefined;
+export type GetSessionIdFn = (context: Record<string, any>) => string | undefined;
 
 const TOOL_NAME = "git_commit";
 const TOOL_DESCRIPTION = `Commits staged changes to the Git repository index with a descriptive message. Supports author override, amending, and empty commits. Returns a JSON result.
@@ -72,95 +42,69 @@ Closes #123 (if applicable).
 - The \`path\` defaults to the session's working directory unless overridden. If \`GIT_SIGN_COMMITS=true\` is set, commits are signed (\`-S\`), with an optional \`forceUnsignedOnFailure\` fallback.`;
 
 /**
- * Registers the git_commit tool with the MCP server.
- * Uses the high-level server.tool() method for registration, schema validation, and routing.
- *
- * @param {McpServer} server - The McpServer instance to register the tool with.
- * @returns {Promise<void>}
- * @throws {Error} If registration fails or state accessors are not initialized.
+ * Registers the git_commit tool with the MCP server instance.
+ * @param server The MCP server instance.
+ * @param getWorkingDirectory Function to get the session's working directory.
+ * @param getSessionId Function to get the session ID from context.
  */
 export const registerGitCommitTool = async (
   server: McpServer,
+  getWorkingDirectory: GetWorkingDirectoryFn,
+  getSessionId: GetSessionIdFn,
 ): Promise<void> => {
-  if (!_getWorkingDirectory || !_getSessionId) {
-    throw new Error(
-      "State accessors for git_commit must be initialized before registration.",
-    );
-  }
-
   const operation = "registerGitCommitTool";
   const context = requestContextService.createRequestContext({ operation });
 
-  await ErrorHandler.tryCatch(
-    async () => {
-      server.tool<typeof GitCommitInputSchema.shape>(
-        TOOL_NAME,
-        TOOL_DESCRIPTION,
-        GitCommitInputSchema.shape, // Provide the Zod schema shape
-        async (validatedArgs, callContext): Promise<CallToolResult> => {
-          const toolOperation = "tool:git_commit";
-          const requestContext = requestContextService.createRequestContext({
-            operation: toolOperation,
-            parentContext: callContext,
-          });
-
-          const sessionId = _getSessionId!(requestContext);
-
-          const getWorkingDirectoryForSession = () => {
-            return _getWorkingDirectory!(sessionId);
-          };
-
-          const logicContext = {
-            ...requestContext,
-            sessionId: sessionId,
-            getWorkingDirectory: getWorkingDirectoryForSession,
-          };
-
-          logger.info(`Executing tool: ${TOOL_NAME}`, logicContext);
-
-          return await ErrorHandler.tryCatch<CallToolResult>(
-            async () => {
-              // Call the core logic function which now returns a GitCommitResult object
-              const commitResult: GitCommitResult = await commitGitChanges(
-                validatedArgs as GitCommitInput,
-                logicContext,
-              );
-
-              // Format the result as a JSON string within TextContent
-              const resultContent: TextContent = {
-                type: "text",
-                // Stringify the JSON object for the response content
-                text: JSON.stringify(commitResult, null, 2), // Pretty-print JSON
-                contentType: "application/json",
-              };
-
-              // Log based on the success flag in the result
-              if (commitResult.success) {
-                logger.info(
-                  `Tool ${TOOL_NAME} executed successfully, returning JSON`,
-                  logicContext,
-                );
-              } else {
-                logger.info(
-                  `Tool ${TOOL_NAME} completed with non-fatal condition (e.g., nothing to commit), returning JSON`,
-                  logicContext,
-                );
-              }
-              // Even if success is false (e.g., nothing to commit), it's not a tool execution error
-              return { content: [resultContent] };
-            },
-            {
-              operation: toolOperation,
-              context: logicContext,
-              input: validatedArgs,
-              errorCode: BaseErrorCode.INTERNAL_ERROR,
-            },
-          );
-        },
-      );
-
-      logger.info(`Tool registered: ${TOOL_NAME}`, context);
+  server.registerTool(
+    TOOL_NAME,
+    {
+      title: "Git Commit",
+      description: TOOL_DESCRIPTION,
+      inputSchema: GitCommitInputSchema.shape,
+      outputSchema: GitCommitOutputSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false, // Committing is not idempotent
+        openWorldHint: false,
+      },
     },
-    { operation, context, critical: true },
+    async (params: GitCommitInput, callContext: Record<string, any>) => {
+      const handlerContext = requestContextService.createRequestContext({
+        toolName: TOOL_NAME,
+        parentContext: callContext,
+      });
+
+      try {
+        const sessionId = getSessionId(handlerContext);
+        const result = await commitGitChanges(params, {
+            ...handlerContext,
+            getWorkingDirectory: () => getWorkingDirectory(sessionId),
+        });
+
+        return {
+          structuredContent: result,
+          content: [{ type: "text", text: `Success: ${JSON.stringify(result, null, 2)}` }],
+        };
+      } catch (error) {
+        logger.error(`Error in ${TOOL_NAME} handler`, { error, ...handlerContext });
+        const handledError = ErrorHandler.handleError(error, {
+            operation: `tool:${TOOL_NAME}`,
+            context: handlerContext,
+            input: params,
+        });
+
+        const mcpError = handledError instanceof McpError
+            ? handledError
+            : new McpError(BaseErrorCode.INTERNAL_ERROR, "An unexpected error occurred.", { originalError: handledError });
+
+        return {
+          isError: true,
+          content: [{ type: "text", text: mcpError.message }],
+          structuredContent: mcpError.details,
+        };
+      }
+    }
   );
+  logger.info(`Tool '${TOOL_NAME}' registered successfully.`, context);
 };

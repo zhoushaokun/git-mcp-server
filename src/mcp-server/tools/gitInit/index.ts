@@ -1,11 +1,6 @@
 /**
- * @fileoverview Barrel file for the git_init tool.
- * Exports the registration function and the state accessor initializer.
+ * @fileoverview Barrel file for the gitInit tool.
+ * @module src/mcp-server/tools/gitInit/index
  */
 
-export {
-  registerGitInitTool,
-  initializeGitInitStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitInitInput, GitInitResult } from './logic.js';
+export { registerGitInitTool } from "./registration.js";

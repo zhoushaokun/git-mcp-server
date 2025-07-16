@@ -1,336 +1,200 @@
-# Git MCP Server Developer Cheatsheet
+# Git MCP Server: Architectural Standard & Developer Mandate
 
-This cheatsheet provides quick references for common patterns, utilities, and server configuration within the `git-mcp-server` codebase (based on `mcp-ts-template`), updated for MCP Spec 2025-03-26.
+**Effective Date:** 2025-07-15
+**Version:** 2.1
 
-## Server Transports & Configuration
+## Preamble
 
-The server can run using different communication transports, configured via environment variables.
+This document constitutes the official mandate governing all development practices, architectural patterns, and operational procedures for the `git-mcp-server`. It merges the project's original cheatsheet with the new architectural standards. Adherence to these standards is not optional.
 
-- **`MCP_TRANSPORT_TYPE`**: Specifies the transport.
-    - `"stdio"` (Default): Uses standard input/output for communication. Suitable for direct integration with parent processes.
-    - `"http"`: Uses Streamable HTTP Server-Sent Events (SSE) for communication. Runs an Express server.
-- **`MCP_HTTP_PORT`**: Port for the HTTP server (Default: `3000`). Used only if `MCP_TRANSPORT_TYPE=http`.
-- **`MCP_HTTP_HOST`**: Host address for the HTTP server (Default: `127.0.0.1`). Used only if `MCP_TRANSPORT_TYPE=http`.
-- **`MCP_ALLOWED_ORIGINS`**: Comma-separated list of allowed origins for HTTP requests (e.g., `http://localhost:8080,https://my-frontend.com`). Used only if `MCP_TRANSPORT_TYPE=http`.
-- **`MCP_LOG_LEVEL`**: Minimum logging level for the server (e.g., "debug", "info", "warning", "error", "notice", "crit", "alert", "emerg"). Defaults to "info". Affects both file logging and MCP notifications.
-- **`GIT_SIGN_COMMITS`**: Set to `"true"` to enable signing for commits created by the `git_commit` tool using the `-S` flag. **Requires additional server-side Git and key configuration (GPG or SSH) as detailed below.** Defaults to `false`.
+## I. Core Architectural Principles
 
-### HTTP Transport Details (`MCP_TRANSPORT_TYPE=http`)
+### 1. The Logic Throws, The Handler Catches
 
-- **Endpoint**: A single endpoint `/mcp` handles all communication.
-    - `POST /mcp`: Client sends requests/notifications to the server. Requires `mcp-session-id` header for subsequent requests after initialization. Server responds with JSON or initiates SSE stream.
-    - `GET /mcp`: Client initiates SSE stream for server-sent messages. Requires `mcp-session-id` header.
-    - `DELETE /mcp`: Client signals session termination. Requires `mcp-session-id` header.
-- **Session Management**: Each client connection establishes a session identified by the `mcp-session-id` header. The server maintains state per session.
-- **Security**: Robust origin checking is implemented via `originCheckMiddleware`. Configure `MCP_ALLOWED_ORIGINS` for production environments.
+This is the immutable cornerstone of our error-handling and control-flow strategy.
 
-### Running the Server
+*   **Core Logic (`logic.ts`):** This layer's sole responsibility is the execution of pure business logic (e.g., running a Git command). It must be self-contained. If an operational or validation error occurs, it **must** terminate its execution by **throwing a structured `McpError`**. Logic files shall **not** contain `try...catch` blocks for formatting a final response.
+*   **Handlers (`registration.ts`):** This layer's responsibility is to interface with the MCP server, invoke core logic, and manage the final response lifecycle. It **must** wrap every call to the logic layer in a `try...catch` block. This is the **exclusive** location where errors are caught, processed by the `ErrorHandler`, and formatted into a definitive `CallToolResult`.
 
-- **Stdio**: `npm run start:stdio`
-- **HTTP**: `npm run start:http'
-(optionally set `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_ALLOWED_ORIGINS`, `MCP_LOG_LEVEL`, `GIT_SIGN_COMMITS`).
+### 2. Structured, Traceable Operations
 
-## Model Context Protocol (MCP) Overview (Spec: 2025-03-26)
+Every operation must be fully traceable via structured logging and context propagation.
 
-MCP provides a standardized way for LLMs (via host applications) to interact with external capabilities (tools, data) exposed by dedicated servers.
+*   **RequestContext:** Any significant operation shall be initiated by creating a `RequestContext`. This context, containing a unique `requestId`, **must** be passed as an argument through the entire call stack.
+*   **Logger:** All logging shall be performed through the centralized `logger` singleton. Every log entry **must** include the `RequestContext`.
 
-### Core Concepts & Architecture
+## II. Tool Development Workflow
 
-- **Host:** Manages clients, LLM integration, security, and user consent (e.g., Claude Desktop, VS Code).
-- **Client:** Resides in the host, connects 1:1 to a server, handles protocol.
-- **Server:** Standalone process exposing capabilities (Resources, Tools, Prompts). Focuses on its domain, isolated from LLM/other servers.
+This section mandates the workflow for creating and modifying all Git tools.
 
-```mermaid
-graph LR
-    subgraph "Host Application Process"
-        H[Host]
-        C1[Client 1]
-        C2[Client 2]
-        H --> C1
-        H --> C2
-    end
-    subgraph "Server Process 1"
-        S1["MCP Server A<br>(e.g., Filesystem)"]
-        R1["Local Resource<br>e.g., Files"]
-        S1 <--> R1
-    end
-    subgraph "Server Process 2"
-        S2["MCP Server B<br>(e.g., API Wrapper)"]
-        R2["Remote Resource<br>e.g., Web API"]
-        S2 <--> R2
-    end
-    C1 <-->|MCP Protocol| S1
-    C2 <-->|MCP Protocol| S2
-```
+### A. File and Directory Structure
 
-- **Key Principles:** Simplicity, Composability, Isolation, Progressive Features.
+Each tool shall reside in a dedicated directory within `src/mcp-server/tools/`. The structure is fixed:
 
-### Protocol Basics
+*   **`toolName/`**
+    *   `index.ts`: Barrel file exporting only the `register...` function.
+    *   `logic.ts`: Contains the tool's core logic, Zod schemas (input and output), and all inferred TypeScript types.
+    *   `registration.ts`: Registers the tool, implementing the "Handler" role.
 
-- **Communication:** JSON-RPC 2.0 over a transport (Stdio, Streamable HTTP).
-- **Messages:** Requests (with `id`), Responses (`id` + `result`/`error`), Notifications (no `id`). Batches MUST be supported for receiving.
-- **Lifecycle:**
-    1.  **Initialization:** Client sends `initialize` (version, capabilities, clientInfo). Server responds (`initialize` response: agreed version, capabilities, serverInfo, instructions?). Client sends `initialized` notification.
-    2.  **Operation:** Message exchange based on negotiated capabilities.
-    3.  **Shutdown:** Transport disconnect.
+### B. The Canonical Pattern for Git Tools
 
-### Server Capabilities
+The following pattern is the authoritative implementation for all tool development.
 
-Servers expose functionality via:
-
-1.  **Resources:** (Currently none implemented in this server)
-    - **Purpose:** Expose data/content (files, DB records) as context.
-    - **Control:** Application-controlled.
-    - **ID:** Unique URI (e.g., `file:///path/to/doc.txt`).
-    - **Discovery:** `resources/list` (paginated), `resources/templates/list` (paginated).
-    - **Reading:** `resources/read` -> `ResourceContent` array (`text` or `blob`).
-    - **Updates (Optional):** `listChanged: true` -> `notifications/resources/list_changed`. `subscribe: true` -> `resources/subscribe`, `notifications/resources/updated`, **MUST handle `resources/unsubscribe` request**.
-
-2.  **Tools:** (Git operations)
-    - **Purpose:** Expose executable functions for LLM invocation (via client).
-    - **Control:** Model-controlled.
-    - **Definition:** `Tool` object (`name`, `description`, `inputSchema` (JSON Schema), `annotations?`). Annotations (`title`, `readOnlyHint`, etc.) are untrusted hints.
-    - **Discovery:** `tools/list` (paginated).
-    - **Invocation:** `tools/call` (`name`, `arguments`) -> `CallToolResult` (`content` array, `isError: boolean`). Execution errors reported via `isError: true`. **Rich schemas are crucial.**
-    - **Updates (Optional):** `listChanged: true` -> `notifications/tools/list_changed` (MUST send after dynamic changes).
-
-3.  **Prompts:** (Currently none implemented)
-    - **Purpose:** Reusable prompt templates/workflows (e.g., slash commands).
-    - **Control:** User-controlled.
-    - **Definition:** `Prompt` object (`name`, `description?`, `arguments?`).
-    - **Discovery:** `prompts/list` (paginated).
-    - **Usage:** `prompts/get` (`name`, `arguments`) -> `GetPromptResult` (`messages` array).
-    - **Updates (Optional):** `listChanged: true` -> `notifications/prompts/list_changed`.
-
-### Interacting with Client Capabilities
-
-- **Roots:** Client may provide filesystem roots (`file://`). Server receives list on init, updates via `notifications/roots/list_changed` (if supported). Servers SHOULD respect roots (especially important for a Git server).
-- **Sampling:** Server can request LLM completion via client using `sampling/createMessage`. Client SHOULD implement human-in-the-loop.
-
-### Server Utilities
-
-- **Logging:** `logging` capability -> `notifications/message` (RFC 5424 levels: `debug`, `info`, `notice`, `warning`, `error`, `critical`, `alert`, `emergency`). Client can send `logging/setLevel`.
-- **Pagination:** List operations use `cursor`/`nextCursor`.
-- **Completion:** `completions` capability -> `completion/complete`.
-- **Cancellation:** `notifications/cancelled` (best-effort).
-- **Ping:** `ping` request -> `{}` response.
-- **Progress:** `notifications/progress` (requires `_meta.progressToken` in original request).
-- **Configuration:** `configuration/get`, `configuration/set`.
-- **Back-pressure:** Clients debounce rapid notifications. Servers should aim for idempotency.
-
-### SDK Usage (TypeScript) - IMPORTANT
-
-- **High-Level SDK Abstractions (Strongly Recommended):**
-    - **Use `server.tool(name, description, zodSchemaShape, handler)`:** This is the **preferred and strongly recommended** way to define tools. It automatically handles:
-        - Registering the tool for `tools/list`.
-        - Generating the JSON Schema from the Zod shape.
-        - Validating incoming `tools/call` arguments against the schema.
-        - Routing the call to your handler with validated arguments.
-        - Formatting the `CallToolResult`.
-    - **Use `server.resource(regName, template, metadata, handler)`:** Similarly recommended for resources (if/when implemented).
-    - **Benefits:** Significantly reduces boilerplate, enforces type safety, simplifies protocol adherence.
-- **Low-Level SDK Handlers (AVOID unless absolutely necessary):**
-    - Manually using `server.setRequestHandler(SchemaObject, handler)` requires you to handle schema generation, argument validation, request routing, and response formatting yourself.
-    - **CRITICAL WARNING:** **Do NOT mix high-level (`server.tool`, `server.resource`) and low-level (`server.setRequestHandler`) approaches for the *same capability type* (e.g., tools).** The SDK's internal state management and type handling can become confused, leading to unexpected errors or incorrect behavior. Stick to one approach per capability type, **strongly preferring the high-level abstractions.**
-
-### Security Considerations
-
-- **Input Validation:** Use schemas (Zod), sanitize inputs (paths). **Crucial for Git commands to prevent command injection.**
-- **Access Control:** Least privilege, respect roots, implement auth if needed.
-- **Transport Security:** Use HTTPS, validate `Origin`, bind to `127.0.0.1` locally, consider MCP Auth Spec.
-- **Secrets Management:** Use env vars or secrets managers, avoid hardcoding/logging.
-- **Dependency Security:** Keep dependencies updated (`npm audit`).
-- **Rate Limiting:** Protect against abuse.
-
-## Core Utilities Integration
-
-### 1. Logging (`src/utils/internal/logger.ts`)
-
-- **Purpose**: Structured logging compliant with MCP Spec (RFC 5424 levels). Logs to files (`logs/`) and can send `notifications/message` to connected clients supporting the `logging` capability.
-- **Levels**: `debug`(7), `info`(6), `notice`(5), `warning`(4), `error`(3), `crit`(2), `alert`(1), `emerg`(0).
-- **Usage**: Import the singleton `logger` instance. Pass a `context` object (`RequestContext`) for correlation.
+**Step 1: Define Schema and Logic (`logic.ts`)**
 
 ```typescript
-import { logger, McpLogLevel } from './src/utils/internal/logger.js';
-import { RequestContext } from './src/utils/internal/requestContext.js'; // Or OperationContext
+/**
+ * @fileoverview Defines the core logic, schemas, and types for a Git tool.
+ * @module src/mcp-server/tools/gitTool/logic
+ */
+import { z } from "zod";
+import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
+import { McpError } from "@modelcontextprotocol/sdk";
 
-// Inside a function or handler
-const operationContext: RequestContext = /* ... get or create context ... */;
+// 1. DEFINE the Zod input schema.
+// CRITICAL: Descriptions are sent to the LLM. They must be clear, concise,
+// and contain all necessary context for the model to use the tool effectively.
+export const GitToolInputSchema = z.object({
+  path: z.string().default(".").describe("Path to the Git repository."),
+  // ... other parameters
+});
 
-logger.info("Processing request", operationContext); // Level 6
-logger.debug("Detailed step info", { ...operationContext, data: someData }); // Level 7
-logger.notice("Operation completed successfully.", operationContext); // Level 5
-logger.warning("Potential issue detected", operationContext); // Level 4 (Use warning, not warn)
-logger.error("An error occurred", new Error("Something failed"), operationContext); // Level 3 (Pass error object first)
-logger.crit("Critical system failure component", new Error("Details"), operationContext); // Level 2
+// 2. DEFINE the Zod response schema for structured output.
+export const GitToolOutputSchema = z.object({
+  success: z.boolean().describe("Indicates if the command was successful."),
+  // ... other structured output fields
+});
 
-// Set log level dynamically (e.g., based on client request if supported)
-logger.setLevel('debug' as McpLogLevel);
+// 3. INFER and export TypeScript types.
+export type GitToolInput = z.infer<typeof GitToolInputSchema>;
+export type GitToolOutput = z.infer<typeof GitToolOutputSchema>;
 
-// Set MCP notification sender (called by server logic on connection)
-// logger.setMcpNotificationSender((level, data, loggerName) => { /* server.sendNotification logic */ });
+/**
+ * 4. IMPLEMENT the core logic function.
+ * It must remain pure; its only concerns are its inputs and its return value or thrown error.
+ * @param params The validated input parameters.
+ * @param context The request context for logging and tracing.
+ * @returns A promise resolving with the structured response data.
+ * @throws {McpError} If the logic encounters an unrecoverable issue.
+ */
+export async function gitToolLogic(
+  params: GitToolInput,
+  context: RequestContext & { getWorkingDirectory: () => string | undefined }
+): Promise<GitToolOutput> {
+  logger.debug("Executing gitToolLogic...", { ...context });
+  
+  // Path resolution and sanitization logic here...
+  
+  // Example of a logic failure.
+  if (someConditionFails) {
+    // CRITICAL: Logic layer MUST throw a structured error on failure.
+    throw new McpError({
+      code: "INVALID_ARGUMENT",
+      message: "A specific error message.",
+    });
+  }
+
+  // Execute git command...
+
+  // On success, RETURN a structured output object.
+  return { success: true, /* ...other data */ };
+}
 ```
 
-- **Key Files**:
-  - `src/utils/internal/logger.ts`: Logger implementation.
-  - `logs/`: Directory where JSON log files are stored (`combined.log`, `error.log`, etc.).
-
-### 2. Error Handling (`src/types-global/errors.ts`, `src/utils/internal/errorHandler.ts`)
-
-- **Purpose**: Standardized error objects (`McpError`) and centralized handling (`ErrorHandler`). Automatically determines error codes based on type/patterns.
-- **Usage**:
-  - Use `ErrorHandler.tryCatch` to wrap operations that might fail.
-  - Throw `McpError` for specific, categorized errors using `BaseErrorCode`.
-  - `ErrorHandler` automatically logs errors (using the updated logger) with context and sanitized input.
+**Step 2: Register the Tool and Handle Outcomes (`registration.ts`)**
 
 ```typescript
-import { ErrorHandler } from './src/utils/internal/errorHandler.js';
-import { McpError, BaseErrorCode } from './src/types-global/errors.js';
-import { RequestContext } from './src/utils/internal/requestContext.js';
+/**
+ * @fileoverview Handles registration and error handling for the Git tool.
+ * @module src/mcp-server/tools/gitTool/registration
+ */
+import { McpServer, McpError } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
+import { GitToolInput, GitToolInputSchema, gitToolLogic, GitToolOutputSchema } from "./logic.js";
 
-async function performGitOperation(input: any, context: RequestContext) {
-  return await ErrorHandler.tryCatch(
-    async () => {
-      if (!input.path) { // Example validation
-        throw new McpError(BaseErrorCode.VALIDATION_ERROR, "Repository path is required", { context });
-      }
-      // ... perform git logic ...
-      const result = await someGitCommand(input);
-      return result;
-    },
+export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | undefined;
+export type GetSessionIdFn = (context: Record<string, any>) => string | undefined;
+
+/**
+ * Registers the tool with the MCP server instance.
+ * @param server The MCP server instance.
+ * @param getWorkingDirectory Function to get the session's working directory.
+ * @param getSessionId Function to get the session ID from context.
+ */
+export const registerGitTool = async (
+  server: McpServer,
+  getWorkingDirectory: GetWorkingDirectoryFn,
+  getSessionId: GetSessionIdFn,
+): Promise<void> => {
+  const toolName = "git_tool_name";
+
+  server.registerTool(
+    toolName,
     {
-      operation: 'performGitOperation',
-      context: context,
-      input: input, // Input is automatically sanitized for logging
-      errorCode: BaseErrorCode.INTERNAL_ERROR, // Default code if unexpected error occurs
-      critical: false
+      title: "Git Tool Title",
+      description: "A clear, concise description for the LLM.",
+      inputSchema: GitToolInputSchema.shape,
+      outputSchema: GitToolOutputSchema.shape, // MANDATORY
+      annotations: { readOnlyHint: false, /* ...other hints */ },
+    },
+    async (params: GitToolInput, callContext) => {
+      const handlerContext = requestContextService.createRequestContext({ toolName, parentContext: callContext });
+
+      try {
+        const sessionId = getSessionId(handlerContext);
+        const result = await gitToolLogic(params, {
+            ...handlerContext,
+            getWorkingDirectory: () => getWorkingDirectory(sessionId),
+        });
+
+        return {
+          structuredContent: result,
+          content: [{ type: "text", text: `Success: ${JSON.stringify(result)}` }],
+        };
+      } catch (error) {
+        logger.error(`Error in ${toolName} handler`, { error, ...handlerContext });
+        const mcpError = ErrorHandler.handleError(error, handlerContext);
+
+        return {
+          isError: true,
+          content: [{ type: "text", text: mcpError.message }],
+          structuredContent: mcpError.serialize(),
+        };
+      }
     }
   );
-}
+  logger.info(`Tool '${toolName}' registered successfully.`);
+};
 ```
 
-- **Key Files**:
-  - `src/types-global/errors.ts`: Defines `McpError` and `BaseErrorCode`.
-  - `src/utils/internal/errorHandler.ts`: Provides `ErrorHandler.tryCatch`, `handleError`, `determineErrorCode`.
+## III. Code Quality and Documentation Mandates
 
-### 3. Request Context (`src/utils/internal/requestContext.ts`)
+*   **JSDoc:** Every file shall begin with a `@fileoverview` and `@module` block. All exported functions, types, and classes shall have complete JSDoc comments.
+*   **LLM-Facing Descriptions:** The tool's `title`, `description`, and all parameter descriptions in Zod schemas (`.describe()`) are transmitted directly to the LLM. They must be written with the LLM as the primary audience, being descriptive, concise, and explicit about requirements.
+*   **Clarity and Intent:** Code shall be self-documenting. Variable and function names must be explicit and unambiguous.
+*   **Formatting:** All code must be formatted using Prettier (`npm run format`) before being committed.
 
-- **Purpose**: Track and correlate operations related to a single request or workflow using a unique `requestId`.
-- **Usage**:
-  - Create context at the beginning of an operation using `requestContextService.createRequestContext`.
-  - Pass the context object down through function calls.
-  - Include the context object when logging or creating errors.
+## IV. Security Mandates
 
-```typescript
-import { requestContextService, RequestContext } from './src/utils/internal/requestContext.js';
-import { logger } from './src/utils/internal/logger.js';
+*   **Input Sanitization:** All input shall be treated as untrusted and validated with Zod. Use `sanitization` utilities for explicit sanitization, especially for file paths.
+*   **Secrets Management:** All secrets (API keys, credentials) shall be loaded exclusively from environment variables via the `config` module.
 
-function handleIncomingRequest(requestData: any) {
-  const context: RequestContext = requestContextService.createRequestContext({
-    operation: 'HandleIncomingRequest',
-    initialData: requestData.id
-  });
+## V. Server Configuration & Operation (Cheatsheet)
 
-  logger.info("Received request", context);
-  processSubTask(requestData.payload, context);
-}
+### Environment Variables
+- **`MCP_TRANSPORT_TYPE`**: `"stdio"` (default) or `"http"`.
+- **`MCP_HTTP_PORT`**: Default `3000`.
+- **`MCP_HTTP_HOST`**: Default `127.0.0.1`.
+- **`MCP_ALLOWED_ORIGINS`**: Comma-separated list for CORS.
+- **`MCP_LOG_LEVEL`**: `debug`, `info`, `warning`, `error`, etc. Default `info`.
+- **`GIT_SIGN_COMMITS`**: Set to `"true"` to enable GPG/SSH signing for commits.
 
-function processSubTask(payload: any, parentContext: RequestContext) {
-  const subTaskContext = { ...parentContext, subOperation: 'ProcessSubTask' };
-  logger.debug("Processing sub-task", subTaskContext);
-  // ... logic ...
-}
-```
+### Running the Server
+- **Stdio**: `npm run start:stdio`
+- **HTTP**: `npm run start:http`
 
-- **Key Files**:
-  - `src/utils/internal/requestContext.ts`: Defines `RequestContext` interface and `requestContextService`.
-
-### 4. ID Generation (`src/utils/security/idGenerator.ts`)
-
-- **Purpose**: Generate unique, prefixed IDs for different entity types and standard UUIDs.
-- **Usage**: Configure prefixes (if needed) and use `idGenerator.generateForEntity` or `generateUUID`.
-
-```typescript
-import { idGenerator, generateUUID } from './src/utils/security/idGenerator.js';
-
-// No specific entity prefixes needed for this server yet
-// idGenerator.setEntityPrefixes({ ... });
-
-const standardUuid = generateUUID(); // e.g., "123e4567-e89b-12d3-a456-426614174000"
-```
-
-- **Key Files**:
-  - `src/utils/security/idGenerator.ts`: `IdGenerator` class, `idGenerator` instance, `generateUUID`.
-
-### 5. Sanitization (`src/utils/security/sanitization.ts`)
-
-- **Purpose**: Clean and validate input data (paths, numbers, URLs, JSON) to prevent security issues. Also sanitizes objects for logging. **Crucial for path inputs to Git commands.**
-- **Usage**: Import the singleton `sanitization` instance or `sanitizeInputForLogging`.
-
-```typescript
-import { sanitization, sanitizeInputForLogging } from './src/utils/security/sanitization.js';
-
-const unsafePath = '../../etc/passwd';
-try {
-  // Use sanitizePath for repository paths provided by the client
-  const safePath = sanitization.sanitizePath(unsafePath);
-} catch (error) { /* Handle McpError */ }
-
-const sensitiveData = { user: 'admin', password: 'pwd', token: 'abc' };
-const safeLogData = sanitizeInputForLogging(sensitiveData);
-// safeLogData = { user: 'admin', password: '[REDACTED]', token: '[REDACTED]' }
-```
-
-- **Key Files**:
-  - `src/utils/security/sanitization.ts`: `Sanitization` class, `sanitization` instance, `sanitizeInputForLogging`.
-
-### 6. JSON Parsing (`src/utils/parsing/jsonParser.ts`)
-
-- **Purpose**: Parse potentially partial/incomplete JSON strings. Handles optional `<think>` blocks. (Less relevant for this server currently).
-- **Usage**: Import `jsonParser`. Use `Allow` constants for options.
-- **Key Files**:
-  - `src/utils/parsing/jsonParser.ts`: `JsonParser` class, `jsonParser` instance, `Allow` enum.
-
-### 7. Rate Limiting (`src/utils/security/rateLimiter.ts`)
-
-- **Purpose**: Implement rate limiting based on a key. (May be useful if tools call external services).
-- **Usage**: Import `rateLimiter`. Use `check`.
-- **Key Files**:
-  - `src/utils/security/rateLimiter.ts`: `RateLimiter` class, `rateLimiter` instance.
-
-### 8. Token Counting (`src/utils/metrics/tokenCounter.ts`)
-
-- **Purpose**: Estimate tokens using `tiktoken` (`gpt-4o` model). (Less relevant for this server currently).
-- **Usage**: Import `countTokens` or `countChatTokens`.
-- **Key Files**:
-  - `src/utils/metrics/tokenCounter.ts`: Provides `countTokens` and `countChatTokens`.
-
-## Adding New Features
-
-### Adding a Git Tool
-
-1.  **Directory**: `src/mcp-server/tools/yourNewGitTool/`
-2.  **Logic (`logic.ts`)**:
-    - Define Zod input schema (`YourToolInputSchema`).
-    - Infer TypeScript input type (`YourToolInput`).
-    - Define TypeScript output interface (`YourToolResult`).
-    - Implement the core logic function (`async function yourToolLogic(input: YourToolInput, context: RequestContext): Promise<YourToolResult>`) using `child_process.exec` to run the appropriate `git` command. **Sanitize all path inputs.** Parse the output and return the structured `YourToolResult`. Handle errors using `McpError`.
-3.  **Registration (`registration.ts`)**:
-    - Import necessary types, schemas, logic function, `McpServer`, `ErrorHandler`, `logger`.
-    - Create `async function registerYourNewTool(server: McpServer)`.
-    - Inside, call `server.tool(TOOL_NAME, TOOL_DESCRIPTION, YourToolInputSchema.shape, async (validatedArgs) => { ... })`.
-    - The handler should call your logic function, wrap the result in `TextContent` (using `JSON.stringify`), and return a `CallToolResult`. Handle errors appropriately, returning JSON in the error case too.
-4.  **Index (`index.ts`)**: Export the registration function.
-5.  **Server (`src/mcp-server/server.ts`)**: Import and call the registration function within `createMcpServerInstance`.
-
-## Key File Locations
-
-- **Main Entry**: `src/index.ts` (Initializes server, handles startup/shutdown)
-- **Server Setup**: `src/mcp-server/server.ts` (Handles transport logic (stdio/http), session management (http), registers tools)
-- **Configuration**: `src/config/index.ts` (Loads env vars, package info, initializes logger)
-- **Global Types**: `src/types-global/`
-- **Utilities**: `src/utils/` (Contains subdirectories: `internal`, `metrics`, `parsing`, `security`)
-- **Tools**: `src/mcp-server/tools/` (Contains subdirectories for each Git tool)
-- **Resources**: `src/mcp-server/resources/` (Currently empty)
-
-Remember to keep this cheatsheet updated as the codebase evolves!
+### Core Utilities
+- **Logging**: `src/utils/internal/logger.ts`
+- **Error Handling**: `src/types-global/errors.ts`, `src/utils/internal/errorHandler.ts`
+- **Request Context**: `src/utils/internal/requestContext.ts`
+- **Sanitization**: `src/utils/security/sanitization.ts`

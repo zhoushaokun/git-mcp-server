@@ -1,11 +1,6 @@
 /**
- * @fileoverview Barrel file for the git_remote tool.
- * Exports the registration function and state accessor initialization function.
+ * @fileoverview Barrel file for the gitRemote tool.
+ * @module src/mcp-server/tools/gitRemote/index
  */
 
-export {
-  initializeGitRemoteStateAccessors,
-  registerGitRemoteTool,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitRemoteInput, GitRemoteResult } from './logic.js';
+export { registerGitRemoteTool } from "./registration.js";

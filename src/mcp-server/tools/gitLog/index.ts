@@ -1,10 +1,6 @@
 /**
  * @fileoverview Barrel file for the gitLog tool.
+ * @module src/mcp-server/tools/gitLog/index
  */
 
-export {
-  registerGitLogTool,
-  initializeGitLogStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitLogInput, GitLogResult } from './logic.js';
+export { registerGitLogTool } from "./registration.js";

@@ -1,10 +1,6 @@
 /**
  * @fileoverview Barrel file for the gitDiff tool.
+ * @module src/mcp-server/tools/gitDiff/index
  */
 
-export {
-  registerGitDiffTool,
-  initializeGitDiffStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitDiffInput, GitDiffResult } from './logic.js';
+export { registerGitDiffTool } from "./registration.js";

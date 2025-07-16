@@ -1,10 +1,6 @@
 /**
  * @fileoverview Barrel file for the gitCheckout tool.
+ * @module src/mcp-server/tools/gitCheckout/index
  */
 
-export {
-  registerGitCheckoutTool,
-  initializeGitCheckoutStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitCheckoutInput, GitCheckoutResult } from './logic.js';
+export { registerGitCheckoutTool } from "./registration.js";

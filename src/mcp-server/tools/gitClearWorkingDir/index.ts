@@ -1,11 +1,6 @@
 /**
- * @fileoverview Barrel file for the git_clear_working_dir tool.
- * Exports the registration function and related components.
+ * @fileoverview Barrel file for the gitClearWorkingDir tool.
+ * @module src/mcp-server/tools/gitClearWorkingDir/index
  */
 
-export {
-  registerGitClearWorkingDirTool,
-  initializeGitClearWorkingDirStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitClearWorkingDirInput, GitClearWorkingDirResult } from './logic.js';
+export { registerGitClearWorkingDirTool } from "./registration.js";

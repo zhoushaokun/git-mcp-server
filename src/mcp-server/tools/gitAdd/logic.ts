@@ -1,17 +1,11 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
-// Import utils from barrel (logger from ../utils/internal/logger.js)
-import { logger } from "../../../utils/index.js";
-// Import utils from barrel (RequestContext from ../utils/internal/requestContext.js)
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js"; // Keep direct import for types-global
-import { RequestContext } from "../../../utils/index.js";
-// Import utils from barrel (sanitization from ../utils/security/sanitization.js)
-import { sanitization } from "../../../utils/index.js";
+import { logger, RequestContext, sanitization } from "../../../utils/index.js";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 
 const execFileAsync = promisify(execFile);
 
-// Define the input schema for the git_add tool using Zod
 export const GitAddInputSchema = z.object({
   path: z
     .string()
@@ -27,109 +21,50 @@ export const GitAddInputSchema = z.object({
     .describe("Files or patterns to stage, defaults to all changes ('.')"),
 });
 
-// Infer the TypeScript type from the Zod schema
 export type GitAddInput = z.infer<typeof GitAddInputSchema>;
 
-// Define the structure for the JSON output
-export interface GitAddResult {
-  success: boolean;
-  statusMessage: string; // Renamed from 'message' for consistency
-  filesStaged: string[] | string; // Record what was attempted to be staged
-}
+export const GitAddOutputSchema = z.object({
+  success: z.boolean().describe("Indicates whether the operation was successful."),
+  statusMessage: z.string().describe("A message describing the result of the operation."),
+  filesStaged: z.union([z.string(), z.array(z.string())]).describe("The files or patterns that were staged."),
+});
 
-/**
- * Executes the 'git add' command and returns structured JSON output.
- *
- * @param {GitAddInput} input - The validated input object.
- * @param {RequestContext} context - The request context for logging and error handling.
- * @returns {Promise<GitAddResult>} A promise that resolves with the structured add result.
- * @throws {McpError} Throws an McpError if path resolution or validation fails, or if the git command fails unexpectedly.
- */
+export type GitAddOutput = z.infer<typeof GitAddOutputSchema>;
+
 export async function addGitFiles(
-  input: GitAddInput,
+  params: GitAddInput,
   context: RequestContext & {
-    sessionId?: string;
     getWorkingDirectory: () => string | undefined;
-  }, // Add getter to context
-): Promise<GitAddResult> {
+  },
+): Promise<GitAddOutput> {
   const operation = "addGitFiles";
-  logger.debug(`Executing ${operation}`, { ...context, input });
+  logger.debug(`Executing ${operation}`, { ...context, params });
 
-  let targetPath: string;
-  try {
-    // Resolve the target path
-    if (input.path && input.path !== ".") {
-      targetPath = input.path;
-      logger.debug(`Using provided path: ${targetPath}`, {
-        ...context,
-        operation,
-      });
-    } else {
-      const workingDir = context.getWorkingDirectory();
-      if (!workingDir) {
-        throw new McpError(
-          BaseErrorCode.VALIDATION_ERROR,
-          "No path provided and no working directory set for the session.",
-          { context, operation },
-        );
-      }
-      targetPath = workingDir;
-      logger.debug(`Using session working directory: ${targetPath}`, {
-        ...context,
-        operation,
-        sessionId: context.sessionId,
-      });
-    }
-
-    // Sanitize the resolved path
-    const sanitizedPathInfo = sanitization.sanitizePath(targetPath, {
-      allowAbsolute: true,
-    });
-    logger.debug("Sanitized repository path", {
-      ...context,
-      operation,
-      sanitizedPathInfo,
-    });
-    targetPath = sanitizedPathInfo.sanitizedPath; // Use the sanitized path going forward
-  } catch (error) {
-    logger.error("Path resolution or sanitization failed", {
-      ...context,
-      operation,
-      error,
-    });
-    if (error instanceof McpError) {
-      throw error;
-    }
+  const workingDir = context.getWorkingDirectory();
+  if (params.path === "." && !workingDir) {
     throw new McpError(
       BaseErrorCode.VALIDATION_ERROR,
-      `Invalid path: ${error instanceof Error ? error.message : String(error)}`,
-      { context, operation, originalError: error },
+      "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
     );
   }
+  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const filesToStage = Array.isArray(input.files) ? input.files : [input.files];
+  const filesToStage = Array.isArray(params.files) ? params.files : [params.files];
   if (filesToStage.length === 0) {
-    filesToStage.push("."); // Default to staging all if array is empty
+    filesToStage.push(".");
   }
 
   try {
-    const args = ["-C", targetPath, "add", "--"];
-    filesToStage.forEach((file) => {
-      // Sanitize each file path. Although execFile is safer,
-      // this prevents arguments like "-v" from being treated as flags by git.
-      const sanitizedFile = file.startsWith("-") ? `./${file}` : file;
-      args.push(sanitizedFile);
-    });
+    const args = ["-C", targetPath, "add", "--", ...filesToStage.map(file => file.startsWith("-") ? `./${file}` : file)];
 
     logger.debug(`Executing command: git ${args.join(" ")}`, {
       ...context,
       operation,
     });
 
-    const { stdout, stderr } = await execFileAsync("git", args);
+    const { stderr } = await execFileAsync("git", args);
 
     if (stderr) {
-      // Log stderr as warning, as 'git add' can produce warnings but still succeed.
       logger.warning(`Git add command produced stderr`, {
         ...context,
         operation,
@@ -149,7 +84,6 @@ export async function addGitFiles(
     });
     const reminder =
       "Remember to write clear, concise commit messages using the Conventional Commits format (e.g., 'feat(scope): subject').";
-    // Use statusMessage and add reminder
     return {
       success: true,
       statusMessage: `${successMessage}. ${reminder}`,
@@ -173,7 +107,6 @@ export async function addGitFiles(
       );
     }
     if (errorMessage.toLowerCase().includes("did not match any files")) {
-      // Still throw an error, but return structured info in the catch block of the registration
       throw new McpError(
         BaseErrorCode.NOT_FOUND,
         `Specified files/patterns did not match any files in ${targetPath}: ${filesToStage.join(", ")}`,
@@ -181,7 +114,6 @@ export async function addGitFiles(
       );
     }
 
-    // Throw generic error for other cases
     throw new McpError(
       BaseErrorCode.INTERNAL_ERROR,
       `Failed to stage files for path: ${targetPath}. Error: ${errorMessage}`,

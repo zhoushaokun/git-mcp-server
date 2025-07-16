@@ -1,11 +1,6 @@
 /**
- * @fileoverview Barrel file for the git_worktree tool.
- * Exports the registration function and state accessor initialization function.
+ * @fileoverview Barrel file for the gitWorktree tool.
+ * @module src/mcp-server/tools/gitWorktree/index
  */
 
-export {
-  registerGitWorktreeTool,
-  initializeGitWorktreeStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitWorktreeInput, GitWorktreeResult } from './logic.js';
+export { registerGitWorktreeTool } from "./registration.js";

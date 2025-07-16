@@ -1,6 +1,6 @@
-export {
-  registerGitWrapupInstructionsTool,
-  initializeGitWrapupInstructionsStateAccessors,
-} from "./registration.js";
-// This tool now requires session-specific state accessors (getWorkingDirectory, getSessionId)
-// to fetch git status, so initializeGitWrapupInstructionsStateAccessors is exported for server setup.
+/**
+ * @fileoverview Barrel file for the gitWrapupInstructions tool.
+ * @module src/mcp-server/tools/gitWrapupInstructions/index
+ */
+
+export { registerGitWrapupInstructionsTool } from "./registration.js";

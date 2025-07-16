@@ -1,11 +1,6 @@
 /**
- * @fileoverview Barrel file for the git_branch tool.
- * Exports the registration function and state accessor initialization function.
+ * @fileoverview Barrel file for the gitBranch tool.
+ * @module src/mcp-server/tools/gitBranch/index
  */
 
-export {
-  registerGitBranchTool,
-  initializeGitBranchStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitBranchInput, GitBranchResult } from './logic.js';
+export { registerGitBranchTool } from "./registration.js";

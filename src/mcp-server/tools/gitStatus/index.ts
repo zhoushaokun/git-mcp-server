@@ -1,11 +1,6 @@
 /**
  * @fileoverview Barrel file for the gitStatus tool.
- * Exports the registration function and state accessor initialization function.
+ * @module src/mcp-server/tools/gitStatus/index
  */
 
-export {
-  registerGitStatusTool,
-  initializeGitStatusStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitStatusInput, GitStatusResult } from './logic.js';
+export { registerGitStatusTool } from "./registration.js";

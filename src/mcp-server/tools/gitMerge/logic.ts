@@ -1,300 +1,99 @@
+/**
+ * @fileoverview Defines the core logic, schemas, and types for the git_merge tool.
+ * @module src/mcp-server/tools/gitMerge/logic
+ */
+
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
-// Import utils from barrel (logger from ../utils/internal/logger.js)
-import { logger } from "../../../utils/index.js";
-// Import utils from barrel (RequestContext from ../utils/internal/requestContext.js)
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js"; // Keep direct import for types-global
-import { RequestContext } from "../../../utils/index.js";
-// Import utils from barrel (sanitization from ../utils/security/sanitization.js)
-import path from "path"; // Import path module
-import { sanitization } from "../../../utils/index.js";
+import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
+import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 
 const execFileAsync = promisify(execFile);
 
-// Define the input schema for the git_merge tool
+// 1. DEFINE the Zod input schema.
 export const GitMergeInputSchema = z.object({
-  path: z
-    .string()
-    .min(1)
-    .optional()
-    .default(".")
-    .describe(
-      "Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set.",
-    ),
-  branch: z
-    .string()
-    .min(1)
-    .describe("The name of the branch to merge into the current branch."),
-  commitMessage: z
-    .string()
-    .optional()
-    .describe(
-      "Commit message to use for the merge commit (if required, e.g., not fast-forward).",
-    ),
-  noFf: z
-    .boolean()
-    .default(false)
-    .describe(
-      "Create a merge commit even when the merge resolves as a fast-forward (`--no-ff`).",
-    ),
-  squash: z
-    .boolean()
-    .default(false)
-    .describe(
-      "Combine merged changes into a single commit (`--squash`). Requires manual commit afterwards.",
-    ),
-  abort: z
-    .boolean()
-    .default(false)
-    .describe("Abort the current merge process (resolves conflicts)."),
-  // 'continue' might be too complex for initial implementation due to requiring index manipulation
+  path: z.string().default(".").describe("Path to the Git repository."),
+  branch: z.string().min(1).describe("The name of the branch to merge into the current branch."),
+  commitMessage: z.string().optional().describe("Commit message for the merge commit."),
+  noFf: z.boolean().default(false).describe("Create a merge commit even if a fast-forward is possible."),
+  squash: z.boolean().default(false).describe("Combine merged changes into a single commit (requires manual commit)."),
+  abort: z.boolean().default(false).describe("Abort the current merge process."),
 });
 
-// Infer the TypeScript type from the Zod schema
-export type GitMergeInput = z.infer<typeof GitMergeInputSchema>;
+// 2. DEFINE the Zod response schema.
+export const GitMergeOutputSchema = z.object({
+  success: z.boolean().describe("Indicates if the command was successful."),
+  message: z.string().describe("A summary message of the result."),
+  conflict: z.boolean().optional().describe("True if the merge resulted in conflicts."),
+  fastForward: z.boolean().optional().describe("True if the merge was a fast-forward."),
+  aborted: z.boolean().optional().describe("True if the merge was aborted."),
+  needsManualCommit: z.boolean().optional().describe("True if --squash was used."),
+});
 
-// Define the structure for the JSON output
-export interface GitMergeResult {
-  success: boolean;
-  message: string;
-  conflict?: boolean; // True if the merge resulted in conflicts
-  fastForward?: boolean; // True if the merge was a fast-forward
-  mergedCommitHash?: string; // Hash of the merge commit (if created and successful)
-  aborted?: boolean; // True if the merge was aborted
-  needsManualCommit?: boolean; // True if --squash was used and merge was successful
-}
+// 3. INFER and export TypeScript types.
+export type GitMergeInput = z.infer<typeof GitMergeInputSchema>;
+export type GitMergeOutput = z.infer<typeof GitMergeOutputSchema>;
 
 /**
- * Executes the 'git merge' command.
- *
- * @param {GitMergeInput} input - The validated input object.
- * @param {RequestContext} context - The request context.
- * @returns {Promise<GitMergeResult>} A promise that resolves with the structured merge result.
- * @throws {McpError} Throws an McpError for path issues, command failures, or unexpected errors.
+ * 4. IMPLEMENT the core logic function.
+ * @throws {McpError} If the logic encounters an unrecoverable issue.
  */
 export async function gitMergeLogic(
-  input: GitMergeInput,
-  context: RequestContext & {
-    sessionId?: string;
-    getWorkingDirectory: () => string | undefined;
-  },
-): Promise<GitMergeResult> {
+  params: GitMergeInput,
+  context: RequestContext & { getWorkingDirectory: () => string | undefined }
+): Promise<GitMergeOutput> {
   const operation = "gitMergeLogic";
-  logger.debug(`Executing ${operation}`, { ...context, input });
+  logger.debug(`Executing ${operation}`, { ...context, params });
 
-  let targetPath: string;
-  try {
-    // Resolve the target path
-    let resolvedPath: string;
-    if (input.path && input.path !== ".") {
-      // If a specific path is given, resolve it absolutely first
-      // Assuming input.path could be relative *to the server's CWD* if no session WD is set,
-      // but it's safer to require absolute paths or rely on session WD.
-      // For simplicity, let's assume input.path is intended relative to session WD if set, or absolute otherwise.
-      const workingDir = context.getWorkingDirectory();
-      if (workingDir) {
-        resolvedPath = path.resolve(workingDir, input.path); // Resolve relative to session WD
-      } else if (path.isAbsolute(input.path)) {
-        resolvedPath = input.path; // Use absolute path directly
-      } else {
-        // If relative path given without session WD, it's ambiguous. Error out.
-        throw new McpError(
-          BaseErrorCode.VALIDATION_ERROR,
-          "Relative path provided but no working directory set for the session.",
-          { context, operation },
-        );
-      }
-      logger.debug(`Resolved provided path: ${resolvedPath}`, {
-        ...context,
-        operation,
-      });
-    } else {
-      const workingDir = context.getWorkingDirectory();
-      if (!workingDir) {
-        throw new McpError(
-          BaseErrorCode.VALIDATION_ERROR,
-          "No path provided and no working directory set for the session.",
-          { context, operation },
-        );
-      }
-      resolvedPath = workingDir; // Use session working directory
-      logger.debug(`Using session working directory: ${resolvedPath}`, {
-        ...context,
-        operation,
-        sessionId: context.sessionId,
-      });
-    }
-
-    // Sanitize the resolved path
-    // We assume the resolved path should be absolute for git commands.
-    // sanitizePath checks for traversal and normalizes.
-    targetPath = sanitization.sanitizePath(resolvedPath, {
-      allowAbsolute: true,
-    }).sanitizedPath;
-    logger.debug(`Sanitized path: ${targetPath}`, { ...context, operation });
-  } catch (error) {
-    logger.error("Path resolution or sanitization failed", {
-      ...context,
-      operation,
-      error,
-    });
-    if (error instanceof McpError) {
-      throw error;
-    }
+  const workingDir = context.getWorkingDirectory();
+  if (params.path === "." && !workingDir) {
     throw new McpError(
       BaseErrorCode.VALIDATION_ERROR,
-      `Invalid path: ${error instanceof Error ? error.message : String(error)}`,
-      { context, operation, originalError: error },
+      "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
     );
   }
+  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  // --- Construct the git merge command ---
   const args = ["-C", targetPath, "merge"];
-
-  if (input.abort) {
+  if (params.abort) {
     args.push("--abort");
   } else {
-    // Standard merge options
-    if (input.noFf) {
-      args.push("--no-ff");
-    }
-    if (input.squash) {
-      args.push("--squash");
-    }
-    if (input.commitMessage && !input.squash) {
-      // Commit message only relevant if not squashing (squash requires separate commit)
-      args.push("-m", input.commitMessage);
-    } else if (input.squash && input.commitMessage) {
-      logger.warning(
-        "Commit message provided with --squash, but it will be ignored. Squash requires a separate commit.",
-        { ...context, operation },
-      );
-    }
-    args.push(input.branch); // Add branch to merge
+    if (params.noFf) args.push("--no-ff");
+    if (params.squash) args.push("--squash");
+    if (params.commitMessage && !params.squash) args.push("-m", params.commitMessage);
+    args.push(params.branch);
   }
 
-  logger.debug(`Executing command: git ${args.join(" ")}`, {
-    ...context,
-    operation,
-  });
-
-  // --- Execute and Parse ---
   try {
-    const { stdout, stderr } = await execFileAsync("git", args);
-    logger.debug(`Command stdout: ${stdout}`, { ...context, operation });
-    if (stderr)
-      logger.debug(`Command stderr: ${stderr}`, { ...context, operation }); // Log stderr even on success
+    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+    const { stdout } = await execFileAsync("git", args);
 
-    const result: GitMergeResult = {
+    return {
       success: true,
-      message: stdout.trim() || stderr.trim() || "Merge command executed.",
+      message: stdout.trim() || "Merge command executed successfully.",
+      fastForward: stdout.includes("Fast-forward"),
+      needsManualCommit: params.squash,
+      aborted: params.abort,
     };
 
-    if (input.abort) {
-      result.aborted = true;
-      result.message = "Merge aborted successfully.";
-    } else if (stdout.includes("Fast-forward")) {
-      result.fastForward = true;
-    } else if (stdout.includes("Merge made by") || stdout.includes("merging")) {
-      const match = stdout.match(/Merge commit '([a-f0-9]+)'/);
-      result.mergedCommitHash = match ? match[1] : undefined;
-      result.fastForward = false;
-    } else if (stdout.includes("Squash commit -- not updating HEAD")) {
-      result.needsManualCommit = true;
-    } else if (stdout.includes("Already up to date")) {
-      result.fastForward = true;
-    }
-
-    logger.info("git merge executed successfully", {
-      ...context,
-      operation,
-      path: targetPath,
-      result,
-    });
-
-    return result;
   } catch (error: any) {
-    const errorMessage = error.stderr || error.stdout || error.message || ""; // Git often puts errors in stdout/stderr
-    logger.error(`Git merge command failed`, {
-      ...context,
-      operation,
-      path: targetPath,
-      error: error.message,
-      output: errorMessage,
-    });
+    const errorMessage = error.stderr || error.stdout || error.message || "";
+    logger.error(`Git merge command failed`, { ...context, operation, errorMessage });
 
-    if (input.abort) {
-      // If abort failed, it's likely there was no merge in progress
-      if (errorMessage.includes("fatal: There is no merge to abort")) {
-        throw new McpError(
-          BaseErrorCode.VALIDATION_ERROR,
-          `No merge in progress to abort.`,
-          { context, operation, originalError: error },
-        );
-      }
-      throw new McpError(
-        BaseErrorCode.INTERNAL_ERROR,
-        `Failed to abort merge: ${errorMessage}`,
-        { context, operation, originalError: error },
-      );
-    }
-
-    // Check for specific failure scenarios
     if (errorMessage.includes("CONFLICT")) {
-      throw new McpError(
-        BaseErrorCode.CONFLICT,
-        `Merge failed due to conflicts. Please resolve conflicts and commit. Output: ${errorMessage}`,
-        { context, operation, originalError: error },
-      );
+      throw new McpError(BaseErrorCode.CONFLICT, "Merge failed due to conflicts. Please resolve them and commit.");
     }
-    if (errorMessage.includes("refusing to merge unrelated histories")) {
-      throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
-        `Merge failed: Refusing to merge unrelated histories. Consider using '--allow-unrelated-histories'.`,
-        { context, operation, originalError: error },
-      );
+    if (errorMessage.includes("unrelated histories")) {
+      throw new McpError(BaseErrorCode.VALIDATION_ERROR, "Merge failed: Refusing to merge unrelated histories.");
     }
-    if (
-      errorMessage.includes("fatal: Not possible to fast-forward, aborting.")
-    ) {
-      throw new McpError(
-        BaseErrorCode.CONFLICT,
-        `Merge failed: Not possible to fast-forward. Merge required.`,
-        { context, operation, originalError: error },
-      );
+    if (errorMessage.includes("not a git repository")) {
+      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
     }
     if (errorMessage.match(/fatal: '.*?' does not point to a commit/)) {
-      throw new McpError(
-        BaseErrorCode.NOT_FOUND,
-        `Merge failed: Branch '${input.branch}' not found or does not point to a commit.`,
-        { context, operation, originalError: error },
-      );
-    }
-    if (errorMessage.includes("fatal: You have not concluded your merge")) {
-      throw new McpError(
-        BaseErrorCode.CONFLICT,
-        `Merge failed: Conflicts still exist from a previous merge. Resolve conflicts or abort. Output: ${errorMessage}`,
-        { context, operation, originalError: error },
-      );
-    }
-    if (
-      errorMessage.includes(
-        "error: Your local changes to the following files would be overwritten by merge",
-      )
-    ) {
-      throw new McpError(
-        BaseErrorCode.CONFLICT,
-        `Merge failed: Local changes would be overwritten. Please commit or stash them.`,
-        { context, operation, originalError: error },
-      );
+        throw new McpError(BaseErrorCode.NOT_FOUND, `Merge failed: Branch '${params.branch}' not found.`);
     }
 
-    // Generic error
-    throw new McpError(
-      BaseErrorCode.INTERNAL_ERROR,
-      `Git merge command failed for path ${targetPath}: ${errorMessage}`,
-      { context, operation, originalError: error },
-    );
+    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git merge failed: ${errorMessage}`);
   }
 }

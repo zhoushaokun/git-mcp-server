@@ -1,35 +1,29 @@
-import { z } from "zod";
-import { logger, RequestContext } from "../../../utils/index.js"; // Added logger
-import { getGitStatus, GitStatusResult } from "../gitStatus/logic.js"; // Corrected path
+/**
+ * @fileoverview Defines the core logic, schemas, and types for the git_wrapup_instructions tool.
+ * @module src/mcp-server/tools/gitWrapupInstructions/logic
+ */
 
-// Define the input schema
+import { z } from "zod";
+import { logger, type RequestContext } from "../../../utils/index.js";
+import { getGitStatus, GitStatusOutputSchema, GitStatusOutput } from "../gitStatus/logic.js";
+
+// 1. DEFINE the Zod input schema.
 export const GitWrapupInstructionsInputSchema = z.object({
-  acknowledgement: z.enum(["Y", "y", "Yes", "yes"], {
-    required_error: "Acknowledgement is required.",
-    description:
-      'Acknowledgement that you have permission (implicit allowed, explicit preferred) from the user to initiate this tool. Must be "Y" or "Yes" (case-insensitive).',
-  }),
-  updateAgentMetaFiles: z
-    .enum(["Y", "y", "Yes", "yes"])
-    .optional()
-    .describe(
-      "If set to 'Y' or 'Yes', include an extra instruction to review and update agent-specific meta files like .clinerules or claude.md if present. Only use this if the user explicitly requested it.",
-    ),
+  acknowledgement: z.enum(["Y", "y", "Yes", "yes"]).describe("Acknowledgement to initiate the wrap-up workflow."),
+  updateAgentMetaFiles: z.enum(["Y", "y", "Yes", "yes"]).optional().describe("Include an instruction to update agent-specific meta files."),
 });
 
-// Infer the TypeScript type for the input.
-export type GitWrapupInstructionsInput = z.infer<
-  typeof GitWrapupInstructionsInputSchema
->;
+// 2. DEFINE the Zod response schema.
+export const GitWrapupInstructionsOutputSchema = z.object({
+  instructions: z.string().describe("The set of instructions for the wrap-up workflow."),
+  gitStatus: GitStatusOutputSchema.optional().describe("The current structured git status."),
+  gitStatusError: z.string().optional().describe("Any error message if getting git status failed."),
+});
 
-// Define the structure of the result object that the logic function will return.
-export interface GitWrapupInstructionsResult {
-  instructions: string;
-  gitStatus?: GitStatusResult; // To hold the structured git status output
-  gitStatusError?: string; // To hold any error message if git status fails
-}
+// 3. INFER and export TypeScript types.
+export type GitWrapupInstructionsInput = z.infer<typeof GitWrapupInstructionsInputSchema>;
+export type GitWrapupInstructionsOutput = z.infer<typeof GitWrapupInstructionsOutputSchema>;
 
-// The predefined instructions string.
 const WRAPUP_INSTRUCTIONS = `
 Perform all actions for our git wrapup workflow:
 1. Use the git_diff tool to understand the precise nature and rationale behind each change (what changed and why did it change?) within the code base. Use the 'includeUntracked' parameter to view all changes, including untracked files. This will help you understand the context and purpose of the modifications made.
@@ -42,61 +36,35 @@ Instructions: Now write a concise list of what you must do to complete the git w
 `;
 
 /**
- * Core logic for the git_wrapup_instructions tool.
- * This tool simply returns a predefined set of instructions, potentially augmented.
- *
- * @param {GitWrapupInstructionsInput} input - The validated input, may contain 'updateAgentMetaFiles'.
- * @param {RequestContext} _context - The request context (included for consistency, not used in this simple logic).
- * @returns {Promise<GitWrapupInstructionsResult>} A promise that resolves with the wrap-up instructions.
+ * 4. IMPLEMENT the core logic function.
+ * @throws {McpError} If the logic encounters an unrecoverable issue.
  */
 export async function getWrapupInstructions(
-  input: GitWrapupInstructionsInput,
-  // The context is now expected to be enhanced by the registration layer
-  // to include session-specific methods like getWorkingDirectory.
-  context: RequestContext & {
-    sessionId?: string;
-    getWorkingDirectory: () => string | undefined;
-  },
-): Promise<GitWrapupInstructionsResult> {
+  params: GitWrapupInstructionsInput,
+  context: RequestContext & { getWorkingDirectory: () => string | undefined }
+): Promise<GitWrapupInstructionsOutput> {
   const operation = "getWrapupInstructions";
-  logger.debug(`Executing ${operation}`, { ...context, input });
+  logger.debug(`Executing ${operation}`, { ...context, params });
 
   let finalInstructions = WRAPUP_INSTRUCTIONS;
-  if (
-    input.updateAgentMetaFiles &&
-    ["Y", "y", "Yes", "yes"].includes(input.updateAgentMetaFiles)
-  ) {
-    finalInstructions += ` Extra request: review and update if needed the .clinerules and claude.md files if present.`;
+  if (params.updateAgentMetaFiles) {
+    finalInstructions += `\nExtra request: review and update if needed the .clinerules and claude.md files if present.`;
   }
 
-  let statusResult: GitStatusResult | undefined = undefined;
-  let statusError: string | undefined = undefined;
+  let statusResult: GitStatusOutput | undefined;
+  let statusError: string | undefined;
 
   const workingDir = context.getWorkingDirectory();
-
   if (workingDir) {
     try {
-      // The `getGitStatus` function expects `path` and a context with `getWorkingDirectory`.
-      // Passing `path: '.'` signals `getGitStatus` to use the working directory from the context.
-      // The `registration.ts` for this tool will be responsible for ensuring `context.getWorkingDirectory` is correctly supplied.
       statusResult = await getGitStatus({ path: "." }, context);
     } catch (error: any) {
-      logger.warning(
-        `Failed to get git status while generating wrapup instructions (working dir: ${workingDir}). Tool will proceed without it.`,
-        {
-          ...context,
-          tool: "gitWrapupInstructions",
-          originalError: error.message,
-        },
-      );
-      statusError = error instanceof Error ? error.message : String(error);
+      logger.warning(`Failed to get git status for wrapup instructions: ${error.message}`, { ...context, operation });
+      statusError = error.message;
     }
   } else {
-    logger.info(
-      "No working directory set for session, skipping git status for wrapup instructions.",
-      { ...context, tool: "gitWrapupInstructions" },
-    );
     statusError = "No working directory set for session, git status skipped.";
+    logger.info(statusError, { ...context, operation });
   }
 
   return {

@@ -1,11 +1,6 @@
 /**
- * @fileoverview Barrel file for the git_rebase tool.
- * Exports the registration function and state accessor initialization function.
+ * @fileoverview Barrel file for the gitRebase tool.
+ * @module src/mcp-server/tools/gitRebase/index
  */
 
-export {
-  registerGitRebaseTool,
-  initializeGitRebaseStateAccessors,
-} from "./registration.js";
-// Export types if needed elsewhere, e.g.:
-// export type { GitRebaseInput, GitRebaseResult } from './logic.js';
+export { registerGitRebaseTool } from "./registration.js";
