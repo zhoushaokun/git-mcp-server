@@ -39,22 +39,13 @@ export type GitCommitOutput = z.infer<typeof GitCommitOutputSchema>;
 async function stageFiles(targetPath: string, files: string[], context: RequestContext) {
   const operation = "stageFilesForCommit";
   logger.debug(`Staging files: ${files.join(", ")}`, { ...context, operation });
-  try {
-    const sanitizedFiles = files.map(file => sanitization.sanitizePath(file, { rootDir: targetPath }).sanitizedPath);
-    await execFileAsync("git", ["-C", targetPath, "add", "--", ...sanitizedFiles]);
-  } catch (error: any) {
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to stage files: ${error.stderr || error.message}`);
-  }
+  const sanitizedFiles = files.map(file => sanitization.sanitizePath(file, { rootDir: targetPath }).sanitizedPath);
+  await execFileAsync("git", ["-C", targetPath, "add", "--", ...sanitizedFiles]);
 }
 
 async function getCommittedFiles(targetPath: string, commitHash: string, context: RequestContext): Promise<string[]> {
-    try {
-        const { stdout } = await execFileAsync("git", ["-C", targetPath, "show", "--pretty=", "--name-only", commitHash]);
-        return stdout.trim().split("\n").filter(Boolean);
-    } catch (error: any) {
-        logger.warning("Failed to retrieve committed files list", { ...context, commitHash, error: error.message });
-        return [];
-    }
+    const { stdout } = await execFileAsync("git", ["-C", targetPath, "show", "--pretty=", "--name-only", commitHash]);
+    return stdout.trim().split("\n").filter(Boolean);
 }
 
 /**
@@ -94,49 +85,28 @@ export async function commitGitChanges(
     return await execFileAsync("git", finalArgs);
   };
 
+  let result;
+  const shouldSign = config.gitSignCommits;
   try {
-    let result;
-    const shouldSign = config.gitSignCommits;
-    try {
-      result = await attemptCommit(shouldSign);
-    } catch (error: any) {
-      const isSigningError = (error.stderr || "").includes("gpg failed to sign");
-      if (shouldSign && isSigningError && params.forceUnsignedOnFailure) {
-        logger.warning("Commit with signing failed. Retrying without signature.", { ...context, operation });
-        result = await attemptCommit(false);
-      } else {
-        throw error;
-      }
-    }
-
-    const commitHashMatch = result.stdout.match(/([a-f0-9]{7,40})/);
-    const commitHash = commitHashMatch ? commitHashMatch[1] : undefined;
-    const committedFiles = commitHash ? await getCommittedFiles(targetPath, commitHash, context) : [];
-    
-    return {
-      success: true,
-      message: `Commit successful: ${commitHash}`,
-      commitHash,
-      committedFiles,
-    };
-
+    result = await attemptCommit(shouldSign);
   } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git commit command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
+    const isSigningError = (error.stderr || "").includes("gpg failed to sign");
+    if (shouldSign && isSigningError && params.forceUnsignedOnFailure) {
+      logger.warning("Commit with signing failed. Retrying without signature.", { ...context, operation });
+      result = await attemptCommit(false);
+    } else {
+      throw error;
     }
-    if (errorMessage.includes("nothing to commit")) {
-      return { success: true, message: "Nothing to commit, working tree clean.", nothingToCommit: true };
-    }
-    if (errorMessage.includes("conflicts")) {
-      throw new McpError(BaseErrorCode.CONFLICT, `Commit failed due to unresolved conflicts.`);
-    }
-    if (errorMessage.includes("pre-commit hook")) {
-        throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Commit failed due to pre-commit hook failure.`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git commit failed: ${errorMessage}`);
   }
+
+  const commitHashMatch = result.stdout.match(/([a-f0-9]{7,40})/);
+  const commitHash = commitHashMatch ? commitHashMatch[1] : undefined;
+  const committedFiles = commitHash ? await getCommittedFiles(targetPath, commitHash, context) : [];
+  
+  return {
+    success: true,
+    message: `Commit successful: ${commitHash}`,
+    commitHash,
+    committedFiles,
+  };
 }

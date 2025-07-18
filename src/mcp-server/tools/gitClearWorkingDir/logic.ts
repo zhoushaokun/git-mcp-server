@@ -31,13 +31,8 @@ export async function gitClearWorkingDirLogic(
   const operation = "gitClearWorkingDirLogic";
   logger.debug(`Executing ${operation}`, { ...context, params });
 
-  try {
-    context.clearWorkingDirectory();
-    const message = "Session working directory cleared successfully.";
-    logger.info(message, { ...context, operation });
-    return { success: true, message };
-  } catch (error: any) {
-    logger.error("Failed to clear working directory in session state", { ...context, operation, error });
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, "Failed to update session state.");
-  }
+  context.clearWorkingDirectory();
+  const message = "Session working directory cleared successfully.";
+  logger.info(message, { ...context, operation });
+  return { success: true, message };
 }

@@ -45,8 +45,12 @@ export async function gitCloneLogic(
 
   const sanitizedTargetPath = sanitization.sanitizePath(params.targetPath, { allowAbsolute: true }).sanitizedPath;
 
-  try {
-    const stats = await fs.stat(sanitizedTargetPath);
+  const stats = await fs.stat(sanitizedTargetPath).catch(err => {
+    if (err.code === 'ENOENT') return null;
+    throw err;
+  });
+
+  if (stats) {
     if (stats.isDirectory()) {
       const files = await fs.readdir(sanitizedTargetPath);
       if (files.length > 0) {
@@ -54,11 +58,6 @@ export async function gitCloneLogic(
       }
     } else {
       throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Target path exists but is not a directory: ${sanitizedTargetPath}`);
-    }
-  } catch (error: any) {
-    if (error instanceof McpError) throw error;
-    if (error.code !== "ENOENT") {
-      throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to check target directory: ${error.message}`);
     }
   }
 
@@ -68,27 +67,9 @@ export async function gitCloneLogic(
   if (params.depth) args.push("--depth", String(params.depth));
   args.push(params.repositoryUrl, sanitizedTargetPath);
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    await execFileAsync("git", args, { timeout: 300000 }); // 5 minutes timeout
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  await execFileAsync("git", args, { timeout: 300000 }); // 5 minutes timeout
 
-    const successMessage = `Repository cloned successfully into ${sanitizedTargetPath}`;
-    return { success: true, message: successMessage, path: sanitizedTargetPath };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git clone command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("repository not found")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Repository not found or access denied: ${params.repositoryUrl}`);
-    }
-    if (errorMessage.toLowerCase().includes("permission denied")) {
-      throw new McpError(BaseErrorCode.FORBIDDEN, `Permission denied for path: ${sanitizedTargetPath}`);
-    }
-    if (errorMessage.toLowerCase().includes("timeout")) {
-      throw new McpError(BaseErrorCode.TIMEOUT, `Git clone operation timed out for repository: ${params.repositoryUrl}`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to clone repository: ${errorMessage}`);
-  }
+  const successMessage = `Repository cloned successfully into ${sanitizedTargetPath}`;
+  return { success: true, message: successMessage, path: sanitizedTargetPath };
 }

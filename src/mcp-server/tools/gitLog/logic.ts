@@ -80,43 +80,29 @@ export async function logGitHistory(
   if (params.until) args.push(`--until=${params.until}`);
   if (params.branchOrFile) args.push(params.branchOrFile);
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args, { maxBuffer: 1024 * 1024 * 10 });
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout, stderr } = await execFileAsync("git", args, { maxBuffer: 1024 * 1024 * 10 });
 
-    if (params.showSignature) {
-      return { success: true, message: "Raw log output with signature status.", rawOutput: stdout };
-    }
-
-    const commitRecords = stdout.split(RECORD_SEP).filter(r => r.trim());
-    const commits: CommitEntry[] = commitRecords.map(record => {
-      const fields = record.trim().split(FIELD_SEP);
-      return {
-        hash: fields[0],
-        authorName: fields[1],
-        authorEmail: fields[2],
-        timestamp: parseInt(fields[3], 10),
-        subject: fields[4],
-        body: fields[5] || undefined,
-      };
-    });
-
-    return { success: true, message: `Found ${commits.length} commit(s).`, commits };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git log command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (errorMessage.includes("bad revision")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Invalid branch, tag, or revision specified: '${params.branchOrFile}'.`);
-    }
-    if (errorMessage.includes("does not have any commits yet")) {
-        return { success: true, message: "Repository has no commits yet.", commits: [] };
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git log failed: ${errorMessage}`);
+  if (stderr && stderr.toLowerCase().includes("does not have any commits yet")) {
+    return { success: true, message: "Repository has no commits yet.", commits: [] };
   }
+
+  if (params.showSignature) {
+    return { success: true, message: "Raw log output with signature status.", rawOutput: stdout };
+  }
+
+  const commitRecords = stdout.split(RECORD_SEP).filter(r => r.trim());
+  const commits: CommitEntry[] = commitRecords.map(record => {
+    const fields = record.trim().split(FIELD_SEP);
+    return {
+      hash: fields[0],
+      authorName: fields[1],
+      authorEmail: fields[2],
+      timestamp: parseInt(fields[3], 10),
+      subject: fields[4],
+      body: fields[5] || undefined,
+    };
+  });
+
+  return { success: true, message: `Found ${commits.length} commit(s).`, commits };
 }

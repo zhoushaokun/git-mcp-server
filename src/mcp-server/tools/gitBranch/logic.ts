@@ -101,70 +101,50 @@ export async function gitBranchLogic(
       break;
   }
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args.filter(Boolean));
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout, stderr } = await execFileAsync("git", args.filter(Boolean));
 
-    if (stderr && !stderr.includes("HEAD detached")) {
-        logger.warning(`Git branch command produced stderr`, { ...context, operation, stderr });
-    }
+  if (stderr && !stderr.includes("HEAD detached")) {
+      logger.warning(`Git branch command produced stderr`, { ...context, operation, stderr });
+  }
 
-    if (params.mode === "list") {
-      const branches = stdout.trim().split("\n").filter(Boolean).map(line => {
-        const isCurrent = line.startsWith("* ");
-        const trimmedLine = line.replace(/^\*?\s+/, "");
-        const isRemote = trimmedLine.startsWith("remotes/");
-        const parts = trimmedLine.split(/\s+/);
-        const name = parts[0];
-        return {
-          name: isRemote ? name.split("/").slice(2).join("/") : name,
-          isCurrent,
-          isRemote,
-          commitHash: parts[1],
-          commitSubject: parts.slice(2).join(" "),
-        };
-      });
+  if (params.mode === "list") {
+    const branches = stdout.trim().split("\n").filter(Boolean).map(line => {
+      const isCurrent = line.startsWith("* ");
+      const trimmedLine = line.replace(/^\*?\s+/, "");
+      const isRemote = trimmedLine.startsWith("remotes/");
+      const parts = trimmedLine.split(/\s+/);
+      const name = parts[0];
       return {
-        success: true,
-        mode: params.mode,
-        message: `Found ${branches.length} branches.`,
-        branches,
-        currentBranch: branches.find(b => b.isCurrent)?.name || null,
+        name: isRemote ? name.split("/").slice(2).join("/") : name,
+        isCurrent,
+        isRemote,
+        commitHash: parts[1],
+        commitSubject: parts.slice(2).join(" "),
       };
-    }
-    
-    if (params.mode === "show-current") {
-        const currentBranchName = stdout.trim() || null;
-        return {
-            success: true,
-            mode: params.mode,
-            message: currentBranchName ? `Current branch is '${currentBranchName}'.` : "Currently in detached HEAD state.",
-            currentBranch: currentBranchName,
-        };
-    }
-
+    });
     return {
       success: true,
       mode: params.mode,
-      message: `Operation '${params.mode}' on branch '${params.branchName || params.newBranchName}' completed successfully.`,
+      message: `Found ${branches.length} branches.`,
+      branches,
+      currentBranch: branches.find(b => b.isCurrent)?.name || null,
     };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.stdout || error.message || "";
-    logger.error(`Failed to execute git branch command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    
-    // For specific, non-critical failures, we can throw a specific error code that the handler can interpret.
-    if (params.mode === "create" && errorMessage.includes("already exists")) {
-        throw new McpError(BaseErrorCode.CONFLICT, `Branch '${params.branchName}' already exists. Use force=true to overwrite.`);
-    }
-    if (params.mode === "delete" && errorMessage.includes("not found")) {
-        throw new McpError(BaseErrorCode.NOT_FOUND, `Branch '${params.branchName}' not found.`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git branch ${params.mode} failed: ${errorMessage}`);
   }
+  
+  if (params.mode === "show-current") {
+      const currentBranchName = stdout.trim() || null;
+      return {
+          success: true,
+          mode: params.mode,
+          message: currentBranchName ? `Current branch is '${currentBranchName}'.` : "Currently in detached HEAD state.",
+          currentBranch: currentBranchName,
+      };
+  }
+
+  return {
+    success: true,
+    mode: params.mode,
+    message: `Operation '${params.mode}' on branch '${params.branchName || params.newBranchName}' completed successfully.`,
+  };
 }

@@ -1,8 +1,8 @@
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { logger, RequestContext, sanitization } from "../../../utils/index.js";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -54,70 +54,38 @@ export async function addGitFiles(
     filesToStage.push(".");
   }
 
-  try {
-    const args = ["-C", targetPath, "add", "--", ...filesToStage.map(file => file.startsWith("-") ? `./${file}` : file)];
+  const args = ["-C", targetPath, "add", "--", ...filesToStage.map(file => file.startsWith("-") ? `./${file}` : file)];
 
-    logger.debug(`Executing command: git ${args.join(" ")}`, {
+  logger.debug(`Executing command: git ${args.join(" ")}`, {
+    ...context,
+    operation,
+  });
+
+  const { stderr } = await execFileAsync("git", args);
+
+  if (stderr) {
+    logger.warning(`Git add command produced stderr`, {
       ...context,
       operation,
+      stderr,
     });
-
-    const { stderr } = await execFileAsync("git", args);
-
-    if (stderr) {
-      logger.warning(`Git add command produced stderr`, {
-        ...context,
-        operation,
-        stderr,
-      });
-    }
-
-    const filesAddedDesc = Array.isArray(filesToStage)
-      ? filesToStage.join(", ")
-      : filesToStage;
-    const successMessage = `Successfully staged: ${filesAddedDesc}`;
-    logger.info(successMessage, {
-      ...context,
-      operation,
-      path: targetPath,
-      files: filesToStage,
-    });
-    const reminder =
-      "Remember to write clear, concise commit messages using the Conventional Commits format (e.g., 'feat(scope): subject').";
-    return {
-      success: true,
-      statusMessage: `${successMessage}. ${reminder}`,
-      filesStaged: filesToStage,
-    };
-  } catch (error: any) {
-    logger.error(`Failed to execute git add command`, {
-      ...context,
-      operation,
-      path: targetPath,
-      error: error.message,
-      stderr: error.stderr,
-    });
-
-    const errorMessage = error.stderr || error.message || "";
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(
-        BaseErrorCode.NOT_FOUND,
-        `Path is not a Git repository: ${targetPath}`,
-        { context, operation, originalError: error },
-      );
-    }
-    if (errorMessage.toLowerCase().includes("did not match any files")) {
-      throw new McpError(
-        BaseErrorCode.NOT_FOUND,
-        `Specified files/patterns did not match any files in ${targetPath}: ${filesToStage.join(", ")}`,
-        { context, operation, originalError: error, filesStaged: filesToStage },
-      );
-    }
-
-    throw new McpError(
-      BaseErrorCode.INTERNAL_ERROR,
-      `Failed to stage files for path: ${targetPath}. Error: ${errorMessage}`,
-      { context, operation, originalError: error, filesStaged: filesToStage },
-    );
   }
+
+  const filesAddedDesc = Array.isArray(filesToStage)
+    ? filesToStage.join(", ")
+    : filesToStage;
+  const successMessage = `Successfully staged: ${filesAddedDesc}`;
+  logger.info(successMessage, {
+    ...context,
+    operation,
+    path: targetPath,
+    files: filesToStage,
+  });
+  const reminder =
+    "Remember to write clear, concise commit messages using the Conventional Commits format (e.g., 'feat(scope): subject').";
+  return {
+    success: true,
+    statusMessage: `${successMessage}. ${reminder}`,
+    filesStaged: filesToStage,
+  };
 }

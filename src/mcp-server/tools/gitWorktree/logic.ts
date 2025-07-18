@@ -140,30 +140,12 @@ export async function gitWorktreeLogic(
 
   const args = buildArgs();
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args);
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout } = await execFileAsync("git", args);
 
-    if (params.mode === 'list' && params.verbose) {
-        return { success: true, mode: params.mode, worktrees: parsePorcelainWorktreeList(stdout) };
-    }
-    
-    return { success: true, mode: params.mode, message: stdout.trim() || `Worktree ${params.mode} operation successful.` };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git worktree command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (params.mode === "add" && errorMessage.includes("already exists")) {
-      throw new McpError(BaseErrorCode.CONFLICT, `Path '${params.worktreePath}' already exists or is a worktree.`);
-    }
-    if (params.mode === "remove" && errorMessage.includes("has unclean changes")) {
-        throw new McpError(BaseErrorCode.CONFLICT, `Worktree '${params.worktreePath}' has uncommitted changes. Use force=true to remove.`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git worktree ${params.mode} failed: ${errorMessage}`);
+  if (params.mode === 'list' && params.verbose) {
+      return { success: true, mode: params.mode, worktrees: parsePorcelainWorktreeList(stdout) };
   }
+  
+  return { success: true, mode: params.mode, message: stdout.trim() || `Worktree ${params.mode} operation successful.` };
 }

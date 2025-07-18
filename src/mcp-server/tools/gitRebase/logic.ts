@@ -78,34 +78,14 @@ export async function gitRebaseLogic(
       break;
   }
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args);
-    const output = stdout + stderr;
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout, stderr } = await execFileAsync("git", args);
+  const output = stdout + stderr;
 
-    return {
-      success: true,
-      message: `Rebase ${params.mode} executed successfully.`,
-      rebaseCompleted: /successfully rebased/i.test(output),
-      needsManualAction: /conflict|stopped at|edit/i.test(output),
-    };
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.stdout || error.message || "";
-    logger.error(`Git rebase ${params.mode} command failed`, { ...context, operation, errorMessage });
-
-    if (/conflict/i.test(errorMessage)) {
-      throw new McpError(BaseErrorCode.CONFLICT, `Rebase failed due to conflicts. Please resolve them and use 'git rebase --continue'.`);
-    }
-    if (/no rebase in progress/i.test(errorMessage)) {
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Failed to ${params.mode} rebase: No rebase is currently in progress.`);
-    }
-    if (/your local changes would be overwritten/i.test(errorMessage)) {
-        throw new McpError(BaseErrorCode.CONFLICT, "Rebase failed: Your local changes would be overwritten. Please commit or stash them.");
-    }
-    if (/not a git repository/i.test(errorMessage)) {
-        throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git rebase ${params.mode} failed: ${errorMessage}`);
-  }
+  return {
+    success: true,
+    message: `Rebase ${params.mode} executed successfully.`,
+    rebaseCompleted: /successfully rebased/i.test(output),
+    needsManualAction: /conflict|stopped at|edit/i.test(output),
+  };
 }

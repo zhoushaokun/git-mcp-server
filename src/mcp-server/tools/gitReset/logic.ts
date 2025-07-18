@@ -53,29 +53,11 @@ export async function resetGitState(
   args.push(`--${params.mode}`);
   if (params.commit) args.push(params.commit);
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args);
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout, stderr } = await execFileAsync("git", args);
 
-    const message = stderr.trim() || stdout.trim() || `Reset successful (mode: ${params.mode}).`;
-    const changesSummary = stderr.includes("Unstaged changes after reset") ? stderr : undefined;
+  const message = stderr.trim() || stdout.trim() || `Reset successful (mode: ${params.mode}).`;
+  const changesSummary = stderr.includes("Unstaged changes after reset") ? stderr : undefined;
 
-    return { success: true, message, changesSummary };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.stdout || error.message || "";
-    logger.error(`Failed to execute git reset command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (errorMessage.includes("bad revision")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Invalid commit reference specified: '${params.commit}'.`);
-    }
-    if (errorMessage.includes("unmerged paths")) {
-      throw new McpError(BaseErrorCode.CONFLICT, "Cannot reset due to unmerged files. Please resolve conflicts first.");
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git reset failed: ${errorMessage}`);
-  }
+  return { success: true, message, changesSummary };
 }

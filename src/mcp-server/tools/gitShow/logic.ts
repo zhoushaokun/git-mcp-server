@@ -51,24 +51,7 @@ export async function gitShowLogic(
   const refSpec = params.filePath ? `${params.ref}:${params.filePath}` : params.ref;
   const args = ["-C", targetPath, "show", refSpec];
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args);
-    return { success: true, content: stdout };
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git show command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (/unknown revision or path not in the working tree/i.test(errorMessage)) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Reference or pathspec not found: '${refSpec}'.`);
-    }
-    if (/ambiguous argument/i.test(errorMessage)) {
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Reference '${params.ref}' is ambiguous.`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git show failed: ${errorMessage}`);
-  }
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout } = await execFileAsync("git", args);
+  return { success: true, content: stdout };
 }

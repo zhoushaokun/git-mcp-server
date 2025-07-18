@@ -32,12 +32,8 @@ export type GitSetWorkingDirInput = z.infer<typeof GitSetWorkingDirInputSchema>;
 export type GitSetWorkingDirOutput = z.infer<typeof GitSetWorkingDirOutputSchema>;
 
 async function checkIsGitRepo(path: string): Promise<boolean> {
-    try {
-        const { stdout } = await execFileAsync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: path });
-        return stdout.trim() === "true";
-    } catch {
-        return false;
-    }
+    const { stdout } = await execFileAsync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: path }).catch(() => ({ stdout: "false" }));
+    return stdout.trim() === "true";
 }
 
 /**
@@ -53,27 +49,18 @@ export async function gitSetWorkingDirLogic(
 
   const sanitizedPath = sanitization.sanitizePath(params.path, { allowAbsolute: true }).sanitizedPath;
 
-  try {
-    const stats = await fs.stat(sanitizedPath);
-    if (!stats.isDirectory()) {
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Path is not a directory: ${sanitizedPath}`);
-    }
-  } catch (error) {
-    if (error instanceof McpError) throw error;
-    throw new McpError(BaseErrorCode.NOT_FOUND, `Directory does not exist or is inaccessible: ${sanitizedPath}`);
+  const stats = await fs.stat(sanitizedPath);
+  if (!stats.isDirectory()) {
+    throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Path is not a directory: ${sanitizedPath}`);
   }
 
   let isGitRepo = await checkIsGitRepo(sanitizedPath);
   let initializedRepo = false;
 
   if (!isGitRepo && params.initializeIfNotPresent) {
-    try {
-      await execFileAsync("git", ["init", "--initial-branch=main"], { cwd: sanitizedPath });
-      initializedRepo = true;
-      isGitRepo = true;
-    } catch (initError: any) {
-      throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to initialize Git repository: ${initError.message}`);
-    }
+    await execFileAsync("git", ["init", "--initial-branch=main"], { cwd: sanitizedPath });
+    initializedRepo = true;
+    isGitRepo = true;
   }
 
   if (params.validateGitRepo && !isGitRepo) {

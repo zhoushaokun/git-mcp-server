@@ -65,35 +65,14 @@ export async function gitMergeLogic(
     args.push(params.branch);
   }
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args);
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout } = await execFileAsync("git", args);
 
-    return {
-      success: true,
-      message: stdout.trim() || "Merge command executed successfully.",
-      fastForward: stdout.includes("Fast-forward"),
-      needsManualCommit: params.squash,
-      aborted: params.abort,
-    };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.stdout || error.message || "";
-    logger.error(`Git merge command failed`, { ...context, operation, errorMessage });
-
-    if (errorMessage.includes("CONFLICT")) {
-      throw new McpError(BaseErrorCode.CONFLICT, "Merge failed due to conflicts. Please resolve them and commit.");
-    }
-    if (errorMessage.includes("unrelated histories")) {
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, "Merge failed: Refusing to merge unrelated histories.");
-    }
-    if (errorMessage.includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (errorMessage.match(/fatal: '.*?' does not point to a commit/)) {
-        throw new McpError(BaseErrorCode.NOT_FOUND, `Merge failed: Branch '${params.branch}' not found.`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git merge failed: ${errorMessage}`);
-  }
+  return {
+    success: true,
+    message: stdout.trim() || "Merge command executed successfully.",
+    fastForward: stdout.includes("Fast-forward"),
+    needsManualCommit: params.squash,
+    aborted: params.abort,
+  };
 }

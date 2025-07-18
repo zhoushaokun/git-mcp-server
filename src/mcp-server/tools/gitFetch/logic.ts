@@ -59,28 +59,10 @@ export async function fetchGitRemote(
     args.push(params.remote);
   }
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stderr } = await execFileAsync("git", args);
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stderr } = await execFileAsync("git", args);
 
-    const message = stderr.trim() || "Fetch successful.";
-    
-    return { success: true, message };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git fetch command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (errorMessage.includes("Could not read from remote repository")) {
-      throw new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, `Failed to connect to remote repository '${params.remote || "default"}'.`);
-    }
-    if (errorMessage.includes("Authentication failed")) {
-      throw new McpError(BaseErrorCode.UNAUTHORIZED, `Authentication failed for remote repository '${params.remote || "default"}'.`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git fetch failed: ${errorMessage}`);
-  }
+  const message = stderr.trim() || "Fetch successful.";
+  
+  return { success: true, message };
 }

@@ -84,34 +84,13 @@ export async function gitTagLogic(
           break;
   }
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args);
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout } = await execFileAsync("git", args);
 
-    if (params.mode === 'list') {
-        const tags = stdout.trim().split("\n").filter(Boolean);
-        return { success: true, mode: params.mode, tags };
-    }
-
-    return { success: true, mode: params.mode, message: `Tag '${params.tagName}' ${params.mode}d successfully.`, tagName: params.tagName };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git tag command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (params.mode === "create" && errorMessage.toLowerCase().includes("already exists")) {
-      throw new McpError(BaseErrorCode.CONFLICT, `Tag '${params.tagName}' already exists.`);
-    }
-    if (params.mode === "delete" && errorMessage.toLowerCase().includes("not found")) {
-        throw new McpError(BaseErrorCode.NOT_FOUND, `Tag '${params.tagName}' not found.`);
-    }
-    if (params.mode === "create" && params.commitRef && /unknown revision or path not in the working tree/i.test(errorMessage)) {
-        throw new McpError(BaseErrorCode.NOT_FOUND, `Commit reference '${params.commitRef}' not found.`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git tag ${params.mode} failed: ${errorMessage}`);
+  if (params.mode === 'list') {
+      const tags = stdout.trim().split("\n").filter(Boolean);
+      return { success: true, mode: params.mode, tags };
   }
+
+  return { success: true, mode: params.mode, message: `Tag '${params.tagName}' ${params.mode}d successfully.`, tagName: params.tagName };
 }

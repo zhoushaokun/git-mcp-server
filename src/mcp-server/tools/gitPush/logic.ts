@@ -80,35 +80,14 @@ export async function pushGitChanges(
       }
   }
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args);
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout, stderr } = await execFileAsync("git", args);
 
-    const message = stderr.trim() || stdout.trim() || "Push command executed successfully.";
-    return {
-      success: true,
-      message,
-      rejected: message.includes("[rejected]"),
-      deleted: message.includes("[deleted]"),
-    };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.stdout || error.message || "";
-    logger.error(`Failed to execute git push command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (errorMessage.includes("Could not read from remote repository")) {
-      throw new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, "Failed to connect to remote repository.");
-    }
-    if (errorMessage.includes("rejected")) {
-      throw new McpError(BaseErrorCode.CONFLICT, `Push rejected: ${errorMessage}`);
-    }
-    if (errorMessage.includes("Authentication failed")) {
-        throw new McpError(BaseErrorCode.UNAUTHORIZED, "Authentication failed for remote repository.");
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git push failed: ${errorMessage}`);
-  }
+  const message = stderr.trim() || stdout.trim() || "Push command executed successfully.";
+  return {
+    success: true,
+    message,
+    rejected: message.includes("[rejected]"),
+    deleted: message.includes("[deleted]"),
+  };
 }

@@ -56,12 +56,7 @@ export async function getWrapupInstructions(
 
   const workingDir = context.getWorkingDirectory();
   if (workingDir) {
-    try {
-      statusResult = await getGitStatus({ path: "." }, context);
-    } catch (error: any) {
-      logger.warning(`Failed to get git status for wrapup instructions: ${error.message}`, { ...context, operation });
-      statusError = error.message;
-    }
+    statusResult = await getGitStatus({ path: "." }, context);
   } else {
     statusError = "No working directory set for session, git status skipped.";
     logger.info(statusError, { ...context, operation });

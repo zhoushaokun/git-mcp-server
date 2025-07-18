@@ -57,30 +57,9 @@ export async function pullGitChanges(
   if (params.remote) args.push(params.remote);
   if (params.branch) args.push(params.branch);
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args);
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout, stderr } = await execFileAsync("git", args);
 
-    const message = stdout.trim() || stderr.trim() || "Pull command executed successfully.";
-    return { success: true, message, conflict: message.includes("CONFLICT") };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.stdout || error.message || "";
-    logger.error(`Failed to execute git pull command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (errorMessage.includes("Could not read from remote repository")) {
-      throw new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, "Failed to connect to remote repository.");
-    }
-    if (errorMessage.includes("merge conflict")) {
-      throw new McpError(BaseErrorCode.CONFLICT, "Pull resulted in merge conflicts.");
-    }
-    if (errorMessage.includes("unrelated histories")) {
-        throw new McpError(BaseErrorCode.VALIDATION_ERROR, "Pull failed: Refusing to merge unrelated histories.");
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git pull failed: ${errorMessage}`);
-  }
+  const message = stdout.trim() || stderr.trim() || "Pull command executed successfully.";
+  return { success: true, message, conflict: message.includes("CONFLICT") };
 }

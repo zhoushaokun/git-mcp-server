@@ -83,45 +83,27 @@ export async function gitRemoteLogic(
           break;
   }
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args);
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout } = await execFileAsync("git", args);
 
-    if (params.mode === 'list') {
-        const remoteMap = new Map<string, { fetchUrl?: string; pushUrl?: string }>();
-        stdout.trim().split("\n").forEach(line => {
-            const parts = line.split(/\s+/);
-            if (parts.length < 3) return;
-            const [name, url, type] = parts;
-            const cleanType = type.replace(/[()]/g, "");
-            if (!remoteMap.has(name)) remoteMap.set(name, {});
-            if (cleanType === 'fetch') remoteMap.get(name)!.fetchUrl = url;
-            if (cleanType === 'push') remoteMap.get(name)!.pushUrl = url;
-        });
-        const remotes = Array.from(remoteMap.entries()).map(([name, urls]) => ({ name, fetchUrl: urls.fetchUrl || 'N/A', pushUrl: urls.pushUrl || urls.fetchUrl || 'N/A' }));
-        return { success: true, mode: params.mode, remotes };
-    }
-
-    if (params.mode === 'show') {
-        return { success: true, mode: params.mode, details: stdout.trim() };
-    }
-
-    return { success: true, mode: params.mode, message: `Remote '${params.name}' ${params.mode === 'add' ? 'added' : 'removed'} successfully.` };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git remote command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (params.mode === "add" && errorMessage.toLowerCase().includes("already exists")) {
-      throw new McpError(BaseErrorCode.CONFLICT, `Remote '${params.name}' already exists.`);
-    }
-    if ((params.mode === "remove" || params.mode === "show") && errorMessage.toLowerCase().includes("no such remote")) {
-        throw new McpError(BaseErrorCode.NOT_FOUND, `Remote '${params.name}' does not exist.`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git remote ${params.mode} failed: ${errorMessage}`);
+  if (params.mode === 'list') {
+      const remoteMap = new Map<string, { fetchUrl?: string; pushUrl?: string }>();
+      stdout.trim().split("\n").forEach(line => {
+          const parts = line.split(/\s+/);
+          if (parts.length < 3) return;
+          const [name, url, type] = parts;
+          const cleanType = type.replace(/[()]/g, "");
+          if (!remoteMap.has(name)) remoteMap.set(name, {});
+          if (cleanType === 'fetch') remoteMap.get(name)!.fetchUrl = url;
+          if (cleanType === 'push') remoteMap.get(name)!.pushUrl = url;
+      });
+      const remotes = Array.from(remoteMap.entries()).map(([name, urls]) => ({ name, fetchUrl: urls.fetchUrl || 'N/A', pushUrl: urls.pushUrl || urls.fetchUrl || 'N/A' }));
+      return { success: true, mode: params.mode, remotes };
   }
+
+  if (params.mode === 'show') {
+      return { success: true, mode: params.mode, details: stdout.trim() };
+  }
+
+  return { success: true, mode: params.mode, message: `Remote '${params.name}' ${params.mode === 'add' ? 'added' : 'removed'} successfully.` };
 }

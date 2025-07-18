@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.2.1 - 2025-07-17
+
+### Changed
+
+- **Error Handling Refactor**: Executed a comprehensive, mandatory refactoring across all Git tools to strictly enforce the "Logic Throws, Handler Catches" architectural principle. All `try...catch` blocks have been removed from the `logic.ts` files. The logic layer now exclusively throws structured `McpError`s on failure, while the `registration.ts` handler layer is solely responsible for catching and processing these errors. This ensures a clean separation of concerns and standardizes the error handling pipeline.
+- **Structured Error Responses**: Updated all tool registration handlers to return a structured error object in the `structuredContent` field upon failure, including the `code`, `message`, and `details` of the `McpError`. This provides richer, machine-readable error context to the MCP client.
+- **Dependency Updates**: Updated `@modelcontextprotocol/sdk` to `^1.16.0` and `openai` to `^5.10.1`.
+- **Configuration**: Added `zod` to the reject list in `.ncurc.json` to prevent unintended upgrades.
+
 ## v2.2.0 - 2025-07-16
 
 ### Fixed

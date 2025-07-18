@@ -60,37 +60,16 @@ export async function gitCherryPickLogic(
   if (params.signoff) args.push("--signoff");
   args.push(params.commitRef);
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args);
-    
-    const output = stdout + stderr;
-    const conflicts = /conflict/i.test(output);
-    const commitCreated = !params.noCommit && !conflicts;
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout, stderr } = await execFileAsync("git", args);
+  
+  const output = stdout + stderr;
+  const conflicts = /conflict/i.test(output);
+  const commitCreated = !params.noCommit && !conflicts;
 
-    const message = conflicts
-      ? `Cherry-pick resulted in conflicts for commit(s) '${params.commitRef}'. Manual resolution required.`
-      : `Successfully cherry-picked commit(s) '${params.commitRef}'.`;
+  const message = conflicts
+    ? `Cherry-pick resulted in conflicts for commit(s) '${params.commitRef}'. Manual resolution required.`
+    : `Successfully cherry-picked commit(s) '${params.commitRef}'.`;
 
-    return { success: true, message, commitCreated, conflicts };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.stdout || error.message || "";
-    logger.error(`Failed to execute git cherry-pick command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (/conflict/i.test(errorMessage)) {
-      throw new McpError(BaseErrorCode.CONFLICT, `Failed to cherry-pick due to conflicts. Resolve conflicts and use 'git cherry-pick --continue' or '--abort'.`);
-    }
-    if (/bad revision/i.test(errorMessage)) {
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Invalid commit reference '${params.commitRef}'.`);
-    }
-    if (/your local changes would be overwritten/i.test(errorMessage)) {
-      throw new McpError(BaseErrorCode.CONFLICT, "Your local changes would be overwritten. Please commit or stash them first.");
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git cherry-pick failed: ${errorMessage}`);
-  }
+  return { success: true, message, commitCreated, conflicts };
 }

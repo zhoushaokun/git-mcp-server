@@ -114,17 +114,7 @@ export async function getGitStatus(
 
   const args = ["-C", targetPath, "status", "--porcelain=v1", "-b"];
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args);
-    return parseGitStatus(stdout);
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git status command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git status failed: ${errorMessage}`);
-  }
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout } = await execFileAsync("git", args);
+  return parseGitStatus(stdout);
 }

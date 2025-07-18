@@ -56,47 +56,24 @@ export async function checkoutGit(
   if (params.newBranch) args.push("-b", params.newBranch);
   args.push(params.branchOrPath);
 
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout, stderr } = await execFileAsync("git", args);
+
+  const message = stderr.trim() || stdout.trim();
+  logger.info("git checkout executed successfully", { ...context, operation, message });
+
+  let currentBranch: string | undefined;
   try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args);
-
-    const message = stderr.trim() || stdout.trim();
-    logger.info("git checkout executed successfully", { ...context, operation, message });
-
-    let currentBranch: string | undefined;
-    try {
-      const { stdout: branchStdout } = await execFileAsync("git", ["-C", targetPath, "branch", "--show-current"]);
-      currentBranch = branchStdout.trim();
-    } catch {
-      currentBranch = "Detached HEAD";
-    }
-
-    return {
-      success: true,
-      message,
-      currentBranch,
-      newBranchCreated: !!params.newBranch,
-    };
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.stdout || error.message || "";
-    logger.error(`Failed to execute git checkout command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (errorMessage.match(/pathspec '.*?' did not match/)) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Branch or pathspec not found: ${params.branchOrPath}.`);
-    }
-    if (errorMessage.includes("already exists")) {
-      throw new McpError(BaseErrorCode.CONFLICT, `Cannot create new branch '${params.newBranch}': it already exists.`);
-    }
-    if (errorMessage.includes("overwritten by checkout")) {
-      throw new McpError(BaseErrorCode.CONFLICT, "Checkout failed due to uncommitted local changes. Stash or commit them, or use --force.");
-    }
-    if (errorMessage.includes("invalid reference")) {
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Invalid branch name or reference: ${params.branchOrPath}.`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git checkout failed: ${errorMessage}`);
+    const { stdout: branchStdout } = await execFileAsync("git", ["-C", targetPath, "branch", "--show-current"]);
+    currentBranch = branchStdout.trim();
+  } catch {
+    currentBranch = "Detached HEAD";
   }
+
+  return {
+    success: true,
+    message,
+    currentBranch,
+    newBranchCreated: !!params.newBranch,
+  };
 }

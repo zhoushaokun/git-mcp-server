@@ -44,13 +44,12 @@ async function getUntrackedFilesDiff(targetPath: string, context: RequestContext
 
     let diffs = "";
     for (const file of untrackedFiles) {
-        try {
-            const { stdout: diffOut } = await execFileAsync("git", ["-C", targetPath, "diff", "--no-index", "/dev/null", file]);
-            diffs += diffOut;
-        } catch (error: any) {
-            if (error.stdout) diffs += error.stdout;
-            else logger.warning(`Failed to diff untracked file: ${file}`, { ...context, error: error.message });
-        }
+        const { stdout: diffOut } = await execFileAsync("git", ["-C", targetPath, "diff", "--no-index", "/dev/null", file]).catch(err => {
+            if (err.stdout) return { stdout: err.stdout };
+            logger.warning(`Failed to diff untracked file: ${file}`, { ...context, error: err.message });
+            return { stdout: "" };
+        });
+        diffs += diffOut;
     }
     return diffs;
 }
@@ -84,38 +83,23 @@ export async function diffGitChanges(
   }
   if (params.file) args.push("--", params.file);
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args, { maxBuffer: 1024 * 1024 * 20 });
-    let combinedDiff = stdout;
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout } = await execFileAsync("git", args, { maxBuffer: 1024 * 1024 * 20 });
+  let combinedDiff = stdout;
 
-    if (params.includeUntracked) {
-        const untrackedDiff = await getUntrackedFilesDiff(targetPath, context);
-        if (untrackedDiff) {
-            combinedDiff += (combinedDiff ? "\n" : "") + untrackedDiff;
-        }
-    }
-
-    const noChanges = combinedDiff.trim() === "";
-    const message = noChanges ? "No changes found." : `Diff generated successfully.${params.includeUntracked ? " Untracked files included." : ""}`;
-    
-    return {
-      success: true,
-      diff: noChanges ? "No changes found." : combinedDiff,
-      message,
-    };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git diff command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-    if (errorMessage.includes("bad object") || errorMessage.includes("unknown revision")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Invalid commit reference or file path specified.`);
-    }
-    
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git diff failed: ${errorMessage}`);
+  if (params.includeUntracked) {
+      const untrackedDiff = await getUntrackedFilesDiff(targetPath, context);
+      if (untrackedDiff) {
+          combinedDiff += (combinedDiff ? "\n" : "") + untrackedDiff;
+      }
   }
+
+  const noChanges = combinedDiff.trim() === "";
+  const message = noChanges ? "No changes found." : `Diff generated successfully.${params.includeUntracked ? " Untracked files included." : ""}`;
+  
+  return {
+    success: true,
+    diff: noChanges ? "No changes found." : combinedDiff,
+    message,
+  };
 }

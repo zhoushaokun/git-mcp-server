@@ -47,11 +47,7 @@ export async function gitInitLogic(
   const targetPath = sanitization.sanitizePath(params.path, { allowAbsolute: true }).sanitizedPath;
   const parentDir = path.dirname(targetPath);
 
-  try {
-    await fs.access(parentDir, fs.constants.W_OK);
-  } catch (error: any) {
-    throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Cannot access parent directory: ${parentDir}`);
-  }
+  await fs.access(parentDir, fs.constants.W_OK);
 
   const args = ["init"];
   if (params.quiet) args.push("--quiet");
@@ -59,29 +55,17 @@ export async function gitInitLogic(
   args.push(`--initial-branch=${params.initialBranch || 'main'}`);
   args.push(targetPath);
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout } = await execFileAsync("git", args);
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout, stderr } = await execFileAsync("git", args);
 
-    const gitDirPath = params.bare ? targetPath : path.join(targetPath, ".git");
-    const gitDirExists = await fs.access(gitDirPath).then(() => true).catch(() => false);
-
-    const successMessage = stdout.trim() || `Successfully initialized Git repository in ${targetPath}`;
-    return { success: true, message: successMessage, path: targetPath, gitDirExists };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git init command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("permission denied")) {
-      throw new McpError(BaseErrorCode.FORBIDDEN, `Permission denied to initialize repository at: ${targetPath}`);
-    }
-    
-    // Re-initializing is not an error, so we check for it and return a success response.
-    if (errorMessage.toLowerCase().includes("reinitialized existing git repository")) {
-        return { success: true, message: `Reinitialized existing Git repository in ${targetPath}`, path: targetPath, gitDirExists: true };
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Failed to initialize repository: ${errorMessage}`);
+  // Re-initializing is not an error, so we check for it and return a success response.
+  if ((stderr || stdout).toLowerCase().includes("reinitialized existing git repository")) {
+      return { success: true, message: `Reinitialized existing Git repository in ${targetPath}`, path: targetPath, gitDirExists: true };
   }
+
+  const gitDirPath = params.bare ? targetPath : path.join(targetPath, ".git");
+  const gitDirExists = await fs.access(gitDirPath).then(() => true).catch(() => false);
+
+  const successMessage = stdout.trim() || `Successfully initialized Git repository in ${targetPath}`;
+  return { success: true, message: successMessage, path: targetPath, gitDirExists };
 }

@@ -62,29 +62,17 @@ export async function gitCleanLogic(
   if (params.directories) args.push("-d");
   if (params.ignored) args.push("-x");
 
-  try {
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-    const { stdout, stderr } = await execFileAsync("git", args);
+  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  const { stdout, stderr } = await execFileAsync("git", args);
 
-    if (stderr) {
-      logger.warning(`Git clean command produced stderr`, { ...context, operation, stderr });
-    }
-
-    const filesAffected = stdout.trim().split("\n").map(line => line.replace(/^Would remove |^Removing /i, "").trim()).filter(Boolean);
-    const message = params.dryRun
-      ? `Dry run complete. Files that would be removed: ${filesAffected.length}`
-      : `Clean operation complete. Files removed: ${filesAffected.length}`;
-
-    return { success: true, message, filesAffected, dryRun: params.dryRun };
-
-  } catch (error: any) {
-    const errorMessage = error.stderr || error.message || "";
-    logger.error(`Failed to execute git clean command`, { ...context, operation, errorMessage });
-
-    if (errorMessage.toLowerCase().includes("not a git repository")) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, `Path is not a Git repository: ${targetPath}`);
-    }
-
-    throw new McpError(BaseErrorCode.INTERNAL_ERROR, `Git clean failed: ${errorMessage}`);
+  if (stderr) {
+    logger.warning(`Git clean command produced stderr`, { ...context, operation, stderr });
   }
+
+  const filesAffected = stdout.trim().split("\n").map(line => line.replace(/^Would remove |^Removing /i, "").trim()).filter(Boolean);
+  const message = params.dryRun
+    ? `Dry run complete. Files that would be removed: ${filesAffected.length}`
+    : `Clean operation complete. Files removed: ${filesAffected.length}`;
+
+  return { success: true, message, filesAffected, dryRun: params.dryRun };
 }
