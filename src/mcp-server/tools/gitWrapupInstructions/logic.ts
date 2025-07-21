@@ -5,12 +5,13 @@
 
 import { z } from "zod";
 import { logger, type RequestContext } from "../../../utils/index.js";
-import { getGitStatus, GitStatusOutputSchema, GitStatusOutput } from "../gitStatus/logic.js";
+import { getGitStatus, GitStatusOutput, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 // 1. DEFINE the Zod input schema.
 export const GitWrapupInstructionsInputSchema = z.object({
   acknowledgement: z.enum(["Y", "y", "Yes", "yes"]).describe("Acknowledgement to initiate the wrap-up workflow."),
   updateAgentMetaFiles: z.enum(["Y", "y", "Yes", "yes"]).optional().describe("Include an instruction to update agent-specific meta files."),
+  createTag: z.boolean().optional().describe("If true, instructs the agent to create a Git tag after committing all changes. Only set to true if given permission to do so."),
 });
 
 // 2. DEFINE the Zod response schema.
@@ -49,6 +50,10 @@ export async function getWrapupInstructions(
   let finalInstructions = WRAPUP_INSTRUCTIONS;
   if (params.updateAgentMetaFiles) {
     finalInstructions += `\nExtra request: review and update if needed the .clinerules and claude.md files if present.`;
+  }
+
+  if (params.createTag) {
+    finalInstructions += `\n5. After all changes are committed and confirmed via 'git_status', use the 'git_tag' tool to create a new annotated tag. The tag name should follow semantic versioning (e.g., v1.2.3), and the annotation message should summarize the key changes in this wrap-up.`;
   }
 
   let statusResult: GitStatusOutput | undefined;
