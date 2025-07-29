@@ -219,32 +219,31 @@ export class ErrorHandler {
 
     // If it's already an McpError, use it directly but apply additional context
     if (error instanceof McpError) {
-      // Add any additional context
-      if (context && Object.keys(context).length > 0) {
-        // Ensure details is an object before spreading
-        const existingDetails =
-          typeof error.details === "object" && error.details !== null
-            ? error.details
-            : {};
-        error.details = { ...existingDetails, ...context };
-      }
+      const existingDetails =
+        typeof error.details === "object" && error.details !== null
+          ? error.details
+          : {};
+      const newDetails = { ...existingDetails, ...context };
+
+      // Create a new error to avoid mutating a readonly property
+      const updatedError = new McpError(error.code, error.message, newDetails);
 
       // Log the error with sanitized input
-      logger.error(`Error ${operation}: ${error.message}`, {
-        errorCode: error.code,
+      logger.error(`Error ${operation}: ${updatedError.message}`, {
+        errorCode: updatedError.code,
         requestId: context?.requestId,
         input: input ? sanitizeInputForLogging(input) : undefined,
-        stack: includeStack ? error.stack : undefined,
+        stack: includeStack ? updatedError.stack : undefined,
         critical,
         ...context,
       });
 
       if (rethrow) {
-        throw error;
+        throw updatedError;
       }
 
       // Ensure the function returns an Error type
-      return error;
+      return updatedError;
     }
 
     // Sanitize input for logging
