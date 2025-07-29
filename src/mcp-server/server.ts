@@ -9,6 +9,7 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import http from "http";
 import { config, environment } from "../config/index.js";
 import { ErrorHandler, logger, RequestContext, requestContextService } from "../utils/index.js";
 
@@ -40,8 +41,8 @@ import { registerGitWorktreeTool } from "./tools/gitWorktree/index.js";
 import { registerGitWrapupInstructionsTool } from "./tools/gitWrapupInstructions/index.js";
 
 // Import transport setup functions
-import { startHttpTransport } from "./transports/httpTransport.js";
-import { connectStdioTransport } from "./transports/stdioTransport.js";
+import { startHttpTransport } from "./transports/http/index.js";
+import { startStdioTransport } from "./transports/stdio/index.js";
 
 async function createMcpServerInstance(): Promise<McpServer> {
   const context = requestContextService.createRequestContext({
@@ -130,7 +131,7 @@ async function createMcpServerInstance(): Promise<McpServer> {
   return server;
 }
 
-async function startTransport(): Promise<McpServer | void> {
+async function startTransport(): Promise<McpServer | http.Server> {
   const transportType = config.mcpTransportType;
   const context = requestContextService.createRequestContext({
     operation: "startTransport",
@@ -138,15 +139,14 @@ async function startTransport(): Promise<McpServer | void> {
   });
   logger.info(`Starting transport: ${transportType}`, context);
 
-  const server = await createMcpServerInstance();
-
   if (transportType === "http") {
-    await startHttpTransport(server, context);
-    return;
+    const { server } = await startHttpTransport(createMcpServerInstance, context);
+    return server as http.Server;
   }
 
   if (transportType === "stdio") {
-    await connectStdioTransport(server, context);
+    const server = await createMcpServerInstance();
+    await startStdioTransport(server, context);
     return server;
   }
 
@@ -154,7 +154,7 @@ async function startTransport(): Promise<McpServer | void> {
   throw new Error(`Unsupported transport type: ${transportType}. Must be 'stdio' or 'http'.`);
 }
 
-export async function initializeAndStartServer(): Promise<void | McpServer> {
+export async function initializeAndStartServer(): Promise<McpServer | http.Server> {
   const context = requestContextService.createRequestContext({
     operation: "initializeAndStartServer",
   });
