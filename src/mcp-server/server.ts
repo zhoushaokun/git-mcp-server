@@ -40,6 +40,9 @@ import { registerGitTagTool } from "./tools/gitTag/index.js";
 import { registerGitWorktreeTool } from "./tools/gitWorktree/index.js";
 import { registerGitWrapupInstructionsTool } from "./tools/gitWrapupInstructions/index.js";
 
+// Import registration functions for ALL resources
+import { registerGitWorkingDirResource } from "./resources/gitWorkingDir/index.js";
+
 // Import transport setup functions
 import { startHttpTransport } from "./transports/http/index.js";
 import { startStdioTransport } from "./transports/stdio/index.js";
@@ -119,6 +122,10 @@ async function createMcpServerInstance(): Promise<McpServer> {
     await registerGitWorktreeTool(server, getWorkingDirectory, getSessionIdFromContext);
     await registerGitWrapupInstructionsTool(server, getWorkingDirectory, getSessionIdFromContext);
     logger.info("Git tools registered successfully", context);
+
+    logger.debug("Registering Git resources...", context);
+    await registerGitWorkingDirResource(server, getWorkingDirectory, getSessionIdFromContext);
+    logger.info("Git resources registered successfully", context);
   } catch (err) {
     logger.error("Failed to register resources/tools", {
       ...context,
