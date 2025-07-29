@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-07-18 02:07:31
+Generated on: 2025-07-29 18:53:56
 
 
 ```
@@ -119,19 +119,32 @@ git-mcp-server
     │   │   │   └── registration.ts
     │   ├── transports
     │   │   ├── auth
-    │   │   │   ├── core
+    │   │   │   ├── lib
     │   │   │   │   ├── authContext.ts
     │   │   │   │   ├── authTypes.ts
     │   │   │   │   └── authUtils.ts
     │   │   │   ├── strategies
-    │   │   │   │   ├── jwt
-    │   │   │   │   │   └── jwtMiddleware.ts
-    │   │   │   │   └── oauth
-    │   │   │   │   │   └── oauthMiddleware.ts
+    │   │   │   │   ├── authStrategy.ts
+    │   │   │   │   ├── jwtStrategy.ts
+    │   │   │   │   └── oauthStrategy.ts
+    │   │   │   ├── authFactory.ts
+    │   │   │   ├── authMiddleware.ts
     │   │   │   └── index.ts
-    │   │   ├── httpErrorHandler.ts
-    │   │   ├── httpTransport.ts
-    │   │   └── stdioTransport.ts
+    │   │   ├── core
+    │   │   │   ├── baseTransportManager.ts
+    │   │   │   ├── honoNodeBridge.ts
+    │   │   │   ├── statefulTransportManager.ts
+    │   │   │   ├── statelessTransportManager.ts
+    │   │   │   └── transportTypes.ts
+    │   │   ├── http
+    │   │   │   ├── httpErrorHandler.ts
+    │   │   │   ├── httpTransport.ts
+    │   │   │   ├── httpTypes.ts
+    │   │   │   ├── index.ts
+    │   │   │   └── mcpTransportMiddleware.ts
+    │   │   └── stdio
+    │   │   │   ├── index.ts
+    │   │   │   └── stdioTransport.ts
     │   └── server.ts
     ├── types-global
     │   └── errors.ts
@@ -168,7 +181,9 @@ git-mcp-server
 ├── README.md
 ├── repomix.config.json
 ├── smithery.yaml
-└── tsconfig.json
+├── tsconfig.json
+├── tsconfig.vitest.json
+└── vitest.config.ts
 
 ```
 

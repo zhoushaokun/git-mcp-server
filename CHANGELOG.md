@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.2.3 - 2025-07-29
+
+### Added
+
+- **Testing Framework**: Initial setup of Vitest testing framework for unit and integration testing. Added initial test setup, configurations (`vitest.config.ts`, `tsconfig.vitest.json`), and coverage reporting.
+- **Git Signing**: Implemented automatic GPG/SSH signing for commit-creating operations (`git_commit`, `git_merge`, `git_cherry_pick`, `git_tag`) when `GIT_SIGN_COMMITS=true` is set. Includes a fallback to unsigned commits on signing failure.
+
+### Changed
+
+- **mcp-ts-template Alignment**: Updated the server to align with the latest changes in the [`mcp-ts-template` v1.7.7](https://github.com/cyanheads/mcp-ts-template/releases/tag/v1.7.7), including improvements to the project structure and configuration.
+- **Configuration Overhaul**: Completely refactored `src/config/index.ts`. It now uses Zod for robust, type-safe validation of all environment variables, provides clear startup errors for misconfigurations, and automatically determines the project root.
+- **Authentication Architecture**: Refactored the entire authentication system to use a strategy pattern.
+  - Created `JwtStrategy` and `OauthStrategy` classes implementing a common `AuthStrategy` interface.
+  - A new `authFactory` selects the strategy based on configuration.
+  - A unified `authMiddleware` now delegates verification to the selected strategy, decoupling the transport layer from authentication logic.
+- **Transport Layer Abstraction**: Decoupled the Hono web server from the MCP SDK's transport logic.
+  - Introduced `StatefulTransportManager` and `StatelessTransportManager` to handle all session and request lifecycle logic.
+  - The Hono `httpTransport` is now a thin layer responsible for routing, middleware, and bridging Hono's web streams with the SDK's Node.js streams. Streamable HTTP should work much better now.
+  - This refactoring resulted in a major file reorganization within `src/mcp-server/transports/`.
+- **Error Handling**: Improved the `ErrorHandler` to prevent mutation of original error objects and added several new `BaseErrorCode`s for more precise error reporting.
+
+### Dependencies
+
+- **Added**: `vitest`, `@vitest/coverage-v8`, `supertest`, `msw`, `@faker-js/faker` and other testing-related packages.
+- **Updated**: `@modelcontextprotocol/sdk` to `^1.17.0`, `hono` to `^4.8.10`, and various other dependencies.
+
 ## v2.2.1 - 2025-07-17
 
 ### Changed
