@@ -88,7 +88,7 @@ export async function commitGitChanges(
   let result;
   const shouldSign = config.gitSignCommits;
   try {
-    result = await attemptCommit(shouldSign);
+    result = await attemptCommit(shouldSign || false);
   } catch (error: any) {
     const isSigningError = (error.stderr || "").includes("gpg failed to sign");
     if (shouldSign && isSigningError && params.forceUnsignedOnFailure) {

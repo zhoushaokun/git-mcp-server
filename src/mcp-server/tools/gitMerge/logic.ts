@@ -8,6 +8,7 @@ import { promisify } from "util";
 import { z } from "zod";
 import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import { config } from "../../../config/index.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -55,18 +56,40 @@ export async function gitMergeLogic(
   }
   const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const args = ["-C", targetPath, "merge"];
-  if (params.abort) {
-    args.push("--abort");
-  } else {
-    if (params.noFf) args.push("--no-ff");
-    if (params.squash) args.push("--squash");
-    if (params.commitMessage && !params.squash) args.push("-m", params.commitMessage);
-    args.push(params.branch);
-  }
+  const attemptMerge = async (withSigning: boolean) => {
+    const args = ["-C", targetPath, "merge"];
+    if (params.abort) {
+      args.push("--abort");
+    } else {
+      if (withSigning) args.push("-S");
+      if (params.noFf) args.push("--no-ff");
+      if (params.squash) args.push("--squash");
+      if (params.commitMessage && !params.squash) args.push("-m", params.commitMessage);
+      args.push(params.branch);
+    }
+    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+    return await execFileAsync("git", args);
+  };
 
-  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-  const { stdout } = await execFileAsync("git", args);
+  // A merge commit is only created if it's not a fast-forward (or --no-ff is used)
+  // and we are not squashing or aborting.
+  const createsMergeCommit = !params.squash && !params.abort;
+  const shouldSign = !!config.gitSignCommits && createsMergeCommit;
+  
+  let stdout: string;
+  try {
+    const result = await attemptMerge(shouldSign);
+    stdout = result.stdout;
+  } catch (error: any) {
+    const isSigningError = (error.stderr || "").includes("gpg failed to sign");
+    if (shouldSign && isSigningError) {
+      logger.warning("Merge with signing failed. Retrying automatically without signature.", { ...context, operation });
+      const result = await attemptMerge(false);
+      stdout = result.stdout;
+    } else {
+      throw error;
+    }
+  }
 
   return {
     success: true,

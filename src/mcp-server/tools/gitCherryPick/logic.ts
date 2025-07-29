@@ -8,6 +8,7 @@ import { promisify } from "util";
 import { z } from "zod";
 import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import { config } from "../../../config/index.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -53,19 +54,42 @@ export async function gitCherryPickLogic(
   }
   const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const args = ["-C", targetPath, "cherry-pick"];
-  if (params.mainline) args.push("-m", String(params.mainline));
-  if (params.strategy) args.push(`-X${params.strategy}`);
-  if (params.noCommit) args.push("--no-commit");
-  if (params.signoff) args.push("--signoff");
-  args.push(params.commitRef);
+  const attemptCherryPick = async (withSigning: boolean) => {
+    const args = ["-C", targetPath, "cherry-pick"];
+    if (withSigning) args.push("-S");
+    if (params.mainline) args.push("-m", String(params.mainline));
+    if (params.strategy) args.push(`-X${params.strategy}`);
+    if (params.noCommit) args.push("--no-commit");
+    if (params.signoff) args.push("--signoff");
+    args.push(params.commitRef);
+    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+    return await execFileAsync("git", args);
+  };
 
-  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-  const { stdout, stderr } = await execFileAsync("git", args);
+  const createsCommit = !params.noCommit;
+  const shouldSign = !!config.gitSignCommits && createsCommit;
+
+  let stdout: string;
+  let stderr: string;
+  try {
+    const result = await attemptCherryPick(shouldSign);
+    stdout = result.stdout;
+    stderr = result.stderr;
+  } catch (error: any) {
+    const isSigningError = (error.stderr || "").includes("gpg failed to sign");
+    if (shouldSign && isSigningError) {
+      logger.warning("Cherry-pick with signing failed. Retrying automatically without signature.", { ...context, operation });
+      const result = await attemptCherryPick(false);
+      stdout = result.stdout;
+      stderr = result.stderr;
+    } else {
+      throw error;
+    }
+  }
   
   const output = stdout + stderr;
   const conflicts = /conflict/i.test(output);
-  const commitCreated = !params.noCommit && !conflicts;
+  const commitCreated = createsCommit && !conflicts;
 
   const message = conflicts
     ? `Cherry-pick resulted in conflicts for commit(s) '${params.commitRef}'. Manual resolution required.`

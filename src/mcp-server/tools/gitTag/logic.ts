@@ -6,8 +6,9 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
-import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import { config } from "../../../config/index.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -68,28 +69,46 @@ export async function gitTagLogic(
   }
   const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
 
-  const args = ["-C", targetPath, "tag"];
-  
-  switch (params.mode) {
-      case "list":
-          args.push("--list");
-          break;
-      case "create":
-          if (params.annotate) args.push("-a", "-m", params.message!);
-          args.push(params.tagName!);
-          if (params.commitRef) args.push(params.commitRef);
-          break;
-      case "delete":
-          args.push("-d", params.tagName!);
-          break;
+  if (params.mode === 'list') {
+    const { stdout } = await execFileAsync("git", ["-C", targetPath, "tag", "--list"]);
+    const tags = stdout.trim().split("\n").filter(Boolean);
+    return { success: true, mode: params.mode, tags };
   }
 
-  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
-  const { stdout } = await execFileAsync("git", args);
+  if (params.mode === 'delete') {
+    await execFileAsync("git", ["-C", targetPath, "tag", "-d", params.tagName!]);
+    return { success: true, mode: params.mode, message: `Tag '${params.tagName}' deleted successfully.`, tagName: params.tagName };
+  }
 
-  if (params.mode === 'list') {
-      const tags = stdout.trim().split("\n").filter(Boolean);
-      return { success: true, mode: params.mode, tags };
+  // Handle create mode with signing logic
+  if (params.mode === 'create') {
+    const attemptTag = async (withSigning: boolean) => {
+      const args = ["-C", targetPath, "tag"];
+      if (params.annotate) {
+        // Use -s for signed annotated tag, -a for unsigned
+        args.push(withSigning ? "-s" : "-a");
+        args.push("-m", params.message!);
+      }
+      args.push(params.tagName!);
+      if (params.commitRef) {
+        args.push(params.commitRef);
+      }
+      logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+      return await execFileAsync("git", args);
+    };
+
+    const shouldSign = !!config.gitSignCommits && params.annotate;
+    try {
+      await attemptTag(shouldSign);
+    } catch (error: any) {
+      const isSigningError = (error.stderr || "").includes("gpg failed to sign");
+      if (shouldSign && isSigningError) {
+        logger.warning("Tag with signing failed. Retrying automatically without signature.", { ...context, operation });
+        await attemptTag(false); // Fallback to unsigned annotated tag
+      } else {
+        throw error;
+      }
+    }
   }
 
   return { success: true, mode: params.mode, message: `Tag '${params.tagName}' ${params.mode}d successfully.`, tagName: params.tagName };
