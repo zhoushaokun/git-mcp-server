@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.2.4 - 2025-07-29
+
+### Added
+
+- **Git Working Directory Resource**: Introduced a new resource, `git://working-directory`, which allows clients to retrieve the currently configured working directory for a session. This enhances contextual awareness for tools and agents interacting with the server.
+
+### Changed
+
+- **Documentation**: Updated `README.md` to include the new "Resources" section, documenting the `git://working-directory` resource. Also updated the version badge to `2.2.4`.
+
 ## v2.2.3 - 2025-07-29
 
 ### Added
