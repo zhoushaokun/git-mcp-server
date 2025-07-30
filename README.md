@@ -186,8 +186,8 @@ npm run tree
 
 In addition to tools, the server provides resources that offer contextual information about the Git environment.
 
-| Resource URI              | Description                                                                                                |
-| :------------------------ | :--------------------------------------------------------------------------------------------------------- |
+| Resource URI              | Description                                                                                                    |
+| :------------------------ | :------------------------------------------------------------------------------------------------------------- |
 | `git://working-directory` | Returns the currently configured working directory for the session as a JSON object. Shows `NOT_SET` if unset. |
 
 ## 🧩 Extending the System
