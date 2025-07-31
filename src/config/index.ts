@@ -99,8 +99,8 @@ const EnvSchema = z.object({
   MCP_TRANSPORT_TYPE: z.enum(["stdio", "http"]).default("stdio"),
   /** MCP session mode ('stateless', 'stateful', 'auto'). Default: 'auto'. */
   MCP_SESSION_MODE: z.enum(["stateless", "stateful", "auto"]).default("auto"),
-  /** HTTP server port (if MCP_TRANSPORT_TYPE is "http"). Default: 3010. */
-  MCP_HTTP_PORT: z.coerce.number().int().positive().default(3010),
+  /** HTTP server port (if MCP_TRANSPORT_TYPE is "http"). Default: 3015. */
+  MCP_HTTP_PORT: z.coerce.number().int().positive().default(3015),
   /** HTTP server host (if MCP_TRANSPORT_TYPE is "http"). Default: "127.0.0.1". */
   MCP_HTTP_HOST: z.string().default("127.0.0.1"),
   /** The endpoint path for the MCP server. Default: "/mcp". */
@@ -142,9 +142,12 @@ const EnvSchema = z.object({
   DEV_MCP_CLIENT_ID: z.string().optional(),
   /** Optional. Comma-separated scopes for development mode JWT strategy. Default: "dev-scope". */
   DEV_MCP_SCOPES: z.string().optional(),
-  
+
   /** Flag to enable GPG signing for commits made by the git_commit tool. */
-  GIT_SIGN_COMMITS: z.string().transform((val) => val === "true").optional(),
+  GIT_SIGN_COMMITS: z
+    .string()
+    .transform((val) => val === "true")
+    .optional(),
 });
 
 const parsedEnv = EnvSchema.safeParse(process.env);

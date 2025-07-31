@@ -6,7 +6,11 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
-import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
+import {
+  logger,
+  type RequestContext,
+  sanitization,
+} from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 import { config } from "../../../config/index.js";
 
@@ -14,12 +18,34 @@ const execFileAsync = promisify(execFile);
 
 // 1. DEFINE the Zod input schema.
 export const GitCherryPickInputSchema = z.object({
-  path: z.string().default(".").describe("Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set."),
-  commitRef: z.string().min(1).describe("The commit reference(s) to cherry-pick."),
-  mainline: z.number().int().min(1).optional().describe("The parent number (1-based) for a merge commit."),
-  strategy: z.enum(["recursive", "resolve", "ours", "theirs", "octopus", "subtree"]).optional().describe("The merge strategy to use."),
-  noCommit: z.boolean().default(false).describe("Apply changes but do not create a commit."),
-  signoff: z.boolean().default(false).describe("Add a 'Signed-off-by' line to the commit message."),
+  path: z
+    .string()
+    .default(".")
+    .describe(
+      "Path to the Git repository. Defaults to the directory set via `git_set_working_dir` for the session; set 'git_set_working_dir' if not set.",
+    ),
+  commitRef: z
+    .string()
+    .min(1)
+    .describe("The commit reference(s) to cherry-pick."),
+  mainline: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe("The parent number (1-based) for a merge commit."),
+  strategy: z
+    .enum(["recursive", "resolve", "ours", "theirs", "octopus", "subtree"])
+    .optional()
+    .describe("The merge strategy to use."),
+  noCommit: z
+    .boolean()
+    .default(false)
+    .describe("Apply changes but do not create a commit."),
+  signoff: z
+    .boolean()
+    .default(false)
+    .describe("Add a 'Signed-off-by' line to the commit message."),
 });
 
 // 2. DEFINE the Zod response schema.
@@ -40,7 +66,7 @@ export type GitCherryPickOutput = z.infer<typeof GitCherryPickOutputSchema>;
  */
 export async function gitCherryPickLogic(
   params: GitCherryPickInput,
-  context: RequestContext & { getWorkingDirectory: () => string | undefined }
+  context: RequestContext & { getWorkingDirectory: () => string | undefined },
 ): Promise<GitCherryPickOutput> {
   const operation = "gitCherryPickLogic";
   logger.debug(`Executing ${operation}`, { ...context, params });
@@ -52,7 +78,10 @@ export async function gitCherryPickLogic(
       "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
     );
   }
-  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
+  const targetPath = sanitization.sanitizePath(
+    params.path === "." ? workingDir! : params.path,
+    { allowAbsolute: true },
+  ).sanitizedPath;
 
   const attemptCherryPick = async (withSigning: boolean) => {
     const args = ["-C", targetPath, "cherry-pick"];
@@ -62,7 +91,10 @@ export async function gitCherryPickLogic(
     if (params.noCommit) args.push("--no-commit");
     if (params.signoff) args.push("--signoff");
     args.push(params.commitRef);
-    logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+    logger.debug(`Executing command: git ${args.join(" ")}`, {
+      ...context,
+      operation,
+    });
     return await execFileAsync("git", args);
   };
 
@@ -75,10 +107,16 @@ export async function gitCherryPickLogic(
     const result = await attemptCherryPick(shouldSign);
     stdout = result.stdout;
     stderr = result.stderr;
-  } catch (error: any) {
-    const isSigningError = (error.stderr || "").includes("gpg failed to sign");
+  } catch (error: unknown) {
+    const execError = error as { stderr?: string };
+    const isSigningError = (execError.stderr || "").includes(
+      "gpg failed to sign",
+    );
     if (shouldSign && isSigningError) {
-      logger.warning("Cherry-pick with signing failed. Retrying automatically without signature.", { ...context, operation });
+      logger.warning(
+        "Cherry-pick with signing failed. Retrying automatically without signature.",
+        { ...context, operation },
+      );
       const result = await attemptCherryPick(false);
       stdout = result.stdout;
       stderr = result.stderr;
@@ -86,7 +124,7 @@ export async function gitCherryPickLogic(
       throw error;
     }
   }
-  
+
   const output = stdout + stderr;
   const conflicts = /conflict/i.test(output);
   const commitCreated = createsCommit && !conflicts;

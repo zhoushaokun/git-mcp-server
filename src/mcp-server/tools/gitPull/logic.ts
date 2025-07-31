@@ -6,7 +6,11 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
-import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
+import {
+  logger,
+  type RequestContext,
+  sanitization,
+} from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 
 const execFileAsync = promisify(execFile);
@@ -14,17 +18,29 @@ const execFileAsync = promisify(execFile);
 // 1. DEFINE the Zod input schema.
 export const GitPullInputSchema = z.object({
   path: z.string().default(".").describe("Path to the Git repository."),
-  remote: z.string().optional().describe("The remote repository to pull from (e.g., 'origin')."),
+  remote: z
+    .string()
+    .optional()
+    .describe("The remote repository to pull from (e.g., 'origin')."),
   branch: z.string().optional().describe("The remote branch to pull."),
-  rebase: z.boolean().default(false).describe("Use 'git pull --rebase' instead of merge."),
-  ffOnly: z.boolean().default(false).describe("Only allow fast-forward merges."),
+  rebase: z
+    .boolean()
+    .default(false)
+    .describe("Use 'git pull --rebase' instead of merge."),
+  ffOnly: z
+    .boolean()
+    .default(false)
+    .describe("Only allow fast-forward merges."),
 });
 
 // 2. DEFINE the Zod response schema.
 export const GitPullOutputSchema = z.object({
   success: z.boolean().describe("Indicates if the command was successful."),
   message: z.string().describe("A summary message of the result."),
-  conflict: z.boolean().optional().describe("True if a merge conflict occurred."),
+  conflict: z
+    .boolean()
+    .optional()
+    .describe("True if a merge conflict occurred."),
 });
 
 // 3. INFER and export TypeScript types.
@@ -37,7 +53,7 @@ export type GitPullOutput = z.infer<typeof GitPullOutputSchema>;
  */
 export async function pullGitChanges(
   params: GitPullInput,
-  context: RequestContext & { getWorkingDirectory: () => string | undefined }
+  context: RequestContext & { getWorkingDirectory: () => string | undefined },
 ): Promise<GitPullOutput> {
   const operation = "pullGitChanges";
   logger.debug(`Executing ${operation}`, { ...context, params });
@@ -49,7 +65,10 @@ export async function pullGitChanges(
       "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
     );
   }
-  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
+  const targetPath = sanitization.sanitizePath(
+    params.path === "." ? workingDir! : params.path,
+    { allowAbsolute: true },
+  ).sanitizedPath;
 
   const args = ["-C", targetPath, "pull"];
   if (params.rebase) args.push("--rebase");
@@ -57,9 +76,13 @@ export async function pullGitChanges(
   if (params.remote) args.push(params.remote);
   if (params.branch) args.push(params.branch);
 
-  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  logger.debug(`Executing command: git ${args.join(" ")}`, {
+    ...context,
+    operation,
+  });
   const { stdout, stderr } = await execFileAsync("git", args);
 
-  const message = stdout.trim() || stderr.trim() || "Pull command executed successfully.";
+  const message =
+    stdout.trim() || stderr.trim() || "Pull command executed successfully.";
   return { success: true, message, conflict: message.includes("CONFLICT") };
 }

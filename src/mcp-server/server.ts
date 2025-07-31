@@ -11,7 +11,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import http from "http";
 import { config, environment } from "../config/index.js";
-import { ErrorHandler, logger, RequestContext, requestContextService } from "../utils/index.js";
+import {
+  ErrorHandler,
+  logger,
+  RequestContext,
+  requestContextService,
+} from "../utils/index.js";
 
 // Import registration functions for ALL Git tools (alphabetized)
 import { registerGitAddTool } from "./tools/gitAdd/index.js";
@@ -73,58 +78,171 @@ async function createMcpServerInstance(): Promise<McpServer> {
   const sessionWorkingDirectories = new Map<string, string>();
   const STDIO_SESSION_ID = "stdio_session"; // Constant for single-session transports
 
-  const getSessionIdFromContext = (toolContext: Record<string, any>): string | undefined => {
-    return (toolContext as RequestContext)?.sessionId;
+  const getSessionIdFromContext = (
+    toolContext: RequestContext,
+  ): string | undefined => {
+    if (typeof toolContext.sessionId === "string") {
+      return toolContext.sessionId;
+    }
+    return undefined;
   };
 
-  const getWorkingDirectory = (sessionId: string | undefined): string | undefined => {
+  const getWorkingDirectory = (
+    sessionId: string | undefined,
+  ): string | undefined => {
     const id = sessionId ?? STDIO_SESSION_ID;
     return sessionWorkingDirectories.get(id);
   };
 
-  const setWorkingDirectory = (sessionId: string | undefined, dir: string): void => {
+  const setWorkingDirectory = (
+    sessionId: string | undefined,
+    dir: string,
+  ): void => {
     const id = sessionId ?? STDIO_SESSION_ID;
-    logger.debug("Setting session working directory", { ...context, sessionId: id, newDirectory: dir });
+    logger.debug("Setting session working directory", {
+      ...context,
+      sessionId: id,
+      newDirectory: dir,
+    });
     sessionWorkingDirectories.set(id, dir);
   };
 
   const clearWorkingDirectory = (sessionId: string | undefined): void => {
     const id = sessionId ?? STDIO_SESSION_ID;
-    logger.debug("Clearing session working directory", { ...context, sessionId: id });
+    logger.debug("Clearing session working directory", {
+      ...context,
+      sessionId: id,
+    });
     sessionWorkingDirectories.delete(id);
   };
 
   try {
     logger.debug("Registering Git tools...", context);
-    await registerGitAddTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitBranchTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitCheckoutTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitCherryPickTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitCleanTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitClearWorkingDirTool(server, clearWorkingDirectory, getSessionIdFromContext);
-    await registerGitCloneTool(server, getSessionIdFromContext);
-    await registerGitCommitTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitDiffTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitFetchTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitInitTool(server, getSessionIdFromContext);
-    await registerGitLogTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitMergeTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitPullTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitPushTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitRebaseTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitRemoteTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitResetTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitSetWorkingDirTool(server, setWorkingDirectory, getSessionIdFromContext);
-    await registerGitShowTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitStashTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitStatusTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitTagTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitWorktreeTool(server, getWorkingDirectory, getSessionIdFromContext);
-    await registerGitWrapupInstructionsTool(server, getWorkingDirectory, getSessionIdFromContext);
+    await registerGitAddTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitBranchTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitCheckoutTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitCherryPickTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitCleanTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitClearWorkingDirTool(
+      server,
+      clearWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitCloneTool(server);
+    await registerGitCommitTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitDiffTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitFetchTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitInitTool(server);
+    await registerGitLogTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitMergeTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitPullTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitPushTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitRebaseTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitRemoteTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitResetTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitSetWorkingDirTool(
+      server,
+      setWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitShowTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitStashTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitStatusTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitTagTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitWorktreeTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
+    await registerGitWrapupInstructionsTool(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
     logger.info("Git tools registered successfully", context);
 
     logger.debug("Registering Git resources...", context);
-    await registerGitWorkingDirResource(server, getWorkingDirectory, getSessionIdFromContext);
+    await registerGitWorkingDirResource(
+      server,
+      getWorkingDirectory,
+      getSessionIdFromContext,
+    );
     logger.info("Git resources registered successfully", context);
   } catch (err) {
     logger.error("Failed to register resources/tools", {
@@ -147,7 +265,10 @@ async function startTransport(): Promise<McpServer | http.Server> {
   logger.info(`Starting transport: ${transportType}`, context);
 
   if (transportType === "http") {
-    const { server } = await startHttpTransport(createMcpServerInstance, context);
+    const { server } = await startHttpTransport(
+      createMcpServerInstance,
+      context,
+    );
     return server as http.Server;
   }
 
@@ -157,18 +278,28 @@ async function startTransport(): Promise<McpServer | http.Server> {
     return server;
   }
 
-  logger.fatal(`Unsupported transport type configured: ${transportType}`, context);
-  throw new Error(`Unsupported transport type: ${transportType}. Must be 'stdio' or 'http'.`);
+  logger.fatal(
+    `Unsupported transport type configured: ${transportType}`,
+    context,
+  );
+  throw new Error(
+    `Unsupported transport type: ${transportType}. Must be 'stdio' or 'http'.`,
+  );
 }
 
-export async function initializeAndStartServer(): Promise<McpServer | http.Server> {
+export async function initializeAndStartServer(): Promise<
+  McpServer | http.Server
+> {
   const context = requestContextService.createRequestContext({
     operation: "initializeAndStartServer",
   });
   logger.info("MCP Server initialization sequence started.", context);
   try {
     const result = await startTransport();
-    logger.info("MCP Server initialization sequence completed successfully.", context);
+    logger.info(
+      "MCP Server initialization sequence completed successfully.",
+      context,
+    );
     return result;
   } catch (err) {
     logger.fatal("Critical error during MCP server initialization.", {
@@ -181,7 +312,10 @@ export async function initializeAndStartServer(): Promise<McpServer | http.Serve
       operation: "initializeAndStartServer_Catch",
       critical: true,
     });
-    logger.info("Exiting process due to critical initialization error.", context);
+    logger.info(
+      "Exiting process due to critical initialization error.",
+      context,
+    );
     process.exit(1);
   }
 }

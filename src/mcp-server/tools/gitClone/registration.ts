@@ -4,8 +4,12 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
-import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import {
+  ErrorHandler,
+  logger,
+  requestContextService,
+} from "../../../utils/index.js";
+import { McpError } from "../../../types-global/errors.js";
 import {
   gitCloneLogic,
   GitCloneInput,
@@ -13,7 +17,9 @@ import {
   GitCloneOutputSchema,
 } from "./logic.js";
 
-export type GetSessionIdFn = (context: Record<string, any>) => string | undefined;
+export type GetSessionIdFn = (
+  context: Record<string, unknown>,
+) => string | undefined;
 
 const TOOL_NAME = "git_clone";
 const TOOL_DESCRIPTION =
@@ -22,11 +28,9 @@ const TOOL_DESCRIPTION =
 /**
  * Registers the git_clone tool with the MCP server instance.
  * @param server The MCP server instance.
- * @param getSessionId Function to get the session ID from context.
  */
 export const registerGitCloneTool = async (
   server: McpServer,
-  getSessionId: GetSessionIdFn, // Added for consistency, though not used in logic
 ): Promise<void> => {
   const operation = "registerGitCloneTool";
   const context = requestContextService.createRequestContext({ operation });
@@ -45,7 +49,7 @@ export const registerGitCloneTool = async (
         openWorldHint: true, // Interacts with remote repositories
       },
     },
-    async (params: GitCloneInput, callContext: Record<string, any>) => {
+    async (params: GitCloneInput, callContext: Record<string, unknown>) => {
       const handlerContext = requestContextService.createRequestContext({
         toolName: TOOL_NAME,
         parentContext: callContext,
@@ -56,10 +60,18 @@ export const registerGitCloneTool = async (
 
         return {
           structuredContent: result,
-          content: [{ type: "text", text: `Success: ${JSON.stringify(result, null, 2)}` }],
+          content: [
+            {
+              type: "text",
+              text: `Success: ${JSON.stringify(result, null, 2)}`,
+            },
+          ],
         };
       } catch (error) {
-        logger.error(`Error in ${TOOL_NAME} handler`, { error, ...handlerContext });
+        logger.error(`Error in ${TOOL_NAME} handler`, {
+          error,
+          ...handlerContext,
+        });
         const mcpError = ErrorHandler.handleError(error, {
           operation: `tool:${TOOL_NAME}`,
           context: handlerContext,
@@ -76,7 +88,7 @@ export const registerGitCloneTool = async (
           },
         };
       }
-    }
+    },
   );
   logger.info(`Tool '${TOOL_NAME}' registered successfully.`, context);
 };

@@ -4,21 +4,28 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
-import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import {
+  ErrorHandler,
+  logger,
+  RequestContext,
+  requestContextService,
+} from "../../../utils/index.js";
+import { McpError } from "../../../types-global/errors.js";
 import {
   gitRemoteLogic,
   GitRemoteInput,
-  GitRemoteInputSchema,
   GitRemoteOutputSchema,
   GitRemoteBaseSchema,
 } from "./logic.js";
 
-export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | undefined;
-export type GetSessionIdFn = (context: Record<string, any>) => string | undefined;
+export type GetWorkingDirectoryFn = (
+  sessionId: string | undefined,
+) => string | undefined;
+export type GetSessionIdFn = (context: RequestContext) => string | undefined;
 
 const TOOL_NAME = "git_remote";
-const TOOL_DESCRIPTION = "Manages remote repositories (list, add, remove, show).";
+const TOOL_DESCRIPTION =
+  "Manages remote repositories (list, add, remove, show).";
 
 /**
  * Registers the git_remote tool with the MCP server instance.
@@ -48,7 +55,7 @@ export const registerGitRemoteTool = async (
         openWorldHint: false,
       },
     },
-    async (params: GitRemoteInput, callContext: Record<string, any>) => {
+    async (params: GitRemoteInput, callContext: Record<string, unknown>) => {
       const handlerContext = requestContextService.createRequestContext({
         toolName: TOOL_NAME,
         parentContext: callContext,
@@ -57,16 +64,24 @@ export const registerGitRemoteTool = async (
       try {
         const sessionId = getSessionId(handlerContext);
         const result = await gitRemoteLogic(params, {
-            ...handlerContext,
-            getWorkingDirectory: () => getWorkingDirectory(sessionId),
+          ...handlerContext,
+          getWorkingDirectory: () => getWorkingDirectory(sessionId),
         });
 
         return {
           structuredContent: result,
-          content: [{ type: "text", text: `Success: ${JSON.stringify(result, null, 2)}` }],
+          content: [
+            {
+              type: "text",
+              text: `Success: ${JSON.stringify(result, null, 2)}`,
+            },
+          ],
         };
       } catch (error) {
-        logger.error(`Error in ${TOOL_NAME} handler`, { error, ...handlerContext });
+        logger.error(`Error in ${TOOL_NAME} handler`, {
+          error,
+          ...handlerContext,
+        });
         const mcpError = ErrorHandler.handleError(error, {
           operation: `tool:${TOOL_NAME}`,
           context: handlerContext,
@@ -83,7 +98,7 @@ export const registerGitRemoteTool = async (
           },
         };
       }
-    }
+    },
   );
   logger.info(`Tool '${TOOL_NAME}' registered successfully.`, context);
 };

@@ -49,7 +49,7 @@ const mcpToWinstonLevel: Record<
 // Type for the MCP notification sender function
 export type McpNotificationSender = (
   level: McpLogLevel,
-  data: any,
+  data: Record<string, unknown>,
   loggerName?: string,
 ) => void;
 
@@ -92,7 +92,7 @@ function createWinstonConsoleFormat() {
       let metaString = "";
       const metaCopy = { ...meta };
       if (metaCopy.error && typeof metaCopy.error === "object") {
-        const errorObj = metaCopy.error as any;
+        const errorObj = metaCopy.error as { message?: string; stack?: string };
         if (errorObj.message) metaString += `\n  Error: ${errorObj.message}`;
         if (errorObj.stack)
           metaString += `\n  Stack: ${String(errorObj.stack)
@@ -151,11 +151,11 @@ class Logger {
           fs.mkdirSync(resolvedLogsDir, { recursive: true });
           logsDirCreatedMessage = `Created logs directory: ${resolvedLogsDir}`;
         }
-      } catch (err: any) {
+      } catch (err) {
         // Conditional console output for pre-init errors to avoid issues with stdio MCP clients.
         if (process.stdout.isTTY) {
           console.error(
-            `Error creating logs directory at ${resolvedLogsDir}: ${err.message}. File logging disabled.`,
+            `Error creating logs directory at ${resolvedLogsDir}: ${(err as Error).message}. File logging disabled.`,
           );
         }
       }
@@ -342,7 +342,7 @@ class Logger {
   private log(
     level: McpLogLevel,
     msg: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
     error?: Error,
   ): void {
     if (!this.ensureInitialized()) return;
@@ -350,7 +350,7 @@ class Logger {
       return;
     }
 
-    const logData: Record<string, any> = { ...context };
+    const logData: Record<string, unknown> = { ...context };
     const winstonLevel = mcpToWinstonLevel[level];
 
     if (error) {
@@ -360,13 +360,16 @@ class Logger {
     }
 
     if (this.mcpNotificationSender) {
-      const mcpDataPayload: any = { message: msg };
+      const mcpDataPayload: Record<string, unknown> = { message: msg };
       if (context) mcpDataPayload.context = context;
       if (error) {
-        mcpDataPayload.error = { message: error.message };
+        const errorPayload: { message: string; stack?: string } = {
+          message: error.message,
+        };
         if (this.currentMcpLevel === "debug" && error.stack) {
-          mcpDataPayload.error.stack = error.stack.substring(0, 500);
+          errorPayload.stack = error.stack.substring(0, 500);
         }
+        mcpDataPayload.error = errorPayload;
       }
       try {
         this.mcpNotificationSender(level, mcpDataPayload, config.mcpServerName);
@@ -383,22 +386,22 @@ class Logger {
   }
 
   // --- Public Logging Methods ---
-  public debug(msg: string, context?: Record<string, any>): void {
+  public debug(msg: string, context?: Record<string, unknown>): void {
     this.log("debug", msg, context);
   }
-  public info(msg: string, context?: Record<string, any>): void {
+  public info(msg: string, context?: Record<string, unknown>): void {
     this.log("info", msg, context);
   }
-  public notice(msg: string, context?: Record<string, any>): void {
+  public notice(msg: string, context?: Record<string, unknown>): void {
     this.log("notice", msg, context);
   }
-  public warning(msg: string, context?: Record<string, any>): void {
+  public warning(msg: string, context?: Record<string, unknown>): void {
     this.log("warning", msg, context);
   }
   public error(
     msg: string,
-    err?: Error | Record<string, any>,
-    context?: Record<string, any>,
+    err?: Error | Record<string, unknown>,
+    context?: Record<string, unknown>,
   ): void {
     const errorObj = err instanceof Error ? err : undefined;
     const combinedContext =
@@ -407,8 +410,8 @@ class Logger {
   }
   public crit(
     msg: string,
-    err?: Error | Record<string, any>,
-    context?: Record<string, any>,
+    err?: Error | Record<string, unknown>,
+    context?: Record<string, unknown>,
   ): void {
     const errorObj = err instanceof Error ? err : undefined;
     const combinedContext =
@@ -417,8 +420,8 @@ class Logger {
   }
   public alert(
     msg: string,
-    err?: Error | Record<string, any>,
-    context?: Record<string, any>,
+    err?: Error | Record<string, unknown>,
+    context?: Record<string, unknown>,
   ): void {
     const errorObj = err instanceof Error ? err : undefined;
     const combinedContext =
@@ -427,8 +430,8 @@ class Logger {
   }
   public emerg(
     msg: string,
-    err?: Error | Record<string, any>,
-    context?: Record<string, any>,
+    err?: Error | Record<string, unknown>,
+    context?: Record<string, unknown>,
   ): void {
     const errorObj = err instanceof Error ? err : undefined;
     const combinedContext =
@@ -437,7 +440,7 @@ class Logger {
   }
   public fatal(
     msg: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
     error?: Error,
   ): void {
     this.log("emerg", msg, context, error);

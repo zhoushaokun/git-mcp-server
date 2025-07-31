@@ -4,8 +4,13 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
-import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import {
+  ErrorHandler,
+  logger,
+  RequestContext,
+  requestContextService,
+} from "../../../utils/index.js";
+import { McpError } from "../../../types-global/errors.js";
 import {
   gitTagLogic,
   GitTagInput,
@@ -14,8 +19,10 @@ import {
   GitTagBaseSchema,
 } from "./logic.js";
 
-export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | undefined;
-export type GetSessionIdFn = (context: Record<string, any>) => string | undefined;
+export type GetWorkingDirectoryFn = (
+  sessionId: string | undefined,
+) => string | undefined;
+export type GetSessionIdFn = (context: RequestContext) => string | undefined;
 
 const TOOL_NAME = "git_tag";
 const TOOL_DESCRIPTION =
@@ -49,7 +56,7 @@ export const registerGitTagTool = async (
         openWorldHint: false,
       },
     },
-    async (params: GitTagInput, callContext: Record<string, any>) => {
+    async (params: GitTagInput, callContext: Record<string, unknown>) => {
       const handlerContext = requestContextService.createRequestContext({
         toolName: TOOL_NAME,
         parentContext: callContext,
@@ -60,16 +67,24 @@ export const registerGitTagTool = async (
         const validatedParams = GitTagInputSchema.parse(params);
         const sessionId = getSessionId(handlerContext);
         const result = await gitTagLogic(validatedParams, {
-            ...handlerContext,
-            getWorkingDirectory: () => getWorkingDirectory(sessionId),
+          ...handlerContext,
+          getWorkingDirectory: () => getWorkingDirectory(sessionId),
         });
 
         return {
           structuredContent: result,
-          content: [{ type: "text", text: `Success: ${JSON.stringify(result, null, 2)}` }],
+          content: [
+            {
+              type: "text",
+              text: `Success: ${JSON.stringify(result, null, 2)}`,
+            },
+          ],
         };
       } catch (error) {
-        logger.error(`Error in ${TOOL_NAME} handler`, { error, ...handlerContext });
+        logger.error(`Error in ${TOOL_NAME} handler`, {
+          error,
+          ...handlerContext,
+        });
         const mcpError = ErrorHandler.handleError(error, {
           operation: `tool:${TOOL_NAME}`,
           context: handlerContext,
@@ -86,7 +101,7 @@ export const registerGitTagTool = async (
           },
         };
       }
-    }
+    },
   );
   logger.info(`Tool '${TOOL_NAME}' registered successfully.`, context);
 };

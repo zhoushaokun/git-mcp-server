@@ -6,7 +6,11 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
-import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
+import {
+  logger,
+  type RequestContext,
+  sanitization,
+} from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 
 const execFileAsync = promisify(execFile);
@@ -14,9 +18,17 @@ const execFileAsync = promisify(execFile);
 // 1. DEFINE the Zod input schema.
 export const GitStashBaseSchema = z.object({
   path: z.string().default(".").describe("Path to the local Git repository."),
-  mode: z.enum(["list", "apply", "pop", "drop", "save"]).describe("The stash operation to perform."),
-  stashRef: z.string().optional().describe("Stash reference (e.g., 'stash@{1}')."),
-  message: z.string().optional().describe("Optional descriptive message for 'save' mode."),
+  mode: z
+    .enum(["list", "apply", "pop", "drop", "save"])
+    .describe("The stash operation to perform."),
+  stashRef: z
+    .string()
+    .optional()
+    .describe("Stash reference (e.g., 'stash@{1}')."),
+  message: z
+    .string()
+    .optional()
+    .describe("Optional descriptive message for 'save' mode."),
 });
 
 export const GitStashInputSchema = GitStashBaseSchema.refine(
@@ -29,23 +41,33 @@ export const GitStashInputSchema = GitStashBaseSchema.refine(
 
 // 2. DEFINE the Zod response schema.
 const StashInfoSchema = z.object({
-    ref: z.string(),
-    branch: z.string(),
-    description: z.string(),
+  ref: z.string(),
+  branch: z.string(),
+  description: z.string(),
 });
 
 export const GitStashOutputSchema = z.object({
   success: z.boolean().describe("Indicates if the command was successful."),
   mode: z.string().describe("The mode of operation that was performed."),
   message: z.string().optional().describe("A summary message of the result."),
-  stashes: z.array(StashInfoSchema).optional().describe("A list of stashes for the 'list' mode."),
-  conflicts: z.boolean().optional().describe("Indicates if a merge conflict occurred."),
-  stashCreated: z.boolean().optional().describe("Indicates if a stash was created."),
+  stashes: z
+    .array(StashInfoSchema)
+    .optional()
+    .describe("A list of stashes for the 'list' mode."),
+  conflicts: z
+    .boolean()
+    .optional()
+    .describe("Indicates if a merge conflict occurred."),
+  stashCreated: z
+    .boolean()
+    .optional()
+    .describe("Indicates if a stash was created."),
 });
 
 // 3. INFER and export TypeScript types.
 export type GitStashInput = z.infer<typeof GitStashInputSchema>;
 export type GitStashOutput = z.infer<typeof GitStashOutputSchema>;
+type StashInfo = z.infer<typeof StashInfoSchema>;
 
 /**
  * 4. IMPLEMENT the core logic function.
@@ -53,7 +75,7 @@ export type GitStashOutput = z.infer<typeof GitStashOutputSchema>;
  */
 export async function gitStashLogic(
   params: GitStashInput,
-  context: RequestContext & { getWorkingDirectory: () => string | undefined }
+  context: RequestContext & { getWorkingDirectory: () => string | undefined },
 ): Promise<GitStashOutput> {
   const operation = `gitStashLogic:${params.mode}`;
   logger.debug(`Executing ${operation}`, { ...context, params });
@@ -65,7 +87,10 @@ export async function gitStashLogic(
       "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
     );
   }
-  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
+  const targetPath = sanitization.sanitizePath(
+    params.path === "." ? workingDir! : params.path,
+    { allowAbsolute: true },
+  ).sanitizedPath;
 
   const buildArgs = () => {
     const baseArgs = ["-C", targetPath, "stash", params.mode];
@@ -89,24 +114,54 @@ export async function gitStashLogic(
 
   const args = buildArgs();
 
-  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  logger.debug(`Executing command: git ${args.join(" ")}`, {
+    ...context,
+    operation,
+  });
   const { stdout, stderr } = await execFileAsync("git", args);
 
-  if (params.mode === 'list') {
-      const stashes = stdout.trim().split("\n").filter(Boolean).map(line => {
-          const match = line.match(/^(stash@\{(\d+)\}):\s*(?:(?:WIP on|On)\s*([^:]+):\s*)?(.*)$/);
-          return match ? { ref: match[1], branch: match[3] || "unknown", description: match[4] } : { ref: "unknown", branch: "unknown", description: line };
-      });
-      return { success: true, mode: params.mode, stashes };
+  if (params.mode === "list") {
+    const stashes = stdout
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .reduce((acc: StashInfo[], line) => {
+        const match = line.match(
+          /^(stash@\{(\d+)\}):\s*(?:(?:WIP on|On)\s*([^:]+):\s*)?(.*)$/,
+        );
+        if (match) {
+          const ref = match[1];
+          const description = match[4];
+          if (ref && description) {
+            acc.push({
+              ref,
+              branch: match[3] || "unknown",
+              description,
+            });
+          }
+        }
+        return acc;
+      }, []);
+    return { success: true, mode: params.mode, stashes };
   }
 
   const output = stdout + stderr;
   const conflicts = /conflict/i.test(output);
-  
-  if (params.mode === 'save') {
-      const stashCreated = !/no local changes to save/i.test(output);
-      return { success: true, mode: params.mode, message: stashCreated ? "Changes stashed." : "No local changes to save.", stashCreated };
+
+  if (params.mode === "save") {
+    const stashCreated = !/no local changes to save/i.test(output);
+    return {
+      success: true,
+      mode: params.mode,
+      message: stashCreated ? "Changes stashed." : "No local changes to save.",
+      stashCreated,
+    };
   }
 
-  return { success: true, mode: params.mode, message: `${params.mode} operation successful.`, conflicts };
+  return {
+    success: true,
+    mode: params.mode,
+    message: `${params.mode} operation successful.`,
+    conflicts,
+  };
 }

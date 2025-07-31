@@ -1,6 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ErrorHandler, logger, RequestContext, requestContextService } from "../../../utils/index.js";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { McpError } from "../../../types-global/errors.js";
+import {
+  ErrorHandler,
+  logger,
+  RequestContext,
+  requestContextService,
+} from "../../../utils/index.js";
 import {
   addGitFiles,
   GitAddInput,
@@ -8,8 +13,10 @@ import {
   GitAddOutputSchema,
 } from "./logic.js";
 
-export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | undefined;
-export type GetSessionIdFn = (context: Record<string, any>) => string | undefined;
+export type GetWorkingDirectoryFn = (
+  sessionId: string | undefined,
+) => string | undefined;
+export type GetSessionIdFn = (context: RequestContext) => string | undefined;
 
 const TOOL_NAME = "git_add";
 const TOOL_DESCRIPTION =
@@ -60,7 +67,9 @@ export const registerGitAddTool = async (
             const result = await addGitFiles(validatedArgs, logicContext);
             return {
               structuredContent: result,
-              content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+              content: [
+                { type: "text", text: JSON.stringify(result, null, 2) },
+              ],
             };
           } catch (error) {
             const mcpError = ErrorHandler.handleError(error, {

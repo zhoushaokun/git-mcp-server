@@ -136,7 +136,8 @@ function startHttpServerWithRetry(
                 err instanceof Error ? err : new Error(String(err));
               logger.error(
                 "An unexpected error occurred while starting the server.",
-                { ...attemptContext, error: errorToLog },
+                errorToLog,
+                attemptContext,
               );
               return reject(err);
             }
@@ -151,10 +152,12 @@ function startHttpServerWithRetry(
           }
         })
         .catch((err) => {
-          logger.fatal("Failed to check if port is in use.", {
-            ...attemptContext,
-            error: err,
-          });
+          const error = err instanceof Error ? err : new Error(String(err));
+          logger.fatal(
+            "Failed to check if port is in use.",
+            attemptContext,
+            error,
+          );
           reject(err);
         });
     };
@@ -233,8 +236,11 @@ export function createHttpApp(
   app.use(
     MCP_ENDPOINT_PATH,
     async (c: Context<{ Bindings: HonoNodeBindings }>, next: Next) => {
+      const forwardedFor = c.req.header("x-forwarded-for");
       const clientIp =
-        c.req.header("x-forwarded-for")?.split(",")[0].trim() || "unknown_ip";
+        (forwardedFor?.split(",")[0] ?? "").trim() ||
+        c.req.header("x-real-ip") ||
+        "unknown_ip";
       const context = requestContextService.createRequestContext({
         operation: "httpRateLimitCheck",
         ipAddress: clientIp,
@@ -314,8 +320,14 @@ export function createHttpApp(
           }
         });
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return c.json(response.body as any);
+        // Hono's c.json() expects a JSON-serializable object.
+        // The response.body is of type `unknown` from the transport layer.
+        // We ensure it's a valid object before passing it to c.json().
+        const body =
+          typeof response.body === "object" && response.body !== null
+            ? response.body
+            : { body: response.body };
+        return c.json(body);
       }
     },
   );
@@ -336,8 +348,11 @@ export function createHttpApp(
             sessionId,
             context,
           );
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return c.json(response.body as any, response.statusCode);
+          const body =
+            typeof response.body === "object" && response.body !== null
+              ? response.body
+              : { body: response.body };
+          return c.json(body, response.statusCode);
         } else {
           return c.json(
             {

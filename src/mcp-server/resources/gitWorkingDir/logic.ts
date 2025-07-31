@@ -5,7 +5,9 @@
 
 import { logger, type RequestContext } from "../../../utils/index.js";
 
-export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | undefined;
+export type GetWorkingDirectoryFn = (
+  sessionId: string | undefined,
+) => string | undefined;
 
 /**
  * Retrieves the current working directory for the session.
@@ -17,7 +19,7 @@ export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | 
 export function getGitWorkingDirLogic(
   context: RequestContext,
   getWorkingDirectory: GetWorkingDirectoryFn,
-  sessionId: string | undefined
+  sessionId: string | undefined,
 ): string {
   logger.debug("Executing getGitWorkingDirLogic...", { ...context, sessionId });
 
