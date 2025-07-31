@@ -169,8 +169,8 @@ function startHttpServerWithRetry(
           const error = err instanceof Error ? err : new Error(String(err));
           logger.fatal(
             "Failed to check if port is in use.",
-            attemptContext,
             error,
+            attemptContext,
           );
           reject(err);
         });

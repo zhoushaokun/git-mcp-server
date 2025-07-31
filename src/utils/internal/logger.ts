@@ -119,7 +119,7 @@ function createWinstonConsoleFormat() {
  * Singleton Logger wrapping Winston, adapted for MCP.
  * Logs to files and optionally sends MCP notifications/message.
  */
-class Logger {
+export class Logger {
   private static instance: Logger;
   private winstonLogger?: winston.Logger;
   private initialized = false;
@@ -326,6 +326,15 @@ class Logger {
     return Logger.instance;
   }
 
+  /**
+   * Resets the singleton instance for testing purposes.
+   * This should only be used in test environments.
+   */
+  public static resetForTesting(): void {
+    // This allows tests to get a fresh instance for each run.
+    Logger.instance = new Logger();
+  }
+
   /** Ensures the logger has been initialized. */
   private ensureInitialized(): boolean {
     if (!this.initialized || !this.winstonLogger) {
@@ -440,10 +449,13 @@ class Logger {
   }
   public fatal(
     msg: string,
+    err?: Error | Record<string, unknown>,
     context?: Record<string, unknown>,
-    error?: Error,
   ): void {
-    this.log("emerg", msg, context, error);
+    const errorObj = err instanceof Error ? err : undefined;
+    const combinedContext =
+      err instanceof Error ? context : { ...(err || {}), ...(context || {}) };
+    this.log("emerg", msg, combinedContext, errorObj);
   }
 }
 

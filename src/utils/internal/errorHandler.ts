@@ -231,7 +231,7 @@ export class ErrorHandler {
       const updatedError = new McpError(error.code, error.message, newDetails);
 
       // Log the error with sanitized input
-      logger.error(`Error ${operation}: ${updatedError.message}`, {
+      logger.error(`Error in ${operation}: ${updatedError.message}`, {
         errorCode: updatedError.code,
         requestId: context?.requestId,
         input: input ? sanitizeInputForLogging(input) : undefined,
@@ -252,7 +252,7 @@ export class ErrorHandler {
     const sanitizedInput = input ? sanitizeInputForLogging(input) : undefined;
 
     // Log the error with consistent format
-    logger.error(`Error ${operation}`, {
+    logger.error(`Error in ${operation}: ${getErrorMessage(error)}`, {
       error: getErrorMessage(error), // Use helper function
       errorType: getErrorName(error),
       input: sanitizedInput,
@@ -275,7 +275,7 @@ export class ErrorHandler {
     } else {
       transformedError = new McpError(
         errorCode,
-        `Error ${operation}: ${getErrorMessage(error)}`, // Use helper function
+        `Error in ${operation}: ${getErrorMessage(error)}`, // Use helper function
         {
           originalError: getErrorName(error),
           ...context,
@@ -365,7 +365,7 @@ export class ErrorHandler {
     return {
       code: BaseErrorCode.UNKNOWN_ERROR,
       message: String(error),
-      details: { errorType: typeof error },
+      details: { errorType: "string" },
     };
   }
 
