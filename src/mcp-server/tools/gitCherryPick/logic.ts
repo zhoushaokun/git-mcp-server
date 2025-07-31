@@ -13,6 +13,7 @@ import {
 } from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 import { config } from "../../../config/index.js";
+import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -54,6 +55,9 @@ export const GitCherryPickOutputSchema = z.object({
   message: z.string().describe("A summary message of the result."),
   commitCreated: z.boolean().describe("Indicates if a new commit was created."),
   conflicts: z.boolean().describe("Indicates if conflicts occurred."),
+  status: GitStatusOutputSchema.optional().describe(
+    "The status of the repository after the cherry-pick operation.",
+  ),
 });
 
 // 3. INFER and export TypeScript types.
@@ -133,5 +137,7 @@ export async function gitCherryPickLogic(
     ? `Cherry-pick resulted in conflicts for commit(s) '${params.commitRef}'. Manual resolution required.`
     : `Successfully cherry-picked commit(s) '${params.commitRef}'.`;
 
-  return { success: true, message, commitCreated, conflicts };
+  const status = await getGitStatus({ path: targetPath }, context);
+
+  return { success: true, message, commitCreated, conflicts, status };
 }

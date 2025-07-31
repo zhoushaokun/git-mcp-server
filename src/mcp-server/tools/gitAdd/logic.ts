@@ -3,6 +3,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { logger, RequestContext, sanitization } from "../../../utils/index.js";
+import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -33,6 +34,9 @@ export const GitAddOutputSchema = z.object({
   filesStaged: z
     .union([z.string(), z.array(z.string())])
     .describe("The files or patterns that were staged."),
+  status: GitStatusOutputSchema.optional().describe(
+    "The status of the repository after the add operation.",
+  ),
 });
 
 export type GitAddOutput = z.infer<typeof GitAddOutputSchema>;
@@ -100,9 +104,13 @@ export async function addGitFiles(
   });
   const reminder =
     "Remember to write clear, concise commit messages using the Conventional Commits format (e.g., 'feat(scope): subject').";
+
+  const status = await getGitStatus({ path: targetPath }, context);
+
   return {
     success: true,
     statusMessage: `${successMessage}. ${reminder}`,
     filesStaged: filesToStage,
+    status,
   };
 }

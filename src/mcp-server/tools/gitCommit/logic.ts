@@ -13,6 +13,7 @@ import {
 } from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 import { config } from "../../../config/index.js";
+import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -57,6 +58,9 @@ export const GitCommitOutputSchema = z.object({
     .boolean()
     .optional()
     .describe("True if there were no changes to commit."),
+  status: GitStatusOutputSchema.optional().describe(
+    "The status of the repository after the commit.",
+  ),
 });
 
 // 3. INFER and export TypeScript types.
@@ -183,10 +187,13 @@ export async function commitGitChanges(
     ? await getCommittedFiles(targetPath, commitHash, context)
     : [];
 
+  const status = await getGitStatus({ path: targetPath }, context);
+
   return {
     success: true,
     message: `Commit successful: ${commitHash}`,
     commitHash,
     committedFiles,
+    status,
   };
 }

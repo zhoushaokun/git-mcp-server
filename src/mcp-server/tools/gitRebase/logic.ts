@@ -12,6 +12,7 @@ import {
   sanitization,
 } from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -70,6 +71,9 @@ export const GitRebaseOutputSchema = z.object({
     .boolean()
     .optional()
     .describe("True if conflicts or interactive steps require user input."),
+  status: GitStatusOutputSchema.optional().describe(
+    "The status of the repository after the rebase operation.",
+  ),
 });
 
 // 3. INFER and export TypeScript types.
@@ -121,10 +125,13 @@ export async function gitRebaseLogic(
   const { stdout, stderr } = await execFileAsync("git", args);
   const output = stdout + stderr;
 
+  const status = await getGitStatus({ path: targetPath }, context);
+
   return {
     success: true,
     message: `Rebase ${params.mode} executed successfully.`,
     rebaseCompleted: /successfully rebased/i.test(output),
     needsManualAction: /conflict|stopped at|edit/i.test(output),
+    status,
   };
 }

@@ -12,6 +12,7 @@ import {
   type RequestContext,
   sanitization,
 } from "../../../utils/index.js";
+import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -62,6 +63,9 @@ export const GitStashOutputSchema = z.object({
     .boolean()
     .optional()
     .describe("Indicates if a stash was created."),
+  status: GitStatusOutputSchema.optional().describe(
+    "The status of the repository after the stash operation.",
+  ),
 });
 
 // 3. INFER and export TypeScript types.
@@ -148,9 +152,11 @@ export async function gitStashLogic(
   });
   const { stdout, stderr } = await execFileAsync("git", args);
 
+  const status = await getGitStatus({ path: targetPath }, context);
+
   if (params.mode === "list") {
     const stashes = _parseStashList(stdout);
-    return { success: true, mode: params.mode, stashes };
+    return { success: true, mode: params.mode, stashes, status };
   }
 
   const output = stdout + stderr;
@@ -163,6 +169,7 @@ export async function gitStashLogic(
       mode: params.mode,
       message: stashCreated ? "Changes stashed." : "No local changes to save.",
       stashCreated,
+      status,
     };
   }
 
@@ -171,5 +178,6 @@ export async function gitStashLogic(
     mode: params.mode,
     message: `${params.mode} operation successful.`,
     conflicts,
+    status,
   };
 }

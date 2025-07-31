@@ -12,6 +12,7 @@ import {
   sanitization,
 } from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -41,6 +42,9 @@ export const GitPullOutputSchema = z.object({
     .boolean()
     .optional()
     .describe("True if a merge conflict occurred."),
+  status: GitStatusOutputSchema.optional().describe(
+    "The status of the repository after the pull operation.",
+  ),
 });
 
 // 3. INFER and export TypeScript types.
@@ -84,5 +88,13 @@ export async function pullGitChanges(
 
   const message =
     stdout.trim() || stderr.trim() || "Pull command executed successfully.";
-  return { success: true, message, conflict: message.includes("CONFLICT") };
+
+  const status = await getGitStatus({ path: targetPath }, context);
+
+  return {
+    success: true,
+    message,
+    conflict: message.includes("CONFLICT"),
+    status,
+  };
 }

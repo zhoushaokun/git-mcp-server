@@ -12,6 +12,7 @@ import {
   sanitization,
 } from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -49,6 +50,9 @@ export const GitCheckoutOutputSchema = z.object({
     .boolean()
     .optional()
     .describe("Indicates if a new branch was created."),
+  status: GitStatusOutputSchema.optional().describe(
+    "The status of the repository after the checkout operation.",
+  ),
 });
 
 // 3. INFER and export TypeScript types.
@@ -109,10 +113,13 @@ export async function checkoutGit(
     currentBranch = "Detached HEAD";
   }
 
+  const status = await getGitStatus({ path: targetPath }, context);
+
   return {
     success: true,
     message,
     currentBranch,
     newBranchCreated: !!params.newBranch,
+    status,
   };
 }

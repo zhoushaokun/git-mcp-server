@@ -12,6 +12,7 @@ import {
   sanitization,
 } from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -50,6 +51,9 @@ export const GitCleanOutputSchema = z.object({
     .array(z.string())
     .describe("A list of files that were or would be affected."),
   dryRun: z.boolean().describe("Indicates if the operation was a dry run."),
+  status: GitStatusOutputSchema.optional().describe(
+    "The status of the repository after the clean operation.",
+  ),
 });
 
 // 3. INFER and export TypeScript types.
@@ -118,5 +122,13 @@ export async function gitCleanLogic(
     ? `Dry run complete. Files that would be removed: ${filesAffected.length}`
     : `Clean operation complete. Files removed: ${filesAffected.length}`;
 
-  return { success: true, message, filesAffected, dryRun: params.dryRun };
+  const status = await getGitStatus({ path: targetPath }, context);
+
+  return {
+    success: true,
+    message,
+    filesAffected,
+    dryRun: params.dryRun,
+    status,
+  };
 }

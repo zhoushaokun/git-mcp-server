@@ -13,6 +13,7 @@ import {
 } from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 import { config } from "../../../config/index.js";
+import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -60,6 +61,9 @@ export const GitMergeOutputSchema = z.object({
     .boolean()
     .optional()
     .describe("True if --squash was used."),
+  status: GitStatusOutputSchema.optional().describe(
+    "The status of the repository after the merge operation.",
+  ),
 });
 
 // 3. INFER and export TypeScript types.
@@ -132,11 +136,14 @@ export async function gitMergeLogic(
     }
   }
 
+  const status = await getGitStatus({ path: targetPath }, context);
+
   return {
     success: true,
     message: stdout.trim() || "Merge command executed successfully.",
     fastForward: stdout.includes("Fast-forward"),
     needsManualCommit: params.squash,
     aborted: params.abort,
+    status,
   };
 }

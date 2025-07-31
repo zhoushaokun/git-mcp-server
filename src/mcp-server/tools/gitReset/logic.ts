@@ -12,6 +12,7 @@ import {
   sanitization,
 } from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -33,6 +34,9 @@ export const GitResetOutputSchema = z.object({
   success: z.boolean().describe("Indicates if the command was successful."),
   message: z.string().describe("A summary message of the result."),
   changesSummary: z.string().optional().describe("Summary of changes, if any."),
+  status: GitStatusOutputSchema.optional().describe(
+    "The status of the repository after the reset operation.",
+  ),
 });
 
 // 3. INFER and export TypeScript types.
@@ -80,5 +84,7 @@ export async function resetGitState(
     ? stderr
     : undefined;
 
-  return { success: true, message, changesSummary };
+  const status = await getGitStatus({ path: targetPath }, context);
+
+  return { success: true, message, changesSummary, status };
 }
