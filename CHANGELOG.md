@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.3.1 - 2025-07-31
+
+### Added
+
+- **Testing**:
+  - Added a comprehensive test suite covering authentication (`auth.test.ts`, `authUtils.test.ts`, `oauthStrategy.test.ts`), core utilities (`errorHandler.test.ts`, `logger.test.ts`, `requestContext.test.ts`), and transports (`stdioTransport.test.ts`).
+  - Integrated `msw` for mocking API requests during tests.
+  - Added `@vitest/coverage-v8` for generating code coverage reports.
+- **CI/CD**:
+  - Added `logs/` to `.gitignore` to prevent log files from being committed.
+
+### Changed
+
+- **Error Handling**:
+  - Improved `ErrorHandler` to provide more specific and consistent error messages.
+  - Enhanced `jwtStrategy.ts` and `oauthStrategy.ts` to re-throw structured `McpError`s, ensuring consistent error propagation.
+- **Logging**:
+  - Refactored the `Logger` class in `logger.ts` to be exportable and added a `resetForTesting` method to support isolated test runs.
+  - Corrected the parameter order in a `logger.fatal` call within `httpTransport.ts` for better error reporting.
+- **Dependencies**:
+  - Updated `@modelcontextprotocol/sdk` to `^1.17.1`.
+  - Updated various development dependencies to their latest versions.
+
+### Fixed
+
+- **Path Sanitization**: Improved path validation in `sanitization.ts` to explicitly disallow null bytes, enhancing security.
+- **Git Log Parsing**: Corrected the field destructuring in `gitLog/logic.ts` to prevent potential errors when parsing commit bodies.
+
 ## v2.3.0 - 2025-07-31
 
 ### Added

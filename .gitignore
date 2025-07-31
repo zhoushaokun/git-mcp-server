@@ -131,6 +131,7 @@ build/
 *.zip
 
 # Logs and Databases
+logs/
 *.log
 *.sql
 *.sqlite

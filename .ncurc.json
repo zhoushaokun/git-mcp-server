@@ -1,3 +1,10 @@
 {
-  "reject": ["chrono-node", "dotenv", "zod"]
+  "reject": [
+    "chrono-node",
+    "dotenv",
+    "zod",
+    "@hono/node-server",
+    "hono",
+    "typescript"
+  ]
 }
