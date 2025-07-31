@@ -8,10 +8,7 @@ import {
   type ErrorHandlerOptions,
   type ErrorMapping,
 } from "../../../src/utils/internal/errorHandler.js";
-import {
-  McpError,
-  BaseErrorCode,
-} from "../../../src/types-global/errors.js";
+import { McpError, BaseErrorCode } from "../../../src/types-global/errors.js";
 import { logger } from "../../../src/utils/internal/logger.js";
 
 // Mock the logger
@@ -85,7 +82,9 @@ describe("ErrorHandler", () => {
 
     it("should map 'duplicate key' to CONFLICT", () => {
       const error = new Error("duplicate key");
-      expect(ErrorHandler.determineErrorCode(error)).toBe(BaseErrorCode.CONFLICT);
+      expect(ErrorHandler.determineErrorCode(error)).toBe(
+        BaseErrorCode.CONFLICT,
+      );
     });
 
     it("should map 'rate limit exceeded' to RATE_LIMITED", () => {
@@ -97,7 +96,9 @@ describe("ErrorHandler", () => {
 
     it("should map 'request timed out' to TIMEOUT", () => {
       const error = new Error("request timed out");
-      expect(ErrorHandler.determineErrorCode(error)).toBe(BaseErrorCode.TIMEOUT);
+      expect(ErrorHandler.determineErrorCode(error)).toBe(
+        BaseErrorCode.TIMEOUT,
+      );
     });
 
     it("should map 'service unavailable' to SERVICE_UNAVAILABLE", () => {

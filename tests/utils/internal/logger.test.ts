@@ -92,9 +92,8 @@ describe("Logger", () => {
   });
 
   it("should be a singleton", async () => {
-    const anotherInstance = (
-      await import("../../../src/utils/internal/logger")
-    ).logger;
+    const anotherInstance = (await import("../../../src/utils/internal/logger"))
+      .logger;
     expect(loggerInstance).toBe(anotherInstance);
   });
 

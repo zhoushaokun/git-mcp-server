@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/git-mcp-server",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "An MCP (Model Context Protocol) server enabling LLMs and AI agents to interact with Git repositories. Provides tools for comprehensive Git operations including clone, commit, branch, diff, log, status, push, pull, merge, rebase, worktree, tag management, and more, via the MCP standard. STDIO & HTTP.",
   "main": "dist/index.js",
   "files": [
