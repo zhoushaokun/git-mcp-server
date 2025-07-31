@@ -152,8 +152,14 @@ export async function logGitHistory(
       if (fields.length < 5) {
         return null; // Skip records with insufficient fields
       }
-      const [hash, authorName, authorEmail, timestampStr, subject, body = undefined] =
-        fields;
+      const [
+        hash,
+        authorName,
+        authorEmail,
+        timestampStr,
+        subject,
+        body = undefined,
+      ] = fields;
 
       if (hash && authorName && authorEmail && timestampStr && subject) {
         const timestamp = parseInt(timestampStr, 10);

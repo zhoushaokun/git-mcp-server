@@ -220,10 +220,11 @@ export class Sanitization {
     switch (options.context) {
       case "html":
         return this.sanitizeHtml(input, {
-          allowedTags: options.allowedTags,
+          allowedTags:
+            options.allowedTags || this.defaultHtmlSanitizeConfig.allowedTags,
           allowedAttributes: options.allowedAttributes
             ? this.convertAttributesFormat(options.allowedAttributes)
-            : undefined,
+            : this.defaultHtmlSanitizeConfig.allowedAttributes,
         });
       case "attribute":
         return sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} });
@@ -320,12 +321,12 @@ export class Sanitization {
         throw new Error("Invalid path input: must be a non-empty string");
       }
 
+      if (input.includes("\0")) {
+        throw new Error("Path contains null byte, which is disallowed.");
+      }
+
       let normalized = path.normalize(input);
       wasAbsoluteInitially = path.isAbsolute(normalized);
-
-      if (normalized.includes("\0")) {
-        throw new Error("Path contains null byte");
-      }
 
       if (effectiveOptions.toPosix) {
         normalized = normalized.replace(/\\/g, "/");
