@@ -83,8 +83,8 @@ function _parseStashList(stdout: string): StashInfo[] {
       );
       if (match) {
         const ref = match[1];
-        const description = match[4];
-        if (ref && description) {
+        const description = match[4] !== undefined ? match[4] : null;
+        if (ref && description !== null) {
           return {
             ref,
             branch: match[3] || "unknown",
