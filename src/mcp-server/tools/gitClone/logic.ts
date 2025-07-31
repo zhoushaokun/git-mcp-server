@@ -7,18 +7,39 @@ import { execFile } from "child_process";
 import fs from "fs/promises";
 import { promisify } from "util";
 import { z } from "zod";
-import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
+import {
+  logger,
+  type RequestContext,
+  sanitization,
+} from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 
 const execFileAsync = promisify(execFile);
 
 // 1. DEFINE the Zod input schema.
 export const GitCloneInputSchema = z.object({
-  repositoryUrl: z.string().url("Invalid repository URL format.").describe("The URL of the repository to clone."),
-  targetPath: z.string().min(1).describe("The absolute path where the repository should be cloned."),
-  branch: z.string().optional().describe("The specific branch to checkout after cloning."),
-  depth: z.number().int().positive().optional().describe("Create a shallow clone with a truncated history."),
-  quiet: z.boolean().default(false).describe("Operate quietly, suppressing progress output."),
+  repositoryUrl: z
+    .string()
+    .url("Invalid repository URL format.")
+    .describe("The URL of the repository to clone."),
+  targetPath: z
+    .string()
+    .min(1)
+    .describe("The absolute path where the repository should be cloned."),
+  branch: z
+    .string()
+    .optional()
+    .describe("The specific branch to checkout after cloning."),
+  depth: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Create a shallow clone with a truncated history."),
+  quiet: z
+    .boolean()
+    .default(false)
+    .describe("Operate quietly, suppressing progress output."),
 });
 
 // 2. DEFINE the Zod response schema.
@@ -38,15 +59,17 @@ export type GitCloneOutput = z.infer<typeof GitCloneOutputSchema>;
  */
 export async function gitCloneLogic(
   params: GitCloneInput,
-  context: RequestContext
+  context: RequestContext,
 ): Promise<GitCloneOutput> {
   const operation = "gitCloneLogic";
   logger.debug(`Executing ${operation}`, { ...context, params });
 
-  const sanitizedTargetPath = sanitization.sanitizePath(params.targetPath, { allowAbsolute: true }).sanitizedPath;
+  const sanitizedTargetPath = sanitization.sanitizePath(params.targetPath, {
+    allowAbsolute: true,
+  }).sanitizedPath;
 
-  const stats = await fs.stat(sanitizedTargetPath).catch(err => {
-    if (err.code === 'ENOENT') return null;
+  const stats = await fs.stat(sanitizedTargetPath).catch((err) => {
+    if (err.code === "ENOENT") return null;
     throw err;
   });
 
@@ -54,10 +77,16 @@ export async function gitCloneLogic(
     if (stats.isDirectory()) {
       const files = await fs.readdir(sanitizedTargetPath);
       if (files.length > 0) {
-        throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Target directory already exists and is not empty: ${sanitizedTargetPath}`);
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          `Target directory already exists and is not empty: ${sanitizedTargetPath}`,
+        );
       }
     } else {
-      throw new McpError(BaseErrorCode.VALIDATION_ERROR, `Target path exists but is not a directory: ${sanitizedTargetPath}`);
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        `Target path exists but is not a directory: ${sanitizedTargetPath}`,
+      );
     }
   }
 
@@ -67,7 +96,10 @@ export async function gitCloneLogic(
   if (params.depth) args.push("--depth", String(params.depth));
   args.push(params.repositoryUrl, sanitizedTargetPath);
 
-  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  logger.debug(`Executing command: git ${args.join(" ")}`, {
+    ...context,
+    operation,
+  });
   await execFileAsync("git", args, { timeout: 300000 }); // 5 minutes timeout
 
   const successMessage = `Repository cloned successfully into ${sanitizedTargetPath}`;

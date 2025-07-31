@@ -24,9 +24,15 @@ export const GitAddInputSchema = z.object({
 export type GitAddInput = z.infer<typeof GitAddInputSchema>;
 
 export const GitAddOutputSchema = z.object({
-  success: z.boolean().describe("Indicates whether the operation was successful."),
-  statusMessage: z.string().describe("A message describing the result of the operation."),
-  filesStaged: z.union([z.string(), z.array(z.string())]).describe("The files or patterns that were staged."),
+  success: z
+    .boolean()
+    .describe("Indicates whether the operation was successful."),
+  statusMessage: z
+    .string()
+    .describe("A message describing the result of the operation."),
+  filesStaged: z
+    .union([z.string(), z.array(z.string())])
+    .describe("The files or patterns that were staged."),
 });
 
 export type GitAddOutput = z.infer<typeof GitAddOutputSchema>;
@@ -47,14 +53,25 @@ export async function addGitFiles(
       "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
     );
   }
-  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
+  const targetPath = sanitization.sanitizePath(
+    params.path === "." ? workingDir! : params.path,
+    { allowAbsolute: true },
+  ).sanitizedPath;
 
-  const filesToStage = Array.isArray(params.files) ? params.files : [params.files];
+  const filesToStage = Array.isArray(params.files)
+    ? params.files
+    : [params.files];
   if (filesToStage.length === 0) {
     filesToStage.push(".");
   }
 
-  const args = ["-C", targetPath, "add", "--", ...filesToStage.map(file => file.startsWith("-") ? `./${file}` : file)];
+  const args = [
+    "-C",
+    targetPath,
+    "add",
+    "--",
+    ...filesToStage.map((file) => (file.startsWith("-") ? `./${file}` : file)),
+  ];
 
   logger.debug(`Executing command: git ${args.join(" ")}`, {
     ...context,

@@ -6,7 +6,11 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
-import { logger, type RequestContext, sanitization } from "../../../utils/index.js";
+import {
+  logger,
+  type RequestContext,
+  sanitization,
+} from "../../../utils/index.js";
 import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 
 const execFileAsync = promisify(execFile);
@@ -14,29 +18,58 @@ const execFileAsync = promisify(execFile);
 // 1. DEFINE the Zod input schema.
 export const GitRebaseBaseSchema = z.object({
   path: z.string().default(".").describe("Path to the local Git repository."),
-  mode: z.enum(["start", "continue", "abort", "skip"]).default("start").describe("Rebase operation mode."),
-  upstream: z.string().min(1).optional().describe("The upstream branch or commit to rebase onto."),
+  mode: z
+    .enum(["start", "continue", "abort", "skip"])
+    .default("start")
+    .describe("Rebase operation mode."),
+  upstream: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("The upstream branch or commit to rebase onto."),
   branch: z.string().min(1).optional().describe("The branch to rebase."),
-  interactive: z.boolean().default(false).describe("Perform an interactive rebase."),
-  strategy: z.enum(["recursive", "resolve", "ours", "theirs", "octopus", "subtree"]).optional().describe("The merge strategy to use."),
-  strategyOption: z.string().optional().describe("Pass a specific option to the merge strategy."),
-  onto: z.string().min(1).optional().describe("Rebase onto a specific commit/branch instead of the upstream's base."),
+  interactive: z
+    .boolean()
+    .default(false)
+    .describe("Perform an interactive rebase."),
+  strategy: z
+    .enum(["recursive", "resolve", "ours", "theirs", "octopus", "subtree"])
+    .optional()
+    .describe("The merge strategy to use."),
+  strategyOption: z
+    .string()
+    .optional()
+    .describe("Pass a specific option to the merge strategy."),
+  onto: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Rebase onto a specific commit/branch instead of the upstream's base.",
+    ),
 });
 
 export const GitRebaseInputSchema = GitRebaseBaseSchema.refine(
   (data) => !(data.mode === "start" && !data.interactive && !data.upstream),
   {
-    message: "An 'upstream' branch/commit is required for 'start' mode unless 'interactive' is true.",
+    message:
+      "An 'upstream' branch/commit is required for 'start' mode unless 'interactive' is true.",
     path: ["upstream"],
-  }
+  },
 );
 
 // 2. DEFINE the Zod response schema.
 export const GitRebaseOutputSchema = z.object({
   success: z.boolean().describe("Indicates if the command was successful."),
   message: z.string().describe("A summary message of the result."),
-  rebaseCompleted: z.boolean().optional().describe("True if the rebase finished successfully."),
-  needsManualAction: z.boolean().optional().describe("True if conflicts or interactive steps require user input."),
+  rebaseCompleted: z
+    .boolean()
+    .optional()
+    .describe("True if the rebase finished successfully."),
+  needsManualAction: z
+    .boolean()
+    .optional()
+    .describe("True if conflicts or interactive steps require user input."),
 });
 
 // 3. INFER and export TypeScript types.
@@ -49,7 +82,7 @@ export type GitRebaseOutput = z.infer<typeof GitRebaseOutputSchema>;
  */
 export async function gitRebaseLogic(
   params: GitRebaseInput,
-  context: RequestContext & { getWorkingDirectory: () => string | undefined }
+  context: RequestContext & { getWorkingDirectory: () => string | undefined },
 ): Promise<GitRebaseOutput> {
   const operation = `gitRebaseLogic:${params.mode}`;
   logger.debug(`Executing ${operation}`, { ...context, params });
@@ -61,7 +94,10 @@ export async function gitRebaseLogic(
       "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first.",
     );
   }
-  const targetPath = sanitization.sanitizePath(params.path === "." ? workingDir! : params.path, { allowAbsolute: true }).sanitizedPath;
+  const targetPath = sanitization.sanitizePath(
+    params.path === "." ? workingDir! : params.path,
+    { allowAbsolute: true },
+  ).sanitizedPath;
 
   const args = ["-C", targetPath, "rebase"];
   switch (params.mode) {
@@ -78,7 +114,10 @@ export async function gitRebaseLogic(
       break;
   }
 
-  logger.debug(`Executing command: git ${args.join(" ")}`, { ...context, operation });
+  logger.debug(`Executing command: git ${args.join(" ")}`, {
+    ...context,
+    operation,
+  });
   const { stdout, stderr } = await execFileAsync("git", args);
   const output = stdout + stderr;
 

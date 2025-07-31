@@ -4,8 +4,13 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
-import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
+import {
+  ErrorHandler,
+  logger,
+  RequestContext,
+  requestContextService,
+} from "../../../utils/index.js";
+import { McpError } from "../../../types-global/errors.js";
 import {
   gitShowLogic,
   GitShowInput,
@@ -13,8 +18,10 @@ import {
   GitShowOutputSchema,
 } from "./logic.js";
 
-export type GetWorkingDirectoryFn = (sessionId: string | undefined) => string | undefined;
-export type GetSessionIdFn = (context: Record<string, any>) => string | undefined;
+export type GetWorkingDirectoryFn = (
+  sessionId: string | undefined,
+) => string | undefined;
+export type GetSessionIdFn = (context: RequestContext) => string | undefined;
 
 const TOOL_NAME = "git_show";
 const TOOL_DESCRIPTION =
@@ -48,7 +55,7 @@ export const registerGitShowTool = async (
         openWorldHint: false,
       },
     },
-    async (params: GitShowInput, callContext: Record<string, any>) => {
+    async (params: GitShowInput, callContext: Record<string, unknown>) => {
       const handlerContext = requestContextService.createRequestContext({
         toolName: TOOL_NAME,
         parentContext: callContext,
@@ -57,16 +64,25 @@ export const registerGitShowTool = async (
       try {
         const sessionId = getSessionId(handlerContext);
         const result = await gitShowLogic(params, {
-            ...handlerContext,
-            getWorkingDirectory: () => getWorkingDirectory(sessionId),
+          ...handlerContext,
+          getWorkingDirectory: () => getWorkingDirectory(sessionId),
         });
 
         return {
           structuredContent: result,
-          content: [{ type: "text", text: result.content, contentType: "text/plain; charset=utf-8" }],
+          content: [
+            {
+              type: "text",
+              text: result.content,
+              contentType: "text/plain; charset=utf-8",
+            },
+          ],
         };
       } catch (error) {
-        logger.error(`Error in ${TOOL_NAME} handler`, { error, ...handlerContext });
+        logger.error(`Error in ${TOOL_NAME} handler`, {
+          error,
+          ...handlerContext,
+        });
         const mcpError = ErrorHandler.handleError(error, {
           operation: `tool:${TOOL_NAME}`,
           context: handlerContext,
@@ -83,7 +99,7 @@ export const registerGitShowTool = async (
           },
         };
       }
-    }
+    },
   );
   logger.info(`Tool '${TOOL_NAME}' registered successfully.`, context);
 };

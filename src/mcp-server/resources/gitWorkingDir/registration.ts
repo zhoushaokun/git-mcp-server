@@ -3,12 +3,18 @@
  * @module src/mcp-server/resources/gitWorkingDir/registration
  */
 
-import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { logger, requestContextService } from "../../../utils/index.js";
-import { GetSessionIdFn } from "../../tools/gitSetWorkingDir/registration.js";
-import { getGitWorkingDirLogic, GetWorkingDirectoryFn } from "./logic.js";
-import { ErrorHandler } from "../../../utils/index.js";
+import {
+  McpServer,
+  ResourceTemplate,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { BaseErrorCode } from "../../../types-global/errors.js";
+import {
+  ErrorHandler,
+  logger,
+  requestContextService,
+} from "../../../utils/index.js";
+import { GetSessionIdFn } from "../../tools/gitAdd/registration.js";
+import { getGitWorkingDirLogic, GetWorkingDirectoryFn } from "./logic.js";
 
 const RESOURCE_URI = "git://working-directory";
 const RESOURCE_NAME = "git_working_directory";
@@ -43,7 +49,7 @@ export const registerGitWorkingDirResource = async (
           description: RESOURCE_DESCRIPTION,
           mimeType: "application/json",
         },
-        async (uri, params, callContext) => {
+        async (uri: URL, params: Record<string, unknown>) => {
           const handlerContext = requestContextService.createRequestContext({
             parentRequestId: context.requestId,
             operation: "HandleResourceRead",
@@ -53,15 +59,21 @@ export const registerGitWorkingDirResource = async (
 
           try {
             const sessionId = getSessionId(handlerContext);
-            const workingDir = getGitWorkingDirLogic(handlerContext, getWorkingDirectory, sessionId);
+            const workingDir = getGitWorkingDirLogic(
+              handlerContext,
+              getWorkingDirectory,
+              sessionId,
+            );
             const responseData = { workingDirectory: workingDir };
 
             return {
-              contents: [{
-                uri: uri.href,
-                text: JSON.stringify(responseData),
-                mimeType: "application/json",
-              }],
+              contents: [
+                {
+                  uri: uri.href,
+                  text: JSON.stringify(responseData),
+                  mimeType: "application/json",
+                },
+              ],
             };
           } catch (error) {
             throw ErrorHandler.handleError(error, {
@@ -73,7 +85,10 @@ export const registerGitWorkingDirResource = async (
         },
       );
 
-      logger.info(`Resource '${RESOURCE_NAME}' registered successfully.`, context);
+      logger.info(
+        `Resource '${RESOURCE_NAME}' registered successfully.`,
+        context,
+      );
     },
     {
       operation: `RegisteringResource_${RESOURCE_NAME}`,

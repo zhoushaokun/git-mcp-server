@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.3.0 - 2025-07-31
+
+### Added
+
+- **Development Tooling**:
+  - **`tsx`**: Replaced `ts-node` with `tsx` for significantly faster TypeScript execution in development, improving the developer workflow.
+  - **ESLint**: Integrated ESLint with TypeScript support (`typescript-eslint`) to enforce code quality, catch potential errors, and maintain a consistent coding style across the project. A new `eslint.config.js` file has been added.
+  - **TypeDoc**: Added TypeDoc for generating comprehensive API documentation from JSDoc comments. New configuration files (`typedoc.json`, `tsconfig.typedoc.json`, `tsdoc.json`) have been included.
+- **Scripts**:
+  - Added new npm scripts: `lint`, `lint:fix`, `typecheck`, `dev`, `dev:stdio`, `dev:http`, `audit`, and `audit:fix` to support the new tooling and improve development workflows.
+  - Added `scripts/fetch-openapi-spec.ts` to download and save API specifications.
+  - Added `scripts/README.md` to document the utility scripts.
+
+### Changed
+
+- **Core Refactoring**:
+  - **Architectural Alignment**: The entire codebase has been refactored to strictly adhere to the "Logic Throws, Handler Catches" principle, improving separation of concerns and error handling consistency.
+  - **JSDoc**: Added comprehensive JSDoc comments to all core files, tools, utilities, and scripts, enabling clear API documentation and better maintainability.
+  - **Type Safety**: Replaced ambiguous `any` types with specific, inferred types from Zod schemas, enhancing type safety throughout the application.
+- **Logging & Error Handling**:
+  - **`RequestContext`**: Consistently passed `RequestContext` through the entire call stack for improved traceability and contextual logging.
+  - **`ErrorHandler`**: Centralized error handling to use the `ErrorHandler` utility and structured `McpError` objects for consistent, machine-readable error responses.
+- **Dependencies**:
+  - Updated all major dependencies, including `@modelcontextprotocol/sdk`, `hono`, `zod`, and `winston`.
+  - Added new development dependencies like `eslint`, `typescript-eslint`, `tsx`, and `typedoc`.
+
 ## v2.2.4 - 2025-07-29
 
 ### Added

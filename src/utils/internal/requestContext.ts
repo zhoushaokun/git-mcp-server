@@ -12,7 +12,7 @@ export interface RequestContext {
   /** ISO 8601 timestamp indicating when the context was created. */
   timestamp: string;
   /** Allows for additional, arbitrary key-value pairs for specific context needs. */
-  [key: string]: any; // Allow flexible extension
+  [key: string]: unknown; // Allow flexible extension
 }
 
 /**

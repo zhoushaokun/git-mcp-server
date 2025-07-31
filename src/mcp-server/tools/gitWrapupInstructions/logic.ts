@@ -5,25 +5,50 @@
 
 import { z } from "zod";
 import { logger, type RequestContext } from "../../../utils/index.js";
-import { getGitStatus, GitStatusOutput, GitStatusOutputSchema } from "../gitStatus/logic.js";
+import {
+  getGitStatus,
+  GitStatusOutput,
+  GitStatusOutputSchema,
+} from "../gitStatus/logic.js";
 
 // 1. DEFINE the Zod input schema.
 export const GitWrapupInstructionsInputSchema = z.object({
-  acknowledgement: z.enum(["Y", "y", "Yes", "yes"]).describe("Acknowledgement to initiate the wrap-up workflow."),
-  updateAgentMetaFiles: z.enum(["Y", "y", "Yes", "yes"]).optional().describe("Include an instruction to update agent-specific meta files."),
-  createTag: z.boolean().optional().describe("If true, instructs the agent to create a Git tag after committing all changes. Only set to true if given permission to do so."),
+  acknowledgement: z
+    .enum(["Y", "y", "Yes", "yes"])
+    .describe("Acknowledgement to initiate the wrap-up workflow."),
+  updateAgentMetaFiles: z
+    .enum(["Y", "y", "Yes", "yes"])
+    .optional()
+    .describe("Include an instruction to update agent-specific meta files."),
+  createTag: z
+    .boolean()
+    .optional()
+    .describe(
+      "If true, instructs the agent to create a Git tag after committing all changes. Only set to true if given permission to do so.",
+    ),
 });
 
 // 2. DEFINE the Zod response schema.
 export const GitWrapupInstructionsOutputSchema = z.object({
-  instructions: z.string().describe("The set of instructions for the wrap-up workflow."),
-  gitStatus: GitStatusOutputSchema.optional().describe("The current structured git status."),
-  gitStatusError: z.string().optional().describe("Any error message if getting git status failed."),
+  instructions: z
+    .string()
+    .describe("The set of instructions for the wrap-up workflow."),
+  gitStatus: GitStatusOutputSchema.optional().describe(
+    "The current structured git status.",
+  ),
+  gitStatusError: z
+    .string()
+    .optional()
+    .describe("Any error message if getting git status failed."),
 });
 
 // 3. INFER and export TypeScript types.
-export type GitWrapupInstructionsInput = z.infer<typeof GitWrapupInstructionsInputSchema>;
-export type GitWrapupInstructionsOutput = z.infer<typeof GitWrapupInstructionsOutputSchema>;
+export type GitWrapupInstructionsInput = z.infer<
+  typeof GitWrapupInstructionsInputSchema
+>;
+export type GitWrapupInstructionsOutput = z.infer<
+  typeof GitWrapupInstructionsOutputSchema
+>;
 
 const WRAPUP_INSTRUCTIONS = `
 Perform all actions for our git wrapup workflow:
@@ -42,7 +67,7 @@ Instructions: Now write a concise list of what you must do to complete the git w
  */
 export async function getWrapupInstructions(
   params: GitWrapupInstructionsInput,
-  context: RequestContext & { getWorkingDirectory: () => string | undefined }
+  context: RequestContext & { getWorkingDirectory: () => string | undefined },
 ): Promise<GitWrapupInstructionsOutput> {
   const operation = "getWrapupInstructions";
   logger.debug(`Executing ${operation}`, { ...context, params });

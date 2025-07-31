@@ -1,7 +1,5 @@
 import { randomBytes, randomUUID as cryptoRandomUUID } from "crypto"; // Import cryptoRandomUUID
 import { BaseErrorCode, McpError } from "../../types-global/errors.js"; // Corrected path
-// Import utils from the main barrel file (logger from ../internal/logger.js)
-import { logger } from "../index.js";
 
 /**
  * Interface for entity prefix configuration
@@ -84,7 +82,8 @@ export class IdGenerator {
     let result = "";
 
     for (let i = 0; i < length; i++) {
-      result += charset[bytes[i] % charset.length];
+      const byte = bytes[i] ?? 0;
+      result += charset[byte % charset.length];
     }
 
     return result;
@@ -214,7 +213,17 @@ export class IdGenerator {
   ): string {
     const entityType = this.getEntityType(id, separator);
     const idParts = id.split(separator);
-    return `${this.entityPrefixes[entityType]}${separator}${idParts[1].toUpperCase()}`;
+    const randomPart = idParts[1];
+
+    if (!randomPart) {
+      // This case should theoretically be caught by getEntityType, but this adds robustness
+      throw new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        `Invalid ID format for normalization: ${id}. Random part is missing.`,
+      );
+    }
+
+    return `${this.entityPrefixes[entityType]}${separator}${randomPart.toUpperCase()}`;
   }
 }
 
