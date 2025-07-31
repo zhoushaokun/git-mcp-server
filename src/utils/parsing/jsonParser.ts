@@ -53,7 +53,7 @@ export class JsonParser {
    * If a <think> block is present, its content is logged, and parsing proceeds on the
    * remainder. Uses 'partial-json' to handle incomplete JSON.
    *
-   * @template T The expected type of the parsed JSON object. Defaults to `any`.
+   * @template T The expected type of the parsed JSON object. Defaults to `unknown`.
    * @param jsonString - The JSON string to parse.
    * @param allowPartial - Bitwise OR combination of `Allow` constants specifying permissible
    *   partial JSON types. Defaults to `Allow.ALL`.

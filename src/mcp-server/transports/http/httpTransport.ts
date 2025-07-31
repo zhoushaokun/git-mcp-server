@@ -31,6 +31,20 @@ const HTTP_HOST = config.mcpHttpHost;
 const MCP_ENDPOINT_PATH = config.mcpHttpEndpointPath;
 
 /**
+ * Extracts the client IP address from the request, prioritizing common proxy headers.
+ * @param c - The Hono context object.
+ * @returns The client's IP address or a default string if not found.
+ */
+function getClientIp(c: Context<{ Bindings: HonoNodeBindings }>): string {
+  const forwardedFor = c.req.header("x-forwarded-for");
+  return (
+    (forwardedFor?.split(",")[0] ?? "").trim() ||
+    c.req.header("x-real-ip") ||
+    "unknown_ip"
+  );
+}
+
+/**
  * Converts a Fetch API Headers object to Node.js IncomingHttpHeaders.
  * Hono uses Fetch API Headers, but the underlying transport managers expect
  * Node's native IncomingHttpHeaders.
@@ -236,11 +250,7 @@ export function createHttpApp(
   app.use(
     MCP_ENDPOINT_PATH,
     async (c: Context<{ Bindings: HonoNodeBindings }>, next: Next) => {
-      const forwardedFor = c.req.header("x-forwarded-for");
-      const clientIp =
-        (forwardedFor?.split(",")[0] ?? "").trim() ||
-        c.req.header("x-real-ip") ||
-        "unknown_ip";
+      const clientIp = getClientIp(c);
       const context = requestContextService.createRequestContext({
         operation: "httpRateLimitCheck",
         ipAddress: clientIp,

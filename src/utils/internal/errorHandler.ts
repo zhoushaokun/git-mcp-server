@@ -177,10 +177,10 @@ export class ErrorHandler {
     const errorMessage = getErrorMessage(error);
 
     // Check if the error type has a direct mapping
-    const mappedByErrorName =
+    const mappedError =
       ERROR_TYPE_MAPPINGS[errorName as keyof typeof ERROR_TYPE_MAPPINGS];
-    if (mappedByErrorName) {
-      return mappedByErrorName;
+    if (mappedError) {
+      return mappedError;
     }
 
     // Check for common error patterns
