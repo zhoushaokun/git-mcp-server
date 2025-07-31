@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.3.2 - 2025-07-31
+
+### Feature
+
+- **Enhanced Tool Feedback**: Implemented an enhancement across multiple core Git tools to provide immediate, contextual feedback on the repository's state. The following tools now include the complete, structured output of `git status` in their JSON response upon successful execution:
+  - `git_add`
+  - `git_checkout`
+  - `git_cherry_pick`
+  - `git_clean`
+  - `git_commit`
+  - `git_merge`
+  - `git_pull`
+  - `git_rebase`
+  - `git_reset`
+  - `git_stash`
+  This change allows agents and clients to instantly verify the outcome of an operation without needing to make a subsequent call to `git_status`.
+
+### Chore
+
+- **Build & Configuration**:
+  - **ESLint**: Updated `eslint.config.js` to add `coverage/`, `dist/`, `logs/`, and `data/` to the ignored paths, preventing linting of generated or irrelevant files.
+  - **MCP Configuration**: Modified `mcp.json` to use `npx @cyanheads/git-mcp-server` as the execution command, simplifying server startup and removing the need for a local build.
+- **Dependencies**:
+  - Bumped the package version to `2.3.2` in `package.json` and `package-lock.json`.
+- **Testing**:
+  - Performed minor refactoring in `tests/utils/internal/errorHandler.test.ts` and `tests/utils/internal/logger.test.ts` to align with recent code modifications and improve test clarity.
+
 ## v2.3.1 - 2025-07-31
 
 ### Added
