@@ -146,25 +146,28 @@ export async function logGitHistory(
   }
 
   const commitRecords = stdout.split(RECORD_SEP).filter((r) => r.trim());
-  const commits = commitRecords.reduce((acc: CommitEntry[], record) => {
-    const fields = record.trim().split(FIELD_SEP);
-    const [hash, authorName, authorEmail, timestampStr, subject, body] = fields;
+  const commits = commitRecords
+    .map((record): CommitEntry | null => {
+      const fields = record.trim().split(FIELD_SEP);
+      const [hash, authorName, authorEmail, timestampStr, subject, body] =
+        fields;
 
-    if (hash && authorName && authorEmail && timestampStr && subject) {
-      const timestamp = parseInt(timestampStr, 10);
-      if (!isNaN(timestamp)) {
-        acc.push({
-          hash,
-          authorName,
-          authorEmail,
-          timestamp,
-          subject,
-          body: body || undefined,
-        });
+      if (hash && authorName && authorEmail && timestampStr && subject) {
+        const timestamp = parseInt(timestampStr, 10);
+        if (!isNaN(timestamp)) {
+          return {
+            hash,
+            authorName,
+            authorEmail,
+            timestamp,
+            subject,
+            body: body || undefined,
+          };
+        }
       }
-    }
-    return acc;
-  }, []);
+      return null;
+    })
+    .filter((item): item is CommitEntry => item !== null);
 
   return {
     success: true,

@@ -6,12 +6,12 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   logger,
   type RequestContext,
   sanitization,
 } from "../../../utils/index.js";
-import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -124,8 +124,7 @@ export async function gitStashLogic(
     const stashes = stdout
       .trim()
       .split("\n")
-      .filter(Boolean)
-      .reduce((acc: StashInfo[], line) => {
+      .map((line) => {
         const match = line.match(
           /^(stash@\{(\d+)\}):\s*(?:(?:WIP on|On)\s*([^:]+):\s*)?(.*)$/,
         );
@@ -133,15 +132,16 @@ export async function gitStashLogic(
           const ref = match[1];
           const description = match[4];
           if (ref && description) {
-            acc.push({
+            return {
               ref,
               branch: match[3] || "unknown",
               description,
-            });
+            };
           }
         }
-        return acc;
-      }, []);
+        return null;
+      })
+      .filter((item): item is StashInfo => item !== null);
     return { success: true, mode: params.mode, stashes };
   }
 

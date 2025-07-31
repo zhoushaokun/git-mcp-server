@@ -52,6 +52,56 @@ export type GitInitInput = z.infer<typeof GitInitInputSchema>;
 export type GitInitOutput = z.infer<typeof GitInitOutputSchema>;
 
 /**
+ * Executes the `git init` command and handles its output.
+ * @private
+ */
+async function _executeGitInit(
+  params: GitInitInput,
+  targetPath: string,
+  context: RequestContext,
+): Promise<GitInitOutput> {
+  const args = ["init"];
+  if (params.quiet) args.push("--quiet");
+  if (params.bare) args.push("--bare");
+  args.push(`--initial-branch=${params.initialBranch || "main"}`);
+  args.push(targetPath);
+
+  logger.debug(`Executing command: git ${args.join(" ")}`, {
+    ...context,
+    operation: "gitInit",
+  });
+  const { stdout, stderr } = await execFileAsync("git", args);
+
+  if (
+    (stderr || stdout)
+      .toLowerCase()
+      .includes("reinitialized existing git repository")
+  ) {
+    return {
+      success: true,
+      message: `Reinitialized existing Git repository in ${targetPath}`,
+      path: targetPath,
+      gitDirExists: true,
+    };
+  }
+
+  const gitDirPath = params.bare ? targetPath : path.join(targetPath, ".git");
+  const gitDirExists = await fs
+    .access(gitDirPath)
+    .then(() => true)
+    .catch(() => false);
+
+  const successMessage =
+    stdout.trim() || `Successfully initialized Git repository in ${targetPath}`;
+  return {
+    success: true,
+    message: successMessage,
+    path: targetPath,
+    gitDirExists,
+  };
+}
+
+/**
  * 4. IMPLEMENT the core logic function.
  * @throws {McpError} If the logic encounters an unrecoverable issue.
  */
@@ -69,48 +119,7 @@ export async function gitInitLogic(
 
   try {
     await fs.access(parentDir, fs.constants.W_OK);
-
-    const args = ["init"];
-    if (params.quiet) args.push("--quiet");
-    if (params.bare) args.push("--bare");
-    args.push(`--initial-branch=${params.initialBranch || "main"}`);
-    args.push(targetPath);
-
-    logger.debug(`Executing command: git ${args.join(" ")}`, {
-      ...context,
-      operation,
-    });
-    const { stdout, stderr } = await execFileAsync("git", args);
-
-    // Re-initializing is not an error, so we check for it and return a success response.
-    if (
-      (stderr || stdout)
-        .toLowerCase()
-        .includes("reinitialized existing git repository")
-    ) {
-      return {
-        success: true,
-        message: `Reinitialized existing Git repository in ${targetPath}`,
-        path: targetPath,
-        gitDirExists: true,
-      };
-    }
-
-    const gitDirPath = params.bare ? targetPath : path.join(targetPath, ".git");
-    const gitDirExists = await fs
-      .access(gitDirPath)
-      .then(() => true)
-      .catch(() => false);
-
-    const successMessage =
-      stdout.trim() ||
-      `Successfully initialized Git repository in ${targetPath}`;
-    return {
-      success: true,
-      message: successMessage,
-      path: targetPath,
-      gitDirExists,
-    };
+    return await _executeGitInit(params, targetPath, context);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (
