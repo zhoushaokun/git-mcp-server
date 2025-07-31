@@ -119,7 +119,9 @@ export async function gitRemoteLogic(
       .forEach((line) => {
         const parts = line.split(/\s+/);
         if (parts.length < 3) return;
-        const [name, url, type] = parts;
+        const name = parts[0];
+        const url = parts[1];
+        const type = parts[2];
         if (name && url && type) {
           const cleanType = type.replace(/[()]/g, "");
           if (!remoteMap.has(name)) remoteMap.set(name, {});
