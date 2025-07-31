@@ -1,9 +1,11 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-07-31 19:34:22
+Generated on: 2025-07-31 20:13:28
 
 ```
 git-mcp-server
+├── .clinerules
+│   └── clinerules.md
 ├── .github
 │   ├── workflows
 │   │   └── publish.yml
@@ -178,7 +180,6 @@ git-mcp-server
 │   │   │   └── sanitization.ts
 │   │   └── index.ts
 │   └── index.ts
-├── .clinerules
 ├── .env.example
 ├── .gitignore
 ├── .ncurc.json
