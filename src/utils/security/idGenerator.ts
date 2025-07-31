@@ -82,10 +82,8 @@ export class IdGenerator {
     let result = "";
 
     for (let i = 0; i < length; i++) {
-      const byte = bytes[i];
-      if (byte !== undefined) {
-        result += charset[byte % charset.length];
-      }
+      const byte = bytes[i] ?? 0;
+      result += charset[byte % charset.length];
     }
 
     return result;

@@ -149,6 +149,9 @@ export async function logGitHistory(
   const commits = commitRecords
     .map((record): CommitEntry | null => {
       const fields = record.trim().split(FIELD_SEP);
+      if (fields.length < 5) {
+        return null; // Skip records with insufficient fields
+      }
       const [hash, authorName, authorEmail, timestampStr, subject, body] =
         fields;
 

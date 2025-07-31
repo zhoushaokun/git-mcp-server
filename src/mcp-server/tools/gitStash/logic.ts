@@ -70,6 +70,34 @@ export type GitStashOutput = z.infer<typeof GitStashOutputSchema>;
 type StashInfo = z.infer<typeof StashInfoSchema>;
 
 /**
+ * Parses the raw output of `git stash list` into a structured array.
+ * @private
+ */
+function _parseStashList(stdout: string): StashInfo[] {
+  return stdout
+    .trim()
+    .split("\n")
+    .map((line) => {
+      const match = line.match(
+        /^(stash@\{(\d+)\}):\s*(?:(?:WIP on|On)\s*([^:]+):\s*)?(.*)$/,
+      );
+      if (match) {
+        const ref = match[1];
+        const description = match[4];
+        if (ref && description) {
+          return {
+            ref,
+            branch: match[3] || "unknown",
+            description,
+          };
+        }
+      }
+      return null;
+    })
+    .filter((item): item is StashInfo => item !== null);
+}
+
+/**
  * 4. IMPLEMENT the core logic function.
  * @throws {McpError} If the logic encounters an unrecoverable issue.
  */
@@ -121,27 +149,7 @@ export async function gitStashLogic(
   const { stdout, stderr } = await execFileAsync("git", args);
 
   if (params.mode === "list") {
-    const stashes = stdout
-      .trim()
-      .split("\n")
-      .map((line) => {
-        const match = line.match(
-          /^(stash@\{(\d+)\}):\s*(?:(?:WIP on|On)\s*([^:]+):\s*)?(.*)$/,
-        );
-        if (match) {
-          const ref = match[1];
-          const description = match[4];
-          if (ref && description) {
-            return {
-              ref,
-              branch: match[3] || "unknown",
-              description,
-            };
-          }
-        }
-        return null;
-      })
-      .filter((item): item is StashInfo => item !== null);
+    const stashes = _parseStashList(stdout);
     return { success: true, mode: params.mode, stashes };
   }
 

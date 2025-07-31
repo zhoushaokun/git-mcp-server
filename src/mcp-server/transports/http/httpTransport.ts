@@ -330,9 +330,11 @@ export function createHttpApp(
           }
         });
       } else {
-        // Hono's c.json() expects a JSON-serializable object.
-        // The response.body is of type `unknown` from the transport layer.
-        // We ensure it's a valid object before passing it to c.json().
+        // Hono's c.json() expects a JSON-serializable object. The response.body
+        // from the transport layer is `unknown`. This check ensures we pass a valid
+        // object to c.json(). While a full serialization check (e.g., for circular
+        // references) is complex, this is a pragmatic and sufficient safeguard for
+        // the known, simple object structures returned by our tools.
         const body =
           typeof response.body === "object" && response.body !== null
             ? response.body
