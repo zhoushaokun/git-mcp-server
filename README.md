@@ -231,6 +231,7 @@ API documentation is generated from JSDoc comments using [TypeDoc](https://typed
 ```bash
 npm run docs:generate
 ```
+
 The output will be saved in the `docs/api` directory.
 
 ## 🧩 Extending the System

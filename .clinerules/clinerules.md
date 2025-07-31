@@ -83,7 +83,7 @@ export type GitToolOutput = z.infer<typeof GitToolOutputSchema>;
  */
 export async function gitToolLogic(
   params: GitToolInput,
-  context: RequestContext & { getWorkingDirectory: () => string | undefined }
+  context: RequestContext & { getWorkingDirectory: () => string | undefined },
 ): Promise<GitToolOutput> {
   logger.debug("Executing gitToolLogic...", { ...context });
 
@@ -94,7 +94,7 @@ export async function gitToolLogic(
     // CRITICAL: Logic layer MUST throw a structured error on failure.
     throw new McpError(
       BaseErrorCode.VALIDATION_ERROR,
-      "A specific error message."
+      "A specific error message.",
     );
   }
 
@@ -127,7 +127,7 @@ import {
 import { McpError } from "../../../types-global/errors.js";
 
 export type GetWorkingDirectoryFn = (
-  sessionId: string | undefined
+  sessionId: string | undefined,
 ) => string | undefined;
 export type GetSessionIdFn = (context: RequestContext) => string | undefined;
 
@@ -140,7 +140,7 @@ export type GetSessionIdFn = (context: RequestContext) => string | undefined;
 export const registerGitTool = async (
   server: McpServer,
   getWorkingDirectory: GetWorkingDirectoryFn,
-  getSessionId: GetSessionIdFn
+  getSessionId: GetSessionIdFn,
 ): Promise<void> => {
   const toolName = "git_tool_name";
 
@@ -193,7 +193,7 @@ export const registerGitTool = async (
           },
         };
       }
-    }
+    },
   );
   logger.info(`Tool '${toolName}' registered successfully.`);
 };
