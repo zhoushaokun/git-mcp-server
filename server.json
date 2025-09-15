@@ -114,27 +114,7 @@
       ],
       "transport": {
         "type": "streamable-http",
-        "url": "http://{MCP_HTTP_HOST}:{MCP_HTTP_PORT}{MCP_HTTP_ENDPOINT_PATH}",
-        "template_variables": {
-          "MCP_HTTP_HOST": {
-            "description": "The host interface for the HTTP server.",
-            "format": "string",
-            "is_required": false,
-            "default": "127.0.0.1"
-          },
-          "MCP_HTTP_PORT": {
-            "description": "The port to run the HTTP server on.",
-            "format": "string",
-            "is_required": false,
-            "default": "3015"
-          },
-          "MCP_HTTP_ENDPOINT_PATH": {
-            "description": "The HTTP endpoint path for MCP requests.",
-            "format": "string",
-            "is_required": false,
-            "default": "/mcp"
-          }
-        }
+        "url": "http://{MCP_HTTP_HOST}:{MCP_HTTP_PORT}{MCP_HTTP_ENDPOINT_PATH}"
       }
     }
   ],
