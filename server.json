@@ -1,0 +1,115 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.cyanheads/git-mcp-server",
+  "description": "Comprehensive Git MCP server enabling native git tools including clone, commit, worktree, & more.",
+  "website_url": "https://github.com/cyanheads/git-mcp-server#readme",
+  "status": "active",
+  "repository": {
+    "url": "https://github.com/cyanheads/git-mcp-server",
+    "source": "github"
+  },
+  "version": "2.3.3",
+  "packages": [
+    {
+      "registry_type": "npm",
+      "registry_base_url": "https://registry.npmjs.org",
+      "identifier": "@cyanheads/git-mcp-server",
+      "version": "2.3.3",
+      "runtime_hint": "node",
+      "package_arguments": [
+        {
+          "type": "positional",
+          "value": "dist/index.js"
+        }
+      ],
+      "environment_variables": [
+        {
+          "name": "MCP_TRANSPORT_TYPE",
+          "description": "Specifies the transport mechanism for the server.",
+          "format": "string",
+          "is_required": true,
+          "default": "stdio"
+        },
+        {
+          "name": "MCP_LOG_LEVEL",
+          "description": "Sets the minimum log level for output (e.g., 'debug', 'info', 'warn').",
+          "format": "string",
+          "is_required": false,
+          "default": "info"
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registry_type": "npm",
+      "registry_base_url": "https://registry.npmjs.org",
+      "identifier": "@cyanheads/git-mcp-server",
+      "version": "2.3.3",
+      "runtime_hint": "node",
+      "package_arguments": [
+        {
+          "type": "positional",
+          "value": "dist/index.js"
+        }
+      ],
+      "environment_variables": [
+        {
+          "name": "MCP_TRANSPORT_TYPE",
+          "description": "Specifies the transport mechanism for the server.",
+          "format": "string",
+          "is_required": true,
+          "default": "http"
+        },
+        {
+          "name": "MCP_HTTP_PORT",
+          "description": "The port to run the HTTP server on.",
+          "format": "string",
+          "is_required": false,
+          "default": "3015"
+        },
+        {
+          "name": "MCP_HTTP_HOST",
+          "description": "The host interface for the HTTP server.",
+          "format": "string",
+          "is_required": false,
+          "default": "127.0.0.1"
+        },
+        {
+          "name": "MCP_HTTP_ENDPOINT_PATH",
+          "description": "The HTTP endpoint path for MCP requests.",
+          "format": "string",
+          "is_required": false,
+          "default": "/mcp"
+        },
+        {
+          "name": "MCP_AUTH_STRATEGY",
+          "description": "Authentication mode to use: 'none', 'jwt', or 'oauth'.",
+          "format": "string",
+          "is_required": false,
+          "default": "none"
+        },
+        {
+          "name": "MCP_LOG_LEVEL",
+          "description": "Sets the minimum log level for output (e.g., 'debug', 'info', 'warn').",
+          "format": "string",
+          "is_required": false,
+          "default": "info"
+        },
+        {
+          "name": "GIT_SIGN_COMMITS",
+          "description": "Set to 'true' to enable GPG/SSH signing for commits made via the git_commit tool.",
+          "format": "string",
+          "is_required": false,
+          "default": "false"
+        }
+      ],
+      "transport": {
+        "type": "streamable-http",
+        "url": "http://{MCP_HTTP_HOST}:{MCP_HTTP_PORT}{MCP_HTTP_ENDPOINT_PATH}"
+      }
+    }
+  ],
+  "mcpName": "io.github.cyanheads/git-mcp-server"
+}
