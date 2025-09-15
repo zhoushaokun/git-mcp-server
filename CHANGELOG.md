@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.3.3 - 2025-09-15
+
+### Added
+
+- **Documentation**: New guide on "How to Publish Your MCP Server" (`docs/publishing-mcp-server-registry.md`) including an all-in-one `publish-mcp` script.
+- **Scripts**: Added `scripts/validate-mcp-publish-schema.ts` to automate version syncing, schema validation, and publishing workflow for MCP servers.
+
+### Changed
+
+- **Build & Configuration**:
+  - Updated `.gitignore` with new categories and ignore patterns for `.vscode/`, `.history/`, `build/`, `dist/`, `out/`, `logs/`, `data/`, generated documentation, environment files, and MCP registry related files.
+  - Added `mcpName` field to `package.json` for MCP registry identification.
+  - `server.json` updated with new `mcpName` and version.
+- **Dependencies**:
+  - Updated `@modelcontextprotocol/sdk` to `^1.18.0`.
+  - Updated `axios` to `^1.12.2`.
+  - Updated `jose` to `^6.1.0`.
+  - Updated `openai` to `^5.20.2`.
+  - Updated `tiktoken` to `^1.0.22`.
+  - Updated `@eslint/js` to `^9.35.0`.
+  - Updated `@types/node` to `^24.4.0`.
+  - Updated `@types/validator` to `13.15.3`.
+  - Added `ajv` and `ajv-formats` as devDependencies. 
+  - Updated `eslint` to `^9.35.0`.
+  - Updated `globals` to `^16.4.0`.
+  - Updated `msw` to `^2.11.2`.
+  - Updated `tsx` to `^4.20.5`.
+  - Updated `typedoc` to `^0.28.13`.
+  - Updated `typescript-eslint` to `^8.43.0`.
+- **Code Improvement**:
+  - Modified `src/utils/metrics/tokenCounter.ts` to explicitly check `tool_call.type === "function"` before accessing function-specific properties; improves robustness for different tool call types.
+
 ## v2.3.2 - 2025-07-31
 
 ### Feature
@@ -17,7 +49,7 @@ All notable changes to this project will be documented in this file.
   - `git_rebase`
   - `git_reset`
   - `git_stash`
-  This change allows agents and clients to instantly verify the outcome of an operation without needing to make a subsequent call to `git_status`.
+    This change allows agents and clients to instantly verify the outcome of an operation without needing to make a subsequent call to `git_status`.
 
 ### Chore
 
