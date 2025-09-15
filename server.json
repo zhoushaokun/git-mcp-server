@@ -36,6 +36,13 @@
           "format": "string",
           "is_required": false,
           "default": "info"
+        },
+        {
+          "name": "GIT_SIGN_COMMITS",
+          "description": "Set to 'true' to enable GPG/SSH signing for commits made via the git_commit tool.",
+          "format": "string",
+          "is_required": false,
+          "default": "false"
         }
       ],
       "transport": {
