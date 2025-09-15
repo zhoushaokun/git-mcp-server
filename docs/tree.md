@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-07-31 20:13:28
+Generated on: 2025-09-15 12:37:41
 
 ```
 git-mcp-server
@@ -12,13 +12,15 @@ git-mcp-server
 │   └── FUNDING.yml
 ├── coverage
 ├── docs
+│   ├── publishing-mcp-server-registry.md
 │   └── tree.md
 ├── scripts
 │   ├── clean.ts
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
 │   ├── README.md
-│   └── tree.ts
+│   ├── tree.ts
+│   └── validate-mcp-publish-schema.ts
 ├── src
 │   ├── config
 │   │   └── index.ts
@@ -180,6 +182,38 @@ git-mcp-server
 │   │   │   └── sanitization.ts
 │   │   └── index.ts
 │   └── index.ts
+├── tests
+│   ├── mcp-server
+│   │   ├── tools
+│   │   └── transports
+│   │       ├── auth
+│   │       │   ├── lib
+│   │       │   │   └── authUtils.test.ts
+│   │       │   ├── strategies
+│   │       │   │   └── oauthStrategy.test.ts
+│   │       │   └── auth.test.ts
+│   │       └── stdio
+│   │           └── stdioTransport.test.ts
+│   ├── mocks
+│   │   ├── handlers.ts
+│   │   └── server.ts
+│   ├── services
+│   ├── utils
+│   │   ├── internal
+│   │   │   ├── errorHandler.test.ts
+│   │   │   ├── logger.test.ts
+│   │   │   └── requestContext.test.ts
+│   │   ├── metrics
+│   │   │   └── tokenCounter.test.ts
+│   │   ├── network
+│   │   ├── parsing
+│   │   │   ├── dateParser.test.ts
+│   │   │   └── jsonParser.test.ts
+│   │   ├── scheduling
+│   │   └── security
+│   │       ├── idGenerator.test.ts
+│   │       └── rateLimiter.test.ts
+│   └── setup.ts
 ├── .env.example
 ├── .gitignore
 ├── .ncurc.json
@@ -192,6 +226,7 @@ git-mcp-server
 ├── package.json
 ├── README.md
 ├── repomix.config.json
+├── server.json
 ├── smithery.yaml
 ├── tsconfig.json
 ├── tsconfig.typedoc.json
