@@ -3,7 +3,10 @@
  * @module src/mcp-server/tools/gitWrapupInstructions/logic
  */
 
+import { readFileSync } from "fs";
+import path from "path";
 import { z } from "zod";
+import { config } from "../../../config/index.js";
 import { logger, type RequestContext } from "../../../utils/index.js";
 import {
   getGitStatus,
@@ -65,6 +68,37 @@ Instructions: Now write a concise list of what you must do to complete the git w
  * 4. IMPLEMENT the core logic function.
  * @throws {McpError} If the logic encounters an unrecoverable issue.
  */
+const loadInstructions = (
+  filePath: string | undefined,
+  context: RequestContext,
+): string => {
+  if (!filePath) {
+    logger.debug("No custom instructions path configured, using default.", {
+      ...context,
+    });
+    return WRAPUP_INSTRUCTIONS;
+  }
+  try {
+    const resolvedPath = path.resolve(filePath);
+    logger.debug(`Attempting to load custom instructions from ${resolvedPath}`, {
+      ...context,
+    });
+    return readFileSync(resolvedPath, "utf-8");
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    logger.warning(
+      `Failed to load custom instructions from '${filePath}': ${errorMessage}. Falling back to default instructions.`,
+      { ...context, error },
+    );
+    return WRAPUP_INSTRUCTIONS;
+  }
+};
+
+/**
+ * 4. IMPLEMENT the core logic function.
+ * @throws {McpError} If the logic encounters an unrecoverable issue.
+ */
 export async function getWrapupInstructions(
   params: GitWrapupInstructionsInput,
   context: RequestContext & { getWorkingDirectory: () => string | undefined },
@@ -72,7 +106,11 @@ export async function getWrapupInstructions(
   const operation = "getWrapupInstructions";
   logger.debug(`Executing ${operation}`, { ...context, params });
 
-  let finalInstructions = WRAPUP_INSTRUCTIONS;
+  let finalInstructions = loadInstructions(
+    config.gitWrapupInstructionsPath,
+    context,
+  );
+
   if (params.updateAgentMetaFiles) {
     finalInstructions += `\nExtra request: review and update if needed the .clinerules and claude.md files if present.`;
   }

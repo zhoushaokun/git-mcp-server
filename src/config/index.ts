@@ -148,6 +148,9 @@ const EnvSchema = z.object({
     .string()
     .transform((val) => val === "true")
     .optional(),
+
+  /** Optional. Path to a markdown file with custom git wrapup instructions. */
+  GIT_WRAPUP_INSTRUCTIONS_PATH: z.string().optional(),
 });
 
 const parsedEnv = EnvSchema.safeParse(process.env);
@@ -306,6 +309,8 @@ export const config = {
   devMcpScopes: env.DEV_MCP_SCOPES?.split(",").map((s) => s.trim()),
   /** Flag to enable GPG signing for commits made by the git_commit tool. Requires server-side GPG setup. */
   gitSignCommits: env.GIT_SIGN_COMMITS,
+  /** Optional. Path to a markdown file with custom git wrapup instructions. */
+  gitWrapupInstructionsPath: env.GIT_WRAPUP_INSTRUCTIONS_PATH,
   /** Security-related configurations. */
   security: {
     /** Indicates if authentication is required for server operations. */
