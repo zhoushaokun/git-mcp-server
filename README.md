@@ -5,9 +5,9 @@
 **Empower your AI agents with comprehensive, secure, and programmatic control over Git repositories!**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue?style=flat-square)](https://www.typescriptlang.org/)
-[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.18.0-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
+[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.18.2-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-2.3.3-blue?style=flat-square)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-2.3.4-blue?style=flat-square)](./CHANGELOG.md)
 [![Coverage](https://img.shields.io/badge/Coverage-17.04%25-red?style=flat-square)](./vitest.config.ts)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green?style=flat-square)](https://github.com/cyanheads/git-mcp-server/issues)
@@ -151,6 +151,7 @@ Configure the server using these environment variables (or a `.env` file):
 | `MCP_ALLOWED_ORIGINS` | Comma-separated list of allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).                                                      | (none)      |
 | `MCP_LOG_LEVEL`       | Logging level (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`). Inherited from template.                     | `info`      |
 | `GIT_SIGN_COMMITS`    | Set to `"true"` to enable signing attempts for commits made by the `git_commit` tool. Requires server-side Git/key setup (see below). | `false`     |
+| `GIT_WRAPUP_INSTRUCTIONS_PATH` | Optional. Path to a markdown file with custom git wrapup instructions.                                                        | (none)      |
 | `MCP_AUTH_MODE`       | Authentication mode: `jwt`, `oauth`, or `none`.                                                                                       | `none`      |
 | `MCP_AUTH_SECRET_KEY` | Secret key for JWT validation (if `MCP_AUTH_MODE=jwt`).                                                                               | `''`        |
 | `OAUTH_ISSUER_URL`    | OIDC issuer URL for OAuth validation (if `MCP_AUTH_MODE=oauth`).                                                                      | `''`        |
