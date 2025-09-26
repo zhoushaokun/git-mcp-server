@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.3.4 - 2025-09-26
+
+### Removed
+
+- **Publishing**: Removed the manual publishing script (`scripts/validate-mcp-publish-schema.ts`) and associated documentation (`docs/publishing-mcp-server-registry.md`). The `mcp.json` file, related to the old workflow, has also been deleted. This streamlines the publishing process.
+
+### Added
+
+- **Custom Instructions**: The `git_wrapup_instructions` tool can now load custom instructions from an external Markdown file. The file path can be specified using the `GIT_WRAPUP_INSTRUCTIONS_PATH` environment variable.
+
+### Changed
+
+- **Dependencies**: Updated various dependencies to their latest versions, including `@modelcontextprotocol/sdk`, `openai`, `tsx`, and `typescript-eslint`.
+
 ## v2.3.3 - 2025-09-15
 
 ### Added
