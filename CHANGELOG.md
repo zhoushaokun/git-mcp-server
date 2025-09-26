@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Instructions**: Enhanced the default `git_wrapup_instructions` to be more authoritative and include an example task list.
 - **Dependencies**: Updated various dependencies to their latest versions, including `@modelcontextprotocol/sdk`, `openai`, `tsx`, and `typescript-eslint`.
 
 ## v2.3.3 - 2025-09-15

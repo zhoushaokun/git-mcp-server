@@ -54,14 +54,42 @@ export type GitWrapupInstructionsOutput = z.infer<
 >;
 
 const WRAPUP_INSTRUCTIONS = `
-Perform all actions for our git wrapup workflow:
-1. Use the git_diff tool to understand the precise nature and rationale behind each change (what changed and why did it change?) within the code base. Use the 'includeUntracked' parameter to view all changes, including untracked files. This will help you understand the context and purpose of the modifications made.
-2. For substantial code updates, review and update the README to ensure it is up to date with our current codebase (make a note to the user of any discrepancies you noticed, gathered from everything you've seen of our codebase so far).
-3. Update the CHANGELOG with concise, descriptive entries detailing all modifications, clearly indicating their purpose (e.g., bug fix, feature implementation, refactoring). Include specific metrics or identifiers where applicable, such as issue numbers or pull request links, to provide context and traceability for each change. This will help maintain a clear history of changes and their impacts on the project.
-4. Proceed to commit all changes; based on your review of the git_diff and readme, group these changes into logical, atomic commits, each accompanied by a clear and descriptive message adhering to Conventional Commits standards (e.g. "docs(readme): updated readme to include xyz."). Note the 'git_commit' tool allows you to also stage the files while commiting. Ensure commit messages accurately convey the scope and impact of the changes, incorporating specific metrics or identifiers where applicable.
-Note: Be sure to set 'git_set_working_dir' if not already set.
+# Git Wrap-up Protocol
 
-Instructions: Now write a concise list of what you must do to complete the git wrapup workflow, then perform all actions. Do not push unless requested.
+**Objective**: Systematically review, document, and commit all pending changes in the repository. Adherence to this protocol is mandatory.
+
+### Phase 1: Analysis and Planning
+
+You must begin by creating a task list that mirrors this protocol. This is your operational plan.
+
+**Example Task List:**
+\`\`\`
+- [ ] Set Git working directory (if not set)
+- [ ] Analyze repository changes with git_diff
+- [ ] Update CHANGELOG.md with all modifications
+- [ ] Review and update README.md for currency
+- [ ] Commit changes in logical, atomic units
+- [ ] Verify final repository status
+\`\`\`
+
+### Phase 2: Execution Workflow
+
+Execute the following steps sequentially. Do not proceed until the prior step is confirmed complete.
+
+1.  **Set Context**: Ensure the working directory is correctly set using **\`git_set_working_dir\`**. This is a mandatory first step.
+
+2.  **Analyze Changes**: Execute **\`git_diff\`** with the \`includeUntracked: true\` parameter. You must thoroughly analyze the output to understand the full scope and rationale of every modification. This analysis will inform & influence your commit strategy, commit messages, and overall workflow.
+
+3.  **Update Changelog**: Read the **\`CHANGELOG.md\`** file. Append a new version entry detailing all changes. Your entry must be concise, use the past tense, and categorize modifications (e.g., "Added," "Changed," "Fixed").
+
+4.  **Review Documentation**: For any substantial code changes, you are required to review **\`README.md\`**. Ensure it accurately reflects the current state of the codebase. Update it as necessary.
+
+5.  **Commit Changes**: Execute **\`git_commit\`** for each logical group of changes.
+    - Commits **must be atomic** and group related changes.
+    - Commit messages **must adhere** to the **Conventional Commits** standard (e.g., \`feat(auth): implement password reset\`).
+    - Use the \`filesToStage\` parameter to precisely control which files are included in each commit.
+
+**Directive**: Create your task list now. Then, execute the protocol. Do not push to the remote unless explicitly instructed.
 `;
 
 /**
