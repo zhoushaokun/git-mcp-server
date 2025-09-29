@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-09-15 12:37:41
+Generated on: 2025-09-29 23:52:37
 
 ```
 git-mcp-server
@@ -12,15 +12,13 @@ git-mcp-server
 │   └── FUNDING.yml
 ├── coverage
 ├── docs
-│   ├── publishing-mcp-server-registry.md
 │   └── tree.md
 ├── scripts
 │   ├── clean.ts
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
 │   ├── README.md
-│   ├── tree.ts
-│   └── validate-mcp-publish-schema.ts
+│   └── tree.ts
 ├── src
 │   ├── config
 │   │   └── index.ts
@@ -217,11 +215,12 @@ git-mcp-server
 ├── .env.example
 ├── .gitignore
 ├── .ncurc.json
+├── AGENTS.md
+├── bun.lock
 ├── CHANGELOG.md
 ├── Dockerfile
 ├── eslint.config.js
 ├── LICENSE
-├── mcp.json
 ├── package-lock.json
 ├── package.json
 ├── README.md

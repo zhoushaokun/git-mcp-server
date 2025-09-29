@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.3.5 - 2025-09-29ig.json` to improve compatibility with the Bun runtime.
+
+### Changed
+
+- **Tooling**:
+  - The `git_commit` tool now correctly handles cases where there are no changes to commit, returning a `nothingToCommit: true` status instead of throwing an error.
+  - The `git_status` tool's schema is now more flexible (`.passthrough()`) to prevent validation errors on encountering unexpected Git status identifiers.
+- **Dependencies**: Updated various dependencies, including `@hono/node-server`, `@types/node`, `typescript-eslint`, and `typescript`.
+- **CI/CD**: Minor formatting adjustments in the `publish.yml` GitHub Actions workflow.
+
+### Removed
+
+- **Legacy Files**: Deleted `mcp.json`, `docs/publishing-mcp-server-registry.md`, and `scripts/validate-mcp-publish-schema.ts`, which were part of an outdated publishing workflow.
+
 ## v2.3.4 - 2025-09-26
 
 ### Removed
@@ -39,7 +53,7 @@ All notable changes to this project will be documented in this file.
   - Updated `@eslint/js` to `^9.35.0`.
   - Updated `@types/node` to `^24.4.0`.
   - Updated `@types/validator` to `13.15.3`.
-  - Added `ajv` and `ajv-formats` as devDependencies. 
+  - Added `ajv` and `ajv-formats` as devDependencies.
   - Updated `eslint` to `^9.35.0`.
   - Updated `globals` to `^16.4.0`.
   - Updated `msw` to `^2.11.2`.

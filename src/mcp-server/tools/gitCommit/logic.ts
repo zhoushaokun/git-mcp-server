@@ -6,13 +6,13 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
+import { config } from "../../../config/index.js";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   logger,
   type RequestContext,
   sanitization,
 } from "../../../utils/index.js";
-import { McpError, BaseErrorCode } from "../../../types-global/errors.js";
-import { config } from "../../../config/index.js";
 import { getGitStatus, GitStatusOutputSchema } from "../gitStatus/logic.js";
 
 const execFileAsync = promisify(execFile);
@@ -160,8 +160,8 @@ export async function commitGitChanges(
     return await execFileAsync("git", finalArgs);
   };
 
-  let result;
   const shouldSign = config.gitSignCommits;
+  let result;
   try {
     result = await attemptCommit(shouldSign || false);
   } catch (error: unknown) {
@@ -169,6 +169,16 @@ export async function commitGitChanges(
       error && typeof error === "object" && "stderr" in error
         ? String(error.stderr)
         : "";
+
+    if (stderr.includes("nothing to commit")) {
+      return {
+        success: true,
+        message: "Nothing to commit, working tree clean.",
+        nothingToCommit: true,
+        status: await getGitStatus({ path: targetPath }, context),
+      };
+    }
+
     const isSigningError = stderr.includes("gpg failed to sign");
     if (shouldSign && isSigningError && params.forceUnsignedOnFailure) {
       logger.warning(

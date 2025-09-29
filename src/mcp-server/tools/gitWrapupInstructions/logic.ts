@@ -108,9 +108,12 @@ const loadInstructions = (
   }
   try {
     const resolvedPath = path.resolve(filePath);
-    logger.debug(`Attempting to load custom instructions from ${resolvedPath}`, {
-      ...context,
-    });
+    logger.debug(
+      `Attempting to load custom instructions from ${resolvedPath}`,
+      {
+        ...context,
+      },
+    );
     return readFileSync(resolvedPath, "utf-8");
   } catch (error) {
     const errorMessage =

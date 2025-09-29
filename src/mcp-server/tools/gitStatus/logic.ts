@@ -21,14 +21,16 @@ export const GitStatusInputSchema = z.object({
 });
 
 // 2. DEFINE the Zod response schema.
-const ChangesSchema = z.object({
-  Added: z.array(z.string()).optional(),
-  Modified: z.array(z.string()).optional(),
-  Deleted: z.array(z.string()).optional(),
-  Renamed: z.array(z.string()).optional(),
-  Copied: z.array(z.string()).optional(),
-  TypeChanged: z.array(z.string()).optional(),
-});
+const ChangesSchema = z
+  .object({
+    Added: z.array(z.string()).optional(),
+    Modified: z.array(z.string()).optional(),
+    Deleted: z.array(z.string()).optional(),
+    Renamed: z.array(z.string()).optional(),
+    Copied: z.array(z.string()).optional(),
+    TypeChanged: z.array(z.string()).optional(),
+  })
+  .passthrough();
 
 export const GitStatusOutputSchema = z.object({
   current_branch: z
