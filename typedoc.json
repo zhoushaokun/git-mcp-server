@@ -4,7 +4,7 @@
   "entryPointStrategy": "expand",
   "out": "docs/api",
   "readme": "README.md",
-  "name": "git-mcp-server API Documentation",
+  "name": "mcp-ts-template API Documentation",
   "includeVersion": true,
   "excludePrivate": true,
   "excludeProtected": true,
