@@ -5,11 +5,13 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { DepthSchema } from '../schemas/common.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_clone';
 const TOOL_TITLE = 'Git Clone';
@@ -50,24 +52,9 @@ type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitCloneLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git clone', { ...appContext, toolInput: input });
-
-  // Resolve dependencies via DI
-  const { container } = await import('tsyringe');
-  const { GitProviderFactory: GitProviderFactoryToken } = await import(
-    '@/container/tokens.js'
-  );
-
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
-  // Call provider's clone method
-  // Build options object with only defined properties to satisfy exactOptionalPropertyTypes
+  // Build options object with only defined properties
   const cloneOptions: {
     remoteUrl: string;
     localPath: string;
@@ -75,7 +62,6 @@ async function gitCloneLogic(
     depth?: number;
     bare?: boolean;
     mirror?: boolean;
-    recurseSubmodules?: boolean;
   } = {
     remoteUrl: input.url,
     localPath: input.localPath,
@@ -127,6 +113,9 @@ export const gitCloneTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: false },
-  logic: withToolAuth(['tool:git:write'], gitCloneLogic),
+  logic: withToolAuth(
+    ['tool:git:write'],
+    createToolHandler(gitCloneLogic, { skipPathResolution: true }),
+  ),
   responseFormatter,
 };

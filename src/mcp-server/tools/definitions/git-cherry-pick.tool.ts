@@ -5,17 +5,17 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import { resolveWorkingDirectory } from '../utils/git-validators.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import {
   PathSchema,
   CommitRefSchema,
   MergeStrategySchema,
 } from '../schemas/common.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_cherry_pick';
 const TOOL_TITLE = 'Git Cherry-Pick';
@@ -70,32 +70,9 @@ type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitCherryPickLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, targetPath, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git cherry-pick', {
-    ...appContext,
-    toolInput: input,
-  });
-
-  const { container } = await import('tsyringe');
-  const {
-    StorageService: StorageServiceToken,
-    GitProviderFactory: GitProviderFactoryToken,
-  } = await import('@/container/tokens.js');
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
-  const targetPath = await resolveWorkingDirectory(
-    input.path,
-    appContext,
-    storage,
-  );
-
+  // Build options object with only defined properties
   const cherryPickOptions: {
     commits: string[];
     noCommit?: boolean;
@@ -106,25 +83,17 @@ async function gitCherryPickLogic(
     signoff?: boolean;
   } = {
     commits: input.commits,
+    noCommit: input.noCommit,
+    continueOperation: input.continueOperation,
+    abort: input.abort,
+    signoff: input.signoff,
   };
 
-  if (input.noCommit !== undefined) {
-    cherryPickOptions.noCommit = input.noCommit;
-  }
-  if (input.continueOperation !== undefined) {
-    cherryPickOptions.continueOperation = input.continueOperation;
-  }
-  if (input.abort !== undefined) {
-    cherryPickOptions.abort = input.abort;
-  }
   if (input.mainline !== undefined) {
     cherryPickOptions.mainline = input.mainline;
   }
   if (input.strategy !== undefined) {
     cherryPickOptions.strategy = input.strategy;
-  }
-  if (input.signoff !== undefined) {
-    cherryPickOptions.signoff = input.signoff;
   }
 
   const result = await provider.cherryPick(cherryPickOptions, {
@@ -175,6 +144,9 @@ export const gitCherryPickTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: false },
-  logic: withToolAuth(['tool:git:write'], gitCherryPickLogic),
+  logic: withToolAuth(
+    ['tool:git:write'],
+    createToolHandler(gitCherryPickLogic),
+  ),
   responseFormatter,
 };

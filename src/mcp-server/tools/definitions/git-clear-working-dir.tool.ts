@@ -5,10 +5,12 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_clear_working_dir';
 const TOOL_TITLE = 'Git Clear Working Directory';
@@ -36,23 +38,9 @@ type ToolInput = z.infer<typeof InputSchema>;
 type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitClearWorkingDirLogic(
-  input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  _input: ToolInput,
+  { storage, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git clear working directory', {
-    ...appContext,
-    toolInput: input,
-  });
-
-  // Resolve dependencies via DI
-  const { container } = await import('tsyringe');
-  const { StorageService: StorageServiceToken } = await import(
-    '@/container/tokens.js'
-  );
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-
   // Graceful degradation for tenantId
   const tenantId = appContext.tenantId || 'default-tenant';
 
@@ -62,12 +50,6 @@ async function gitClearWorkingDirLogic(
 
   // Delete the working directory from session storage
   await storage.delete(storageKey, appContext);
-
-  logger.info('Session working directory cleared', {
-    ...appContext,
-    previousPath,
-    tenantId,
-  });
 
   return {
     success: true,
@@ -98,6 +80,9 @@ export const gitClearWorkingDirTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: false },
-  logic: withToolAuth(['tool:git:write'], gitClearWorkingDirLogic),
+  logic: withToolAuth(
+    ['tool:git:write'],
+    createToolHandler(gitClearWorkingDirLogic, { skipPathResolution: true }),
+  ),
   responseFormatter,
 };

@@ -5,13 +5,13 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import { resolveWorkingDirectory } from '../utils/git-validators.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { PathSchema, CommitRefSchema } from '../schemas/common.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_show';
 const TOOL_TITLE = 'Git Show';
@@ -57,30 +57,8 @@ type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitShowLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, targetPath, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git show', { ...appContext, toolInput: input });
-
-  // Resolve working directory and get provider via DI
-  const { container } = await import('tsyringe');
-  const {
-    StorageService: StorageServiceToken,
-    GitProviderFactory: GitProviderFactoryToken,
-  } = await import('@/container/tokens.js');
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
-  const targetPath = await resolveWorkingDirectory(
-    input.path,
-    appContext,
-    storage,
-  );
-
   // Build options object with only defined properties
   const showOptions: {
     object: string;
@@ -148,6 +126,6 @@ export const gitShowTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: true },
-  logic: withToolAuth(['tool:git:read'], gitShowLogic),
+  logic: withToolAuth(['tool:git:read'], createToolHandler(gitShowLogic)),
   responseFormatter,
 };

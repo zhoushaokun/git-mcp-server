@@ -5,13 +5,13 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import { resolveWorkingDirectory } from '../utils/git-validators.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { PathSchema, ForceSchema, DryRunSchema } from '../schemas/common.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_clean';
 const TOOL_TITLE = 'Git Clean';
@@ -47,44 +47,19 @@ type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitCleanLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, targetPath, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git clean', { ...appContext, toolInput: input });
+  // Build options object using modern spread syntax
+  const { path: _path, ...rest } = input;
+  const cleanOptions = {
+    ...rest,
+  };
 
-  // Resolve working directory and get provider via DI
-  const { container } = await import('tsyringe');
-  const {
-    StorageService: StorageServiceToken,
-    GitProviderFactory: GitProviderFactoryToken,
-  } = await import('@/container/tokens.js');
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
-  const targetPath = await resolveWorkingDirectory(
-    input.path,
-    appContext,
-    storage,
-  );
-
-  // Call provider's clean method
-  const result = await provider.clean(
-    {
-      force: input.force,
-      dryRun: input.dryRun,
-      directories: input.directories,
-      ignored: input.ignored,
-    },
-    {
-      workingDirectory: targetPath,
-      requestContext: appContext,
-      tenantId: appContext.tenantId || 'default-tenant',
-    },
-  );
+  const result = await provider.clean(cleanOptions, {
+    workingDirectory: targetPath,
+    requestContext: appContext,
+    tenantId: appContext.tenantId || 'default-tenant',
+  });
 
   return {
     success: result.success,
@@ -148,6 +123,6 @@ export const gitCleanTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: false },
-  logic: withToolAuth(['tool:git:write'], gitCleanLogic),
+  logic: withToolAuth(['tool:git:write'], createToolHandler(gitCleanLogic)),
   responseFormatter,
 };

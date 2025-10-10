@@ -5,17 +5,17 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import { resolveWorkingDirectory } from '../utils/git-validators.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import {
   PathSchema,
   RemoteNameSchema,
   BranchNameSchema,
 } from '../schemas/common.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_pull';
 const TOOL_TITLE = 'Git Pull';
@@ -56,29 +56,8 @@ type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitPullLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, targetPath, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git pull', { ...appContext, toolInput: input });
-
-  const { container } = await import('tsyringe');
-  const {
-    StorageService: StorageServiceToken,
-    GitProviderFactory: GitProviderFactoryToken,
-  } = await import('@/container/tokens.js');
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
-  const targetPath = await resolveWorkingDirectory(
-    input.path,
-    appContext,
-    storage,
-  );
-
   const pullOptions: {
     remote?: string;
     branch?: string;
@@ -152,6 +131,6 @@ export const gitPullTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: false },
-  logic: withToolAuth(['tool:git:write'], gitPullLogic),
+  logic: withToolAuth(['tool:git:write'], createToolHandler(gitPullLogic)),
   responseFormatter,
 };

@@ -7,11 +7,13 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
+import { logger } from '@/utils/index.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 import { config } from '@/config/index.js';
 
 const TOOL_NAME = 'git_wrapup_instructions';
@@ -98,25 +100,18 @@ Execute the following steps sequentially. Do not proceed until the prior step is
 
 /**
  * Load custom instructions from file or use defaults
+ * This is called at module initialization time to avoid file I/O on every request
  */
-function loadInstructions(
-  filePath: string | undefined,
-  context: RequestContext,
-): string {
+function loadInstructions(filePath: string | undefined): string {
   if (!filePath) {
-    logger.debug('No custom instructions path configured, using default.', {
-      ...context,
-    });
+    logger.debug('No custom instructions path configured, using default.');
     return DEFAULT_WRAPUP_INSTRUCTIONS;
   }
 
   try {
     const resolvedPath = path.resolve(filePath);
     logger.debug(
-      `Attempting to load custom instructions from ${resolvedPath}`,
-      {
-        ...context,
-      },
+      `Loading custom instructions from ${resolvedPath} at module initialization`,
     );
     return readFileSync(resolvedPath, 'utf-8');
   } catch (error) {
@@ -124,43 +119,23 @@ function loadInstructions(
       error instanceof Error ? error.message : 'An unknown error occurred';
     logger.warning(
       `Failed to load custom instructions from '${filePath}': ${errorMessage}. Falling back to default instructions.`,
-      { ...context, error },
     );
     return DEFAULT_WRAPUP_INSTRUCTIONS;
   }
 }
 
+// Load instructions once at module initialization (optimization)
+const baseInstructions = loadInstructions(config.git.wrapupInstructionsPath);
+
 async function gitWrapupInstructionsLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, storage, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git wrapup instructions', {
-    ...appContext,
-    toolInput: input,
-  });
-
-  // Resolve dependencies via DI
-  const { container } = await import('tsyringe');
-  const {
-    StorageService: StorageServiceToken,
-    GitProviderFactory: GitProviderFactoryToken,
-  } = await import('@/container/tokens.js');
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
   // Graceful degradation for tenantId
   const tenantId = appContext.tenantId || 'default-tenant';
 
-  // Load instructions (custom or default)
-  let finalInstructions = loadInstructions(
-    config.git.wrapupInstructionsPath,
-    appContext,
-  );
+  // Start with base instructions loaded at module initialization
+  let finalInstructions = baseInstructions;
 
   // Add optional instructions
   if (input.updateAgentMetaFiles) {
@@ -188,11 +163,6 @@ async function gitWrapupInstructionsLogic(
     const workingDir = await storage.get<string>(storageKey, appContext);
 
     if (workingDir) {
-      logger.debug('Getting git status for wrapup instructions', {
-        ...appContext,
-        workingDir,
-      });
-
       const result = await provider.status(
         { includeUntracked: true },
         {
@@ -218,7 +188,6 @@ async function gitWrapupInstructionsLogic(
     } else {
       gitStatusError =
         'No working directory set for session, git status skipped.';
-      logger.info(gitStatusError, { ...appContext });
     }
   } catch (error) {
     const errorMessage =
@@ -279,6 +248,9 @@ export const gitWrapupInstructionsTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: true },
-  logic: withToolAuth(['tool:git:read'], gitWrapupInstructionsLogic),
+  logic: withToolAuth(
+    ['tool:git:read'],
+    createToolHandler(gitWrapupInstructionsLogic, { skipPathResolution: true }),
+  ),
   responseFormatter,
 };

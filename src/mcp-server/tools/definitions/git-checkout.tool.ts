@@ -5,9 +5,6 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import { resolveWorkingDirectory } from '../utils/git-validators.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import {
   PathSchema,
@@ -15,8 +12,11 @@ import {
   CommitRefSchema,
   ForceSchema,
 } from '../schemas/common.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_checkout';
 const TOOL_TITLE = 'Git Checkout';
@@ -61,30 +61,8 @@ type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitCheckoutLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, targetPath, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git checkout', { ...appContext, toolInput: input });
-
-  // Resolve working directory and get provider via DI
-  const { container } = await import('tsyringe');
-  const {
-    StorageService: StorageServiceToken,
-    GitProviderFactory: GitProviderFactoryToken,
-  } = await import('@/container/tokens.js');
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
-  const targetPath = await resolveWorkingDirectory(
-    input.path,
-    appContext,
-    storage,
-  );
-
   // Build options object with only defined properties
   const checkoutOptions: {
     target: string;
@@ -94,14 +72,10 @@ async function gitCheckoutLogic(
     track?: boolean;
   } = {
     target: input.target,
+    createBranch: input.createBranch,
+    force: input.force,
   };
 
-  if (input.createBranch !== undefined) {
-    checkoutOptions.createBranch = input.createBranch;
-  }
-  if (input.force !== undefined) {
-    checkoutOptions.force = input.force;
-  }
   if (input.paths !== undefined) {
     checkoutOptions.paths = input.paths;
   }
@@ -158,6 +132,6 @@ export const gitCheckoutTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: false },
-  logic: withToolAuth(['tool:git:write'], gitCheckoutLogic),
+  logic: withToolAuth(['tool:git:write'], createToolHandler(gitCheckoutLogic)),
   responseFormatter,
 };

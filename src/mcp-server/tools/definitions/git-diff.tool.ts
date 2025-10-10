@@ -5,13 +5,13 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import { resolveWorkingDirectory } from '../utils/git-validators.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { PathSchema, CommitRefSchema } from '../schemas/common.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_diff';
 const TOOL_TITLE = 'Git Diff';
@@ -82,30 +82,8 @@ type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitDiffLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, targetPath, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git diff', { ...appContext, toolInput: input });
-
-  // Resolve working directory and get provider via DI
-  const { container } = await import('tsyringe');
-  const {
-    StorageService: StorageServiceToken,
-    GitProviderFactory: GitProviderFactoryToken,
-  } = await import('@/container/tokens.js');
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
-  const targetPath = await resolveWorkingDirectory(
-    input.path,
-    appContext,
-    storage,
-  );
-
   // Build options object with only defined properties
   const diffOptions: {
     target?: string;
@@ -116,7 +94,13 @@ async function gitDiffLogic(
     nameOnly?: boolean;
     stat?: boolean;
     contextLines?: number;
-  } = {};
+  } = {
+    staged: input.staged,
+    includeUntracked: input.includeUntracked,
+    nameOnly: input.nameOnly,
+    stat: input.stat,
+    contextLines: input.contextLines,
+  };
 
   if (input.target !== undefined) {
     diffOptions.target = input.target;
@@ -126,21 +110,6 @@ async function gitDiffLogic(
   }
   if (input.paths !== undefined) {
     diffOptions.paths = input.paths;
-  }
-  if (input.staged !== undefined) {
-    diffOptions.staged = input.staged;
-  }
-  if (input.includeUntracked !== undefined) {
-    diffOptions.includeUntracked = input.includeUntracked;
-  }
-  if (input.nameOnly !== undefined) {
-    diffOptions.nameOnly = input.nameOnly;
-  }
-  if (input.stat !== undefined) {
-    diffOptions.stat = input.stat;
-  }
-  if (input.contextLines !== undefined) {
-    diffOptions.contextLines = input.contextLines;
   }
 
   const result = await provider.diff(diffOptions, {
@@ -189,6 +158,6 @@ export const gitDiffTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: true },
-  logic: withToolAuth(['tool:git:read'], gitDiffLogic),
+  logic: withToolAuth(['tool:git:read'], createToolHandler(gitDiffLogic)),
   responseFormatter,
 };

@@ -5,9 +5,6 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import { resolveWorkingDirectory } from '../utils/git-validators.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import {
   PathSchema,
@@ -16,8 +13,11 @@ import {
   ForceSchema,
   AllSchema,
 } from '../schemas/common.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_branch';
 const TOOL_TITLE = 'Git Branch';
@@ -88,30 +88,8 @@ type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitBranchLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, targetPath, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git branch', { ...appContext, toolInput: input });
-
-  // Resolve working directory and get provider via DI
-  const { container } = await import('tsyringe');
-  const {
-    StorageService: StorageServiceToken,
-    GitProviderFactory: GitProviderFactoryToken,
-  } = await import('@/container/tokens.js');
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
-  const targetPath = await resolveWorkingDirectory(
-    input.path,
-    appContext,
-    storage,
-  );
-
   // Handle show-current operation separately (lightweight, no need for full branch call)
   if (input.operation === 'show-current') {
     const result = await provider.branch(
@@ -138,6 +116,16 @@ async function gitBranchLogic(
   }
 
   // Build options object with only defined properties
+  const {
+    path: _path,
+    operation,
+    name,
+    newName,
+    merged: _merged,
+    noMerged: _noMerged,
+    ...rest
+  } = input;
+
   const branchOptions: {
     mode: 'list' | 'create' | 'delete' | 'rename';
     branchName?: string;
@@ -146,23 +134,23 @@ async function gitBranchLogic(
     force?: boolean;
     remote?: boolean;
   } = {
-    mode: input.operation as 'list' | 'create' | 'delete' | 'rename',
+    mode: operation as 'list' | 'create' | 'delete' | 'rename',
   };
 
-  if (input.name !== undefined) {
-    branchOptions.branchName = input.name;
+  if (name !== undefined) {
+    branchOptions.branchName = name;
   }
-  if (input.newName !== undefined) {
-    branchOptions.newBranchName = input.newName;
+  if (newName !== undefined) {
+    branchOptions.newBranchName = newName;
   }
-  if (input.startPoint !== undefined) {
-    branchOptions.startPoint = input.startPoint;
+  if (rest.startPoint !== undefined) {
+    branchOptions.startPoint = rest.startPoint;
   }
-  if (input.force !== undefined) {
-    branchOptions.force = input.force;
+  if (rest.force !== undefined) {
+    branchOptions.force = rest.force;
   }
-  if (input.all !== undefined || input.remote !== undefined) {
-    branchOptions.remote = input.remote || input.all;
+  if (rest.all !== undefined || rest.remote !== undefined) {
+    branchOptions.remote = rest.remote || rest.all;
   }
 
   const result = await provider.branch(branchOptions, {
@@ -251,6 +239,6 @@ export const gitBranchTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: false },
-  logic: withToolAuth(['tool:git:write'], gitBranchLogic),
+  logic: withToolAuth(['tool:git:write'], createToolHandler(gitBranchLogic)),
   responseFormatter,
 };

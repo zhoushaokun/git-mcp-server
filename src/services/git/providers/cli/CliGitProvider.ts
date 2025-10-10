@@ -98,6 +98,7 @@ import {
   executeWorktree,
 } from './operations/index.js';
 import { executeGitCommand } from './utils/git-executor.js';
+import { validateGitRepository } from './utils/git-validators.js';
 import { isGitNotFoundError } from './utils/error-mapper.js';
 
 /**
@@ -459,6 +460,15 @@ export class CliGitProvider extends BaseGitProvider implements IGitProvider {
   // ========================================================================
   // Additional Operations
   // ========================================================================
+
+  async validateRepository(
+    path: string,
+    context: GitOperationContext,
+  ): Promise<void> {
+    this.logOperationStart('validateRepository', context, { path });
+    await validateGitRepository(path, context.requestContext);
+    this.logOperationSuccess('validateRepository', context, { path });
+  }
 
   async reset(
     options: GitResetOptions,

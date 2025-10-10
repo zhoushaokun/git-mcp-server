@@ -437,6 +437,25 @@ export interface IGitProvider {
   // ========================================================================
 
   /**
+   * Validate if a given path is a valid Git repository.
+   *
+   * This method checks if the specified path is within a git working directory.
+   * It's used by tools that need to verify repository validity before operations.
+   *
+   * @param path - The absolute path to check
+   * @param context - Operation context for logging
+   * @returns Promise resolving to void if valid (throws on failure)
+   * @throws {McpError} If the path is not a valid git repository
+   *
+   * @example
+   * ```typescript
+   * await provider.validateRepository('/path/to/repo', context);
+   * // Throws McpError if not a git repository
+   * ```
+   */
+  validateRepository(path: string, context: GitOperationContext): Promise<void>;
+
+  /**
    * Reset current HEAD to specified state.
    *
    * @param options - Reset mode and target

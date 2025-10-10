@@ -5,13 +5,13 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import { resolveWorkingDirectory } from '../utils/git-validators.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { PathSchema, AllSchema } from '../schemas/common.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_add';
 const TOOL_TITLE = 'Git Add';
@@ -50,49 +50,15 @@ type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitAddLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, targetPath, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git add', { ...appContext, toolInput: input });
+  // Build options object using modern spread syntax
 
-  // Resolve working directory and get provider via DI
-  const { container } = await import('tsyringe');
-  const {
-    StorageService: StorageServiceToken,
-    GitProviderFactory: GitProviderFactoryToken,
-  } = await import('@/container/tokens.js');
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
-  const targetPath = await resolveWorkingDirectory(
-    input.path,
-    appContext,
-    storage,
-  );
-
-  // Build options object with only defined properties
-  const addOptions: {
-    paths: string[];
-    update?: boolean;
-    all?: boolean;
-    force?: boolean;
-  } = {
-    paths: input.files,
+  const { path: _path, files, ...rest } = input;
+  const addOptions = {
+    paths: files,
+    ...rest,
   };
-
-  if (input.update !== undefined) {
-    addOptions.update = input.update;
-  }
-  if (input.all !== undefined) {
-    addOptions.all = input.all;
-  }
-  if (input.force !== undefined) {
-    addOptions.force = input.force;
-  }
 
   const result = await provider.add(addOptions, {
     workingDirectory: targetPath,
@@ -131,6 +97,6 @@ export const gitAddTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: false },
-  logic: withToolAuth(['tool:git:write'], gitAddLogic),
+  logic: withToolAuth(['tool:git:write'], createToolHandler(gitAddLogic)),
   responseFormatter,
 };

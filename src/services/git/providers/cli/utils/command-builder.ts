@@ -137,24 +137,31 @@ const SAFE_GIT_OPTIONS = new Set([
 /**
  * Validate git command arguments for safety.
  *
- * This function implements multi-layered security validation:
- * 1. Detects shell injection characters (;, |, $, backticks, etc.)
- * 2. Validates option flags against a known safe list
- * 3. Prevents directory traversal attempts
+ * SECURITY MODEL:
+ * Since we use Bun.spawn() with array arguments (not shell strings), we are
+ * inherently protected from shell injection attacks. Characters like ;, |, $,
+ * etc. cannot be used for command chaining because arguments are passed
+ * directly to the git process, not interpreted by a shell.
+ *
+ * This function focuses on Git-specific security concerns:
+ * 1. Null bytes (universally dangerous in many contexts)
+ * 2. Option flag validation (prevent option injection)
+ * 3. Path safety (handled elsewhere with sanitization utilities)
+ *
+ * WHAT WE DON'T NEED TO VALIDATE:
+ * - Newlines in commit messages (safe with array spawn, required for multi-line messages)
+ * - Shell metacharacters like ;, |, $, <, > (safe with array spawn)
+ * - Backticks and $() (safe with array spawn)
  *
  * @param args - Arguments to validate
  * @throws Error if arguments contain unsafe patterns
  */
 export function validateGitArgs(args: string[]): void {
   for (const arg of args) {
-    // Critical: Prevent shell command injection characters
-    // These could be used to chain commands or execute arbitrary code
-    // Note: Parentheses () are allowed as they're safe in git format strings
-    // like --format=%(refname) and don't enable command injection when passed as arguments
-    if (/[;&|`$<>]/.test(arg)) {
-      throw new Error(
-        `Unsafe shell character detected in git argument: ${arg}`,
-      );
+    // Critical: Prevent null bytes which can cause issues in many contexts
+    // Null bytes can truncate strings unexpectedly and bypass security checks
+    if (arg.includes('\0')) {
+      throw new Error(`Null byte detected in git argument: ${arg}`);
     }
 
     // Validate option flags (arguments starting with -)

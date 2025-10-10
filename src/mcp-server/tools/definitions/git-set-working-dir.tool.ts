@@ -5,12 +5,12 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { logger, type RequestContext } from '@/utils/index.js';
-import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
+import type { ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import type { StorageService } from '@/storage/core/StorageService.js';
-import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
-import { validateGitRepository } from '@/services/git/providers/cli/utils/git-validators.js';
+import {
+  createToolHandler,
+  type ToolLogicDependencies,
+} from '../utils/toolHandlerFactory.js';
 
 const TOOL_NAME = 'git_set_working_dir';
 const TOOL_TITLE = 'Git Set Working Directory';
@@ -45,46 +45,22 @@ type ToolOutput = z.infer<typeof OutputSchema>;
 
 async function gitSetWorkingDirLogic(
   input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
+  { provider, storage, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
-  logger.debug('Executing git set working directory', {
-    ...appContext,
-    toolInput: input,
-  });
-
-  // Resolve dependencies via DI
-  const { container } = await import('tsyringe');
-  const {
-    StorageService: StorageServiceToken,
-    GitProviderFactory: GitProviderFactoryToken,
-  } = await import('@/container/tokens.js');
-
-  const storage = container.resolve<StorageService>(StorageServiceToken);
-  const factory = container.resolve<GitProviderFactory>(
-    GitProviderFactoryToken,
-  );
-  const provider = await factory.getProvider();
-
   // Graceful degradation for tenantId
   const tenantId = appContext.tenantId || 'default-tenant';
 
-  // Validate git repository if requested
+  // Validate git repository if requested (using provider interface instead of direct CLI import)
   if (input.validateGitRepo) {
     try {
-      await validateGitRepository(input.path, appContext);
-      logger.debug('Git repository validation passed', {
-        ...appContext,
-        path: input.path,
+      await provider.validateRepository(input.path, {
+        workingDirectory: input.path,
+        requestContext: appContext,
+        tenantId,
       });
     } catch (error) {
       // If validation fails and initializeIfNotPresent is true, initialize the repo
       if (input.initializeIfNotPresent) {
-        logger.info('Initializing git repository', {
-          ...appContext,
-          path: input.path,
-        });
-
         await provider.init(
           {
             path: input.path,
@@ -97,11 +73,6 @@ async function gitSetWorkingDirLogic(
             tenantId,
           },
         );
-
-        logger.info('Git repository initialized', {
-          ...appContext,
-          path: input.path,
-        });
       } else {
         // Re-throw validation error if initializeIfNotPresent is false
         throw error;
@@ -112,12 +83,6 @@ async function gitSetWorkingDirLogic(
   // Store the working directory in session storage
   const storageKey = `session:workingDir:${tenantId}`;
   await storage.set(storageKey, input.path, appContext);
-
-  logger.info('Session working directory set', {
-    ...appContext,
-    path: input.path,
-    tenantId,
-  });
 
   return {
     success: true,
@@ -146,6 +111,9 @@ export const gitSetWorkingDirTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: { readOnlyHint: false },
-  logic: withToolAuth(['tool:git:write'], gitSetWorkingDirLogic),
+  logic: withToolAuth(
+    ['tool:git:write'],
+    createToolHandler(gitSetWorkingDirLogic, { skipPathResolution: true }),
+  ),
   responseFormatter,
 };
