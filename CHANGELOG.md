@@ -2,7 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
-## v2.3.5 - 2025-09-29ig.json` to improve compatibility with the Bun runtime.
+## v2.4.0 - 2025-10-09
+
+### Alignment
+- Aligned with [mcp-ts-template](https://github.com/cyanheads/mcp-ts-template) v2.3.5
+
+### Added
+
+- **Architectural Foundation**:
+  - **Dependency Injection**: Integrated `tsyringe` for robust dependency injection, decoupling services and tools. A central DI `container` now manages object lifetimes.
+  - **Service/Provider Pattern**: Introduced a standardized service and provider pattern (`src/services/`, `src/storage/`) for abstracting external integrations and data persistence.
+  - **Declarative Definitions**: Resources and tools are now self-contained, declarative `ToolDefinition` and `ResourceDefinition` objects in `src/mcp-server/tools/definitions/` and `src/mcp-server/resources/definitions/`, respectively. This simplifies registration and improves modularity.
+- **Core Utilities**:
+  - **Observability**: Added `performance` and `telemetry` utilities for tracing and metrics, including `measureToolExecution` for automatic performance tracking.
+  - **Runtime Helpers**: New utilities for runtime detection (`isBun`, `isCloudflareWorker`) and startup banners.
+  - **Health Checks**: A new internal health check utility for verifying service status.
+- **Authorization**: Implemented `withToolAuth` and `withResourceAuth` wrapper functions to apply scope-based authorization declaratively to tools and resources.
+- **Build & Development**:
+  - **Bun**: Fully migrated to `bun` for dependency management, scripting, and runtime execution, replacing `npm` and `tsx`.
+  - **Devcheck Script**: Added a new `devcheck` script (`scripts/devcheck.ts`) for comprehensive quality checks (lint, format, typecheck, audit).
+
+### Changed
+
+- **Major Architectural Refactor**: The entire server has been overhauled to align with the `mcp-ts-template v2.3.5` architecture. This is a breaking change for the internal structure but maintains external API compatibility.
+  - **File Structure**: Massively reorganized the `src` directory to enforce a strict separation of concerns, with new top-level directories for `container`, `services`, `storage`, and `mcp-server`.
+  - **Tool Registration**: The previous registration system (`registration.ts` files) has been replaced by a barrel export (`index.ts`) in the `definitions` directories, which is automatically consumed by the DI container.
+  - **Configuration**: Enhanced `src/config/index.ts` with more detailed Zod validation and runtime-specific configurations.
+  - **Transports**: Refactored transport management (`src/mcp-server/transports/`) with a unified `TransportManager` and a clear `ITransport` interface.
+- **Error Handling**: Centralized error handling logic into `src/utils/internal/error-handler/`, improving consistency.
+
+### Removed
+
+- **Legacy Tool Structure**: Deleted the entire old tool directory structure (`src/mcp-server/tools/[toolName]/{index.ts, logic.ts, registration.ts}`). All tools were rewritten as declarative definitions.
+- **Legacy Resource Structure**: Deleted the old resource directory structure for `gitWorkingDir`.
+- **Legacy Transport Core**: Removed outdated transport management files from `src/mcp-server/transports/core/`.
+- **Build & Config Files**: Removed `package-lock.json`, `.ncurc.json`, `Dockerfile`, and `tsconfig.typedoc.json`, which are no longer needed with the `bun`-based workflow.
+
+## v2.3.5 - 2025-09-29
 
 ### Changed
 
