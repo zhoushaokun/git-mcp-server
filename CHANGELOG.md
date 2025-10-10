@@ -2,9 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.1 - 2025-10-10
+
+### Added
+
+- **Git Provider Architecture**:
+  - Implemented a new provider-based architecture for all Git operations, centralizing command execution in `src/services/git`.
+  - Introduced `IGitProvider` interface and a `CliGitProvider` implementation.
+  - Added a `GitProviderFactory` to manage provider selection.
+- **New Git Tools**:
+  - Added `git_blame` to show line-by-line authorship.
+  - Added `git_reflog` to view reference logs.
+  - Added `git_clean` to remove untracked files.
+  - Added `git_init`, `git_clone`, and `git_set_working_dir` as top-level tools.
+  - Added `git_status` with a more robust output parser.
+- **Configuration**: Added new environment variables for Git provider configuration (`GIT_PROVIDER`, `GIT_SIGN_COMMITS`, etc.) in `.env.example`.
+- **Validation**: Added a suite of git-specific validators in `src/mcp-server/tools/utils/git-validators.ts`.
+
+### Changed
+
+- **Major Architectural Refactor**:
+  - All existing Git tools were refactored to use the new `GitProvider` service, removing direct CLI calls from the tool logic.
+  - The `git-status` tool was significantly improved with a new parser for porcelain v2 format.
+- **Documentation**:
+  - Overhauled `AGENTS.md` and `CLAUDE.md` to document the new provider architecture, validator locations, and service layer boundaries.
+  - Massively expanded `docs/migration-guide.md` with a detailed, phased plan for the architectural migration.
+  - Updated `docs/tree.md` to reflect the new file structure.
+
+### Removed
+
+- **Template Tools**: Removed all template example tools (`template-cat-fact`, `template-code-review-sampling`, `template-echo-message`, `template-image-test`, `template-madlibs-elicitation`) and their associated tests to focus the server on Git operations.
+
 ## v2.4.0 - 2025-10-09
 
 ### Alignment
+
 - Aligned with [mcp-ts-template](https://github.com/cyanheads/mcp-ts-template) v2.3.5
 
 ### Added
