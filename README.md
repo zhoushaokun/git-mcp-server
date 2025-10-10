@@ -219,6 +219,53 @@ The server provides resources that offer contextual information about the Git en
 | :------------------------ | :-------------------------------------------------------------------------------------------- |
 | `git://working-directory` | Returns the currently configured working directory for the session. Shows `NOT_SET` if unset. |
 
+## 🎯 Prompts
+
+The server provides structured prompt templates that guide AI agents through complex workflows:
+
+| Prompt Name    | Description                                                                                                                                          | Parameters                                                                                              |
+| :------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------ |
+| `git_wrapup`   | A systematic workflow protocol for completing git sessions. Guides agents through reviewing changes, updating documentation, and creating commits. | `changelogPath`, `skipDocumentation`, `createTag`, `updateAgentFiles`                                   |
+
+### Using Prompts
+
+Prompts provide pre-configured workflows that agents can invoke to follow best practices. For example, the `git_wrapup` prompt creates a structured checklist for:
+- Analyzing repository changes with `git_diff`
+- Updating `CHANGELOG.md` with version entries
+- Reviewing and updating documentation
+- Creating atomic, conventional commits
+- Verifying completion with `git_status`
+
+Prompts are MCP primitives that LLM clients can discover and invoke through the protocol.
+
+## 📤 Understanding Tool Responses
+
+This server follows a dual-output architecture for all tools:
+
+### What Users See (Human-Readable)
+When you invoke a tool through your MCP client, you see a **formatted summary** designed for human consumption. For example, `git_status` might show:
+```
+# Git Status: main
+
+## Staged (2)
+- src/index.ts
+- README.md
+
+## Unstaged (1)
+- package.json
+```
+
+### What the LLM Sees (Complete Structured Data)
+Behind the scenes, the LLM receives **complete structured data** via the `responseFormatter` function. This includes:
+- All metadata (commit hashes, timestamps, authors)
+- Full file lists and change details
+- Hierarchical summaries with markdown formatting
+- Everything needed to answer follow-up questions
+
+**Why This Matters**: The LLM can answer detailed questions like "Who made the last commit?" or "What files changed in commit abc123?" because it has access to the full dataset, even if you only saw a summary.
+
+**For Developers**: When creating custom tools, always include complete data in your `responseFormatter`. Balance human-readable summaries with comprehensive structured information. See [`CLAUDE.md`](CLAUDE.md) for response formatter best practices.
+
 ## 🧑‍💻 Agent Development Guide
 
 For strict rules when using this server with an AI agent, refer to the **`CLAUDE.md`** and **`AGENTS.md`** files in this repository. Key principles include:
