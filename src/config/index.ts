@@ -165,6 +165,16 @@ const ConfigSchema = z.object({
       .default('in-memory'),
     filesystemPath: z.string().default('./.storage'), // This remains, but will only be used if providerType is 'filesystem'
   }),
+  git: z.object({
+    provider: z.preprocess(
+      emptyStringAsUndefined,
+      z.enum(['auto', 'cli', 'isomorphic']).default('auto'),
+    ),
+    signCommits: z.coerce.boolean().default(false),
+    wrapupInstructionsPath: z.string().optional(),
+    maxCommandTimeoutMs: z.coerce.number().default(30000),
+    maxBufferSizeMb: z.coerce.number().default(10),
+  }),
   openTelemetry: z.object({
     enabled: z.coerce.boolean().default(false),
     serviceName: z.string(),
@@ -286,6 +296,13 @@ const parseConfig = () => {
     storage: {
       providerType: env.STORAGE_PROVIDER_TYPE,
       filesystemPath: env.STORAGE_FILESYSTEM_PATH,
+    },
+    git: {
+      provider: env.GIT_PROVIDER,
+      signCommits: env.GIT_SIGN_COMMITS,
+      wrapupInstructionsPath: env.GIT_WRAPUP_INSTRUCTIONS_PATH,
+      maxCommandTimeoutMs: env.GIT_MAX_COMMAND_TIMEOUT_MS,
+      maxBufferSizeMb: env.GIT_MAX_BUFFER_SIZE_MB,
     },
     openTelemetry: {
       enabled: env.OTEL_ENABLED,

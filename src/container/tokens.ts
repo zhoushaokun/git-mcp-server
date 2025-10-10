@@ -18,3 +18,5 @@ export const RateLimiterService = Symbol('RateLimiterService');
 export const TransportManagerToken = Symbol('TransportManager');
 export const SupabaseAdminClient = Symbol('SupabaseAdminClient');
 export const SpeechService = Symbol('SpeechService');
+export const GitProvider = Symbol('IGitProvider');
+export const GitProviderFactory = Symbol('GitProviderFactory');

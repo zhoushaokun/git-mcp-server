@@ -11,6 +11,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { parseConfig } from '@/config/index.js';
 import {
   AppConfig,
+  GitProvider,
+  GitProviderFactory as GitProviderFactoryToken,
   LlmProvider,
   Logger,
   RateLimiterService,
@@ -19,6 +21,7 @@ import {
   StorageProvider,
   SupabaseAdminClient,
 } from '@/container/tokens.js';
+import { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
 import { SpeechService as SpeechServiceClass } from '@/services/speech/index.js';
@@ -134,6 +137,21 @@ export const registerCoreServices = () => {
           : undefined;
 
       return new SpeechServiceClass(ttsConfig, sttConfig);
+    },
+  });
+
+  // Git Provider Factory (singleton)
+  container.register(GitProviderFactoryToken, {
+    useFactory: () => GitProviderFactory.getInstance(),
+  });
+
+  // Git Provider (resolved via factory)
+  // Note: This is synchronous registration - factory.getProvider() returns a provider instance
+  container.register(GitProvider, {
+    useFactory: (c) => {
+      const factory = c.resolve<GitProviderFactory>(GitProviderFactoryToken);
+      // Return factory itself, tools can await getProvider() when needed
+      return factory;
     },
   });
 
