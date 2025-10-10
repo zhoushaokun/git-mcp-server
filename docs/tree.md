@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-10-10 12:29:40
+Generated on: 2025-10-10 12:44:30
 
 ```
 git-mcp-server
@@ -14,113 +14,6 @@ git-mcp-server
 ├── coverage
 ├── docs
 │   └── tree.md
-├── old_tools
-│   ├── resources
-│   │   └── gitWorkingDir
-│   │       ├── index.ts
-│   │       ├── logic.ts
-│   │       └── registration.ts
-│   └── tools
-│       ├── gitAdd
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitBranch
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitCheckout
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitCherryPick
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitClean
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitClearWorkingDir
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitClone
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitCommit
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitDiff
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitFetch
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitInit
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitLog
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitMerge
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitPull
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitPush
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitRebase
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitRemote
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitReset
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitSetWorkingDir
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitShow
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitStash
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitStatus
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitTag
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       ├── gitWorktree
-│       │   ├── index.ts
-│       │   ├── logic.ts
-│       │   └── registration.ts
-│       └── gitWrapupInstructions
-│           ├── index.ts
-│           ├── logic.ts
-│           └── registration.ts
 ├── scripts
 │   ├── clean.ts
 │   ├── devcheck.ts
