@@ -10,6 +10,9 @@
     // Enable all strict type checking
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
 
     // Module interop for CommonJS compatibility
     "esModuleInterop": true,
@@ -17,7 +20,6 @@
 
     // Output configuration
     "outDir": "./dist",
-    "rootDir": "./src",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -37,7 +39,12 @@
 
     // Node.js specific
     "lib": ["ES2022"],
-    "types": ["node", "bun-types"],
+    "types": [
+      "bun-types",
+      "node",
+      "reflect-metadata",
+      "@cloudflare/workers-types"
+    ],
 
     // Error on unused locals and parameters
     "noUnusedLocals": true,
@@ -49,10 +56,15 @@
 
     // Modern resolution features
     "resolveJsonModule": true,
-    "allowJs": false
+    "allowJs": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "tests/*": ["tests/*"]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"

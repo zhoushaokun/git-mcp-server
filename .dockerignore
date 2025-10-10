@@ -13,6 +13,7 @@ Thumbs.db
 # IDE AND EDITOR FILES
 # =============================================================================
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
@@ -61,6 +62,8 @@ __pycache__/
 develop-eggs/
 eggs/
 .eggs/
+lib/
+lib64/
 parts/
 sdist/
 var/
@@ -98,6 +101,7 @@ target/
 /InstalledFiles
 /pkg/
 /spec/reports/
+/spec/examples.txt
 /test/tmp/
 /test/version_tmp/
 /tmp/
@@ -161,15 +165,19 @@ coverage/
 .env.test.local
 .env.production.local
 .sample-env
+sample.*
 !sample.template.*
 mcp-servers.json
 mcp-config.json
-.wrangler
-worker-configuration.d.ts
 
 # =============================================================================
 # DEMO & EXAMPLE DIRECTORIES
 # =============================================================================
+demo/
+demos/
+example/
+examples/
+samples/
 
 # =============================================================================
 # GENERATED DOCUMENTATION
@@ -179,16 +187,6 @@ docs/api/
 # =============================================================================
 # APPLICATION SPECIFIC
 # =============================================================================
-.storage/
 repomix-output*
 duckdata/
 .claude
-data/
-docs/devdocs.md
-ideas/
-
-# =============================================================================
-# MCP REGISTRY
-# =============================================================================
-.mcpregistry_github_token
-.mcpregistry_registry_token
