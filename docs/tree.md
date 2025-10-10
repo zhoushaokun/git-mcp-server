@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-10-10 04:13:07
+Generated on: 2025-10-10 08:44:13
 
 ```
 git-mcp-server
@@ -14,6 +14,7 @@ git-mcp-server
 ├── coverage
 ├── docs
 │   ├── migration-guide.md
+│   ├── new_arc_tool_review.md
 │   └── tree.md
 ├── old_tools
 │   ├── resources
@@ -159,13 +160,18 @@ git-mcp-server
 │   │   │   └── roots-registration.ts
 │   │   ├── tools
 │   │   │   ├── definitions
-│   │   │   │   ├── index.ts
-│   │   │   │   ├── template-cat-fact.tool.ts
-│   │   │   │   ├── template-code-review-sampling.tool.ts
-│   │   │   │   ├── template-echo-message.tool.ts
-│   │   │   │   ├── template-image-test.tool.ts
-│   │   │   │   └── template-madlibs-elicitation.tool.ts
+│   │   │   │   ├── git-blame.tool.ts
+│   │   │   │   ├── git-clean.tool.ts
+│   │   │   │   ├── git-clone.tool.ts
+│   │   │   │   ├── git-init.tool.ts
+│   │   │   │   ├── git-reflog.tool.ts
+│   │   │   │   ├── git-set-working-dir.tool.ts
+│   │   │   │   ├── git-status.tool.ts
+│   │   │   │   └── index.ts
+│   │   │   ├── schemas
+│   │   │   │   └── common.ts
 │   │   │   ├── utils
+│   │   │   │   ├── git-validators.ts
 │   │   │   │   ├── toolDefinition.ts
 │   │   │   │   └── toolHandlerFactory.ts
 │   │   │   └── tool-registration.ts
@@ -195,6 +201,62 @@ git-mcp-server
 │   │   │   └── manager.ts
 │   │   └── server.ts
 │   ├── services
+│   │   ├── git
+│   │   │   ├── core
+│   │   │   │   ├── BaseGitProvider.ts
+│   │   │   │   ├── GitProviderFactory.ts
+│   │   │   │   └── IGitProvider.ts
+│   │   │   ├── providers
+│   │   │   │   ├── cli
+│   │   │   │   │   ├── operations
+│   │   │   │   │   │   ├── branches
+│   │   │   │   │   │   │   ├── branch.ts
+│   │   │   │   │   │   │   ├── checkout.ts
+│   │   │   │   │   │   │   ├── cherry-pick.ts
+│   │   │   │   │   │   │   ├── merge.ts
+│   │   │   │   │   │   │   └── rebase.ts
+│   │   │   │   │   │   ├── commits
+│   │   │   │   │   │   │   ├── commit.ts
+│   │   │   │   │   │   │   ├── diff.ts
+│   │   │   │   │   │   │   ├── log.ts
+│   │   │   │   │   │   │   └── show.ts
+│   │   │   │   │   │   ├── core
+│   │   │   │   │   │   │   ├── clean.ts
+│   │   │   │   │   │   │   ├── clone.ts
+│   │   │   │   │   │   │   ├── init.ts
+│   │   │   │   │   │   │   └── status.ts
+│   │   │   │   │   │   ├── history
+│   │   │   │   │   │   │   ├── blame.ts
+│   │   │   │   │   │   │   └── reflog.ts
+│   │   │   │   │   │   ├── remotes
+│   │   │   │   │   │   │   ├── fetch.ts
+│   │   │   │   │   │   │   ├── pull.ts
+│   │   │   │   │   │   │   ├── push.ts
+│   │   │   │   │   │   │   └── remote.ts
+│   │   │   │   │   │   ├── staging
+│   │   │   │   │   │   │   ├── add.ts
+│   │   │   │   │   │   │   └── reset.ts
+│   │   │   │   │   │   ├── stash
+│   │   │   │   │   │   │   └── stash.ts
+│   │   │   │   │   │   ├── tags
+│   │   │   │   │   │   │   └── tag.ts
+│   │   │   │   │   │   ├── worktree
+│   │   │   │   │   │   │   └── worktree.ts
+│   │   │   │   │   │   └── index.ts
+│   │   │   │   │   ├── utils
+│   │   │   │   │   │   ├── command-builder.ts
+│   │   │   │   │   │   ├── error-mapper.ts
+│   │   │   │   │   │   ├── git-executor.ts
+│   │   │   │   │   │   ├── git-validators.ts
+│   │   │   │   │   │   ├── index.ts
+│   │   │   │   │   │   └── output-parser.ts
+│   │   │   │   │   ├── CliGitProvider.ts
+│   │   │   │   │   └── index.ts
+│   │   │   │   └── isomorphic
+│   │   │   │       ├── operations
+│   │   │   │       └── utils
+│   │   │   ├── index.ts
+│   │   │   └── types.ts
 │   │   ├── llm
 │   │   │   ├── core
 │   │   │   │   └── ILlmProvider.ts
@@ -289,11 +351,6 @@ git-mcp-server
 │   │   │       └── echo.resource.test.ts
 │   │   ├── tools
 │   │   │   └── definitions
-│   │   │       ├── template-cat-fact.tool.test.ts
-│   │   │       ├── template-code-review-sampling.tool.test.ts
-│   │   │       ├── template-echo-message.tool.test.ts
-│   │   │       ├── template-image-test.tool.test.ts
-│   │   │       └── template-madlibs-elicitation.tool.test.ts
 │   │   └── transports
 │   │       └── auth
 │   │           └── lib
@@ -355,7 +412,6 @@ git-mcp-server
 ├── package.json
 ├── README.md
 ├── repomix.config.json
-├── server copy.json
 ├── server.json
 ├── smithery.yaml
 ├── tsconfig.json

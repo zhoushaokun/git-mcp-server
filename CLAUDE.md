@@ -1,8 +1,8 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.4.0
+**Version:** 2.4.2
 **Target Project:** git-mcp-server
-**Last Updated:** 2025-10-09
+**Last Updated:** 2025-10-10
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
@@ -63,18 +63,18 @@ This document defines the operational rules for contributing to this codebase. F
 
 Separation of concerns maps directly to the filesystem. Always place files in their designated locations.
 
-| Directory                                   | Purpose & Guidance                                                                                                                                                                                                                                                                                                                |
-| :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**.                                                                                                                                                                                                           |
-| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                                                                                                        |
-| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities,** including `ToolDefinition` and tool handler factory.                                                                                                                                                                                                                                                   |
-| **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                                                                                                       |
-| **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth.                                                                             |
-| **`src/services/`**                         | **External service integrations** following a consistent domain-driven pattern:<br>- Each service domain (e.g., `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, and `index.ts`<br>- Use DI for all service dependencies. See **Service Development Pattern** below. |
-| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                                                                                                    |
-| **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                                                                                                           |
-| **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                                |
-| **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                                                                                                    |
+| Directory                                   | Purpose & Guidance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                                                                                                                                                                                                                                                                                                        |
+| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities,** including `ToolDefinition` and tool handler factory.                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth.                                                                                                                                                                                                                                                                             |
+| **`src/services/`**                         | **External service integrations** following a consistent domain-driven pattern:<br>- Each service domain (e.g., `git/`, `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators, factories), `providers/` (implementations), `types.ts`, and `index.ts`<br>- Use DI for all service dependencies. See **Service Development Pattern** below.<br>- **For git-mcp-server:** The `git/` service implements a provider-based architecture with CLI operations organized by domain (see **Git Service Architecture** section). |
+| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                                                                                                                                                                                                                                |
+| **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ---
 
@@ -279,20 +279,15 @@ function goodFormatter(result: GitLogOutput): ContentBlock[] {
  * @module
  */
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
-import { container } from 'tsyringe';
 import { z } from 'zod';
 
-import { StorageService } from '@/container/tokens.js';
-import type { IStorageService } from '@/storage/core/IStorageService.js';
-import type {
-  SdkContext,
-  ToolAnnotations,
-  ToolDefinition,
-} from '@/mcp-server/tools/utils/toolDefinition.js';
+import { logger, type RequestContext } from '@/utils/index.js';
+import { resolveWorkingDirectory } from '../utils/git-validators.js';
+import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { type RequestContext, logger } from '@/utils/index.js';
-import { execGitCommand } from '@/utils/git-helpers.js'; // hypothetical helper
+import { PathSchema } from '../schemas/common.js';
+import type { StorageService } from '@/storage/core/StorageService.js';
+import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
 
 const TOOL_NAME = 'git_status';
 const TOOL_TITLE = 'Git Status';
@@ -304,12 +299,7 @@ const TOOL_ANNOTATIONS: ToolAnnotations = {
 };
 
 const InputSchema = z.object({
-  workingDirectory: z
-    .string()
-    .optional()
-    .describe(
-      'The repository path. Uses session working directory if not provided.',
-    ),
+  path: PathSchema, // Defaults to '.' (session working directory)
 });
 
 const OutputSchema = z.object({
@@ -333,45 +323,50 @@ async function gitStatusLogic(
     toolInput: input,
   });
 
-  // Get working directory from input or session storage
-  let workingDir = input.workingDirectory;
-  if (!workingDir) {
-    const storage = container.resolve<IStorageService>(StorageService);
-    const tenantId = appContext.tenantId || 'default-tenant';
-    workingDir = await storage.get(`session:workingDir:${tenantId}`);
+  // Resolve working directory and get git provider via DI
+  const { container } = await import('tsyringe');
+  const {
+    StorageService: StorageServiceToken,
+    GitProviderFactory: GitProviderFactoryToken,
+  } = await import('@/container/tokens.js');
 
-    if (!workingDir) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        'No working directory specified and no session directory set.',
-      );
-    }
-  }
+  const storage = container.resolve<StorageService>(StorageServiceToken);
+  const factory = container.resolve<GitProviderFactory>(
+    GitProviderFactoryToken,
+  );
+  const provider = await factory.getProvider();
 
-  // Execute git status command
-  const result = await execGitCommand('status', ['--porcelain', '-b'], {
-    cwd: workingDir,
-    context: appContext,
-  });
+  // Helper handles both '.' (session) and absolute paths
+  const targetPath = await resolveWorkingDirectory(
+    input.path,
+    appContext,
+    storage,
+  );
 
-  // Parse the output (simplified example)
-  const lines = result.stdout.split('\n');
-  const branch = lines[0].replace('## ', '').split('...')[0];
-  const staged: string[] = [];
-  const unstaged: string[] = [];
-  const untracked: string[] = [];
+  // Call provider's status method - it handles execution and parsing
+  const result = await provider.status(
+    { includeUntracked: true },
+    {
+      workingDirectory: targetPath,
+      requestContext: appContext,
+      tenantId: appContext.tenantId || 'default-tenant',
+    },
+  );
 
-  lines.slice(1).forEach((line) => {
-    if (!line) return;
-    const status = line.substring(0, 2);
-    const file = line.substring(3);
-
-    if (status[0] !== ' ' && status[0] !== '?') staged.push(file);
-    if (status[1] !== ' ' && status[1] !== '?') unstaged.push(file);
-    if (status === '??') untracked.push(file);
-  });
-
-  return { branch, staged, unstaged, untracked };
+  // Map provider result to tool output
+  return {
+    branch: result.currentBranch || 'detached HEAD',
+    staged: [
+      ...(result.stagedChanges.added || []),
+      ...(result.stagedChanges.modified || []),
+      ...(result.stagedChanges.deleted || []),
+    ],
+    unstaged: [
+      ...(result.unstagedChanges.modified || []),
+      ...(result.unstagedChanges.deleted || []),
+    ],
+    untracked: result.untrackedFiles,
+  };
 }
 
 // Formatter for the final output to the LLM
@@ -417,6 +412,106 @@ export const gitStatusTool: ToolDefinition<
   logic: withToolAuth(['tool:git:read'], gitStatusLogic),
   responseFormatter,
 };
+```
+
+---
+
+#### Working Directory Resolution Pattern (Git-Specific)
+
+**Location:** [`src/mcp-server/tools/utils/git-validators.ts`](src/mcp-server/tools/utils/git-validators.ts)
+
+Git tools need to support both explicit paths and session-based working directories. The `resolveWorkingDirectory()` helper provides this functionality.
+
+**Usage Pattern:**
+
+```ts
+import { resolveWorkingDirectory } from '../utils/git-validators.js';
+import type { StorageService } from '@/storage/core/StorageService.js';
+import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+
+async function myGitToolLogic(
+  input: ToolInput,
+  appContext: RequestContext,
+  _sdkContext: SdkContext,
+): Promise<ToolOutput> {
+  // 1. Resolve dependencies via DI
+  const { container } = await import('tsyringe');
+  const {
+    StorageService: StorageServiceToken,
+    GitProviderFactory: GitProviderFactoryToken,
+  } = await import('@/container/tokens.js');
+
+  const storage = container.resolve<StorageService>(StorageServiceToken);
+  const factory = container.resolve<GitProviderFactory>(
+    GitProviderFactoryToken,
+  );
+  const provider = await factory.getProvider();
+
+  // 2. Resolve working directory (handles '.' and absolute paths)
+  const targetPath = await resolveWorkingDirectory(
+    input.path, // '.' or absolute path
+    appContext, // Request context with optional tenantId
+    storage, // StorageService instance
+  );
+
+  // 3. Use provider for git operations
+  const result = await provider.status(
+    { includeUntracked: true },
+    {
+      workingDirectory: targetPath,
+      requestContext: appContext,
+      tenantId: appContext.tenantId || 'default-tenant',
+    },
+  );
+
+  // ... rest of logic
+}
+```
+
+**How it Works:**
+
+1. **Path is `'.'`:** Loads from `StorageService` using key `session:workingDir:{tenantId}`
+   - Uses graceful degradation: `tenantId || 'default-tenant'`
+   - Throws `ValidationError` if no session directory is set
+
+2. **Path is absolute:** Uses the provided path directly
+
+3. **Security:** Always sanitizes paths to prevent directory traversal attacks
+
+**Storage Key Pattern:**
+
+```
+session:workingDir:{tenantId}
+```
+
+**Common Mistakes to Avoid:**
+
+❌ **DON'T** try to create synchronous wrappers:
+
+```ts
+// BROKEN: Can't await in sync function
+const getWorkingDirectory = () => {
+  return storage.get(...); // Returns Promise, not string!
+};
+```
+
+❌ **DON'T** resolve storage outside tool logic:
+
+```ts
+// WRONG: StorageService requires RequestContext with tenantId
+const storage = container.resolve<StorageService>(StorageService);
+// Can't pass context here - it doesn't exist yet!
+```
+
+✅ **DO** resolve DI inside async tool logic:
+
+```ts
+// CORRECT: Async resolution inside tool logic function
+async function toolLogic(input, appContext, sdkContext) {
+  const { container } = await import('tsyringe');
+  const storage = container.resolve<StorageService>(StorageServiceToken);
+  const path = await resolveWorkingDirectory(input.path, appContext, storage);
+}
 ```
 
 ---
@@ -475,7 +570,7 @@ Export a single `const` of type `ResourceDefinition` with:
 
 All external service integrations (LLM providers, speech services, email, etc.) follow a consistent domain-driven architecture pattern.
 
-**Note for git-mcp-server:** This server does not currently use external service integrations beyond the core storage and utility services. Git operations are performed via direct CLI execution.
+**Note for git-mcp-server:** This server uses the service pattern for git operations through a provider-based architecture. Git operations are implemented via CLI provider with abstraction for future providers (isomorphic-git, API-based, etc.).
 
 #### Standard Service Structure
 
@@ -508,12 +603,12 @@ If your service uses a **single provider pattern**, skip the service class and i
 
 **Decision Matrix:**
 
-| Scenario                               | Pattern                          | Example                                     |
-| -------------------------------------- | -------------------------------- | ------------------------------------------- |
-| Simple CRUD with key-value storage     | Use `StorageService` directly    | User preferences, session working directory |
-| Single external API integration        | Provider only (no service class) | Not used in git-mcp-server                  |
-| Multiple providers for same capability | Service orchestrator             | Not used in git-mcp-server                  |
-| Git CLI operations                     | Direct execution with helpers    | Git command execution utilities             |
+| Scenario                               | Pattern                          | Example                                          |
+| -------------------------------------- | -------------------------------- | ------------------------------------------------ |
+| Simple CRUD with key-value storage     | Use `StorageService` directly    | User preferences, session working directory      |
+| Single external API integration        | Provider only (no service class) | Not used in git-mcp-server                       |
+| Multiple providers for same capability | Service orchestrator + Factory   | Git operations (CLI, isomorphic-git planned)     |
+| Domain operations with abstraction     | Provider pattern with interface  | `IGitProvider` → `CliGitProvider` implementation |
 
 #### Provider Implementation Guidelines
 
@@ -536,17 +631,17 @@ Create a custom provider (instead of using `StorageService`) when:
 
 **For git-mcp-server:**
 
-The server uses `StorageService` for simple session state (working directory persistence). Git repository data is accessed directly through CLI commands, not through storage providers.
+The server uses `StorageService` for simple session state (working directory persistence). Git repository data is accessed through a provider-based architecture.
 
 ```typescript
 // ✅ StorageService is sufficient for git-mcp-server session state:
 const tenantId = appContext.tenantId || 'default-tenant';
 const workingDir = await storage.get(`session:workingDir:${tenantId}`);
 
-// ✅ Git data is accessed via CLI, not storage:
-const status = await execGitCommand('status', ['--porcelain'], {
-  cwd: workingDir,
-});
+// ✅ Git operations through provider pattern:
+const factory = GitProviderFactory.getInstance();
+const provider = await factory.getProvider();
+const status = await provider.status(options, context);
 ```
 
 **When to stick with StorageService:**
@@ -554,6 +649,223 @@ const status = await execGitCommand('status', ['--porcelain'], {
 - Simple key-value data (session working directory, user preferences)
 - Flat data structures without complex relationships
 - Basic CRUD operations without specialized queries
+
+---
+
+### Tool Layer vs Service Layer: Git Operations (git-mcp-server specific)
+
+**IMPORTANT:** Tools MUST use the GitProvider interface for all git operations. Direct git command execution is forbidden in the tool layer.
+
+#### Architecture Boundary
+
+```
+┌─────────────────────────────────────────────────┐
+│           Tool Layer (MCP Tools)                │
+│  - Input validation (Zod schemas)               │
+│  - Path resolution (session storage)            │
+│  - Pure validators (no git execution)           │
+│  - Output formatting for LLM                    │
+│  - Uses: resolveWorkingDirectory()              │
+│  Location: src/mcp-server/tools/                │
+└─────────────────────┬───────────────────────────┘
+                      │
+                      ▼ GitProvider interface
+┌─────────────────────────────────────────────────┐
+│          Service Layer (Git Provider)           │
+│  - Git command execution                        │
+│  - Git-specific validators                      │
+│  - Output parsing                               │
+│  - Error transformation                         │
+│  - Uses: executeGitCommand()                    │
+│  Location: src/services/git/                    │
+└─────────────────────────────────────────────────┘
+```
+
+#### Validator Location Rules
+
+| Validator Type                   | Location                                      | Reason                             |
+| -------------------------------- | --------------------------------------------- | ---------------------------------- |
+| **Path sanitization**            | Tool layer (`git-validators.ts`)              | Security, tool-specific            |
+| **Session directory resolution** | Tool layer (`git-validators.ts`)              | Uses StorageService, tool-specific |
+| **Protected branch checks**      | Tool layer (`git-validators.ts`)              | Pure logic, no git execution       |
+| **File path validation**         | Tool layer (`git-validators.ts`)              | Security, no git execution         |
+| **Commit message format**        | Tool layer (`git-validators.ts`)              | Pure validation, no git execution  |
+| **Git repository validation**    | Service layer (`cli/utils/git-validators.ts`) | Executes `git rev-parse`           |
+| **Branch existence check**       | Service layer (`cli/utils/git-validators.ts`) | Executes `git rev-parse --verify`  |
+| **Clean working dir check**      | Service layer (`cli/utils/git-validators.ts`) | Executes `git status --porcelain`  |
+| **Remote existence check**       | Service layer (`cli/utils/git-validators.ts`) | Executes `git remote get-url`      |
+
+#### Execution Layer Consolidation
+
+As of version 2.4.1, the tool layer **no longer contains git command execution logic**. The deprecated `git-helpers.ts` file has been removed.
+
+**❌ OLD (deprecated):**
+
+```typescript
+// Tool layer directly executing git commands
+import { execGitCommand } from '../utils/git-helpers.js';
+const result = await execGitCommand('status', ['--porcelain'], {
+  cwd,
+  context,
+});
+```
+
+**✅ NEW (required):**
+
+```typescript
+// Tools delegate to service layer via GitProvider
+const factory = container.resolve<GitProviderFactory>(GitProviderFactoryToken);
+const provider = await factory.getProvider();
+const result = await provider.status(options, context);
+```
+
+**Benefits:**
+
+- **Single execution path** - Easier to maintain, debug, and secure
+- **Better abstraction** - Tools don't know if git is CLI, isomorphic, or API-based
+- **Easier testing** - Mock `IGitProvider` interface instead of git commands
+- **Consistent error handling** - All git errors mapped to `McpError` in one place
+
+---
+
+### Git Service Architecture (git-mcp-server specific)
+
+The git service follows a **provider-based architecture** with clear separation between interface, implementations, and operations.
+
+#### Architecture Layers
+
+```
+src/services/git/
+├── core/                          # Abstractions and coordination
+│   ├── IGitProvider.ts           # Provider interface (contract)
+│   ├── BaseGitProvider.ts        # Shared provider functionality
+│   └── GitProviderFactory.ts     # Provider selection and caching
+├── providers/                     # Concrete implementations
+│   ├── cli/                      # CLI-based provider (current)
+│   │   ├── operations/           # Organized git operations
+│   │   ├── utils/                # CLI-specific utilities
+│   │   ├── CliGitProvider.ts     # Main provider class
+│   │   └── index.ts
+│   └── isomorphic/               # Isomorphic-git provider (planned)
+│       ├── operations/
+│       └── ...
+├── types.ts                       # Shared git types and DTOs
+└── index.ts                       # Public API barrel export
+```
+
+#### CLI Operations Organization
+
+The CLI provider organizes git operations by **domain** for better maintainability:
+
+```
+src/services/git/providers/cli/operations/
+├── core/                          # Repository fundamentals
+│   ├── init.ts                   # Initialize repository
+│   ├── clone.ts                  # Clone repository
+│   ├── status.ts                 # Working tree status
+│   └── clean.ts                  # Remove untracked files
+├── staging/                       # Working tree → Index
+│   ├── add.ts                    # Stage changes
+│   └── reset.ts                  # Unstage/reset
+├── commits/                       # Commit history
+│   ├── commit.ts                 # Create commits
+│   ├── log.ts                    # View history
+│   ├── show.ts                   # Show objects
+│   └── diff.ts                   # Show changes
+├── branches/                      # Branch operations
+│   ├── branch.ts                 # List/create/delete
+│   ├── checkout.ts               # Switch branches
+│   ├── merge.ts                  # Merge branches
+│   ├── rebase.ts                 # Rebase branches
+│   └── cherry-pick.ts            # Cherry-pick commits
+├── remotes/                       # Remote operations
+│   ├── remote.ts                 # Manage remotes
+│   ├── fetch.ts                  # Download changes
+│   ├── push.ts                   # Upload changes
+│   └── pull.ts                   # Fetch + integrate
+├── tags/                          # Tag operations
+│   └── tag.ts                    # List/create/delete tags
+├── stash/                         # Stash operations
+│   └── stash.ts                  # Push/pop/apply/drop/clear
+├── worktree/                      # Worktree operations
+│   └── worktree.ts               # Add/list/remove worktrees
+├── history/                       # History inspection
+│   ├── blame.ts                  # Line-by-line authorship
+│   └── reflog.ts                 # Reference logs
+└── index.ts                       # Single barrel export (root only)
+```
+
+**Key Design Principles:**
+
+1. **Logical Grouping**: Operations grouped by domain (core, staging, commits, remotes, etc.)
+2. **Single Responsibility**: Each file handles exactly one operation (one function per file)
+3. **Consistent Structure**: All categories use subdirectories, no mixed patterns
+4. **Single Import Point**: All exports consolidated in root `index.ts` (no nested barrel files)
+5. **Pure Functions**: Each operation is a stateless async function that throws `McpError` on failure
+
+**Operation Function Signature:**
+
+```typescript
+export async function executeOperation(
+  options: GitOperationOptions,
+  context: GitOperationContext,
+  execGit: (
+    args: string[],
+    cwd: string,
+    ctx: RequestContext,
+  ) => Promise<{ stdout: string; stderr: string }>,
+): Promise<GitOperationResult> {
+  // Pure business logic - no try/catch
+  // Throw McpError on failure
+}
+```
+
+#### Provider Selection via Factory
+
+The `GitProviderFactory` handles provider instantiation and selection:
+
+```typescript
+const factory = GitProviderFactory.getInstance();
+const provider = await factory.getProvider({
+  preferredType: GitProviderType.CLI,
+  isServerless: false,
+  requiredCapabilities: ['blame', 'reflog'],
+});
+
+// Provider is cached - subsequent calls return same instance
+const status = await provider.status(options, context);
+```
+
+**Provider Types:**
+
+- **CLI** (`GitProviderType.CLI`): Full feature set, local-only (default)
+- **Isomorphic** (`GitProviderType.ISOMORPHIC`): Core features, edge-compatible (planned)
+- **GitHub API** (`GitProviderType.GITHUB_API`): Cloud-based, GitHub-specific (future)
+- **GitLab API** (`GitProviderType.GITLAB_API`): Cloud-based, GitLab-specific (future)
+
+#### IGitProvider Interface
+
+All providers must implement the `IGitProvider` interface, which defines:
+
+- **Repository operations**: init, clone, status, clean
+- **Commit operations**: add, commit, log, show, diff
+- **Branch operations**: branch, checkout, merge, rebase, cherryPick
+- **Remote operations**: remote, fetch, push, pull
+- **Tag operations**: tag (list/create/delete)
+- **Stash operations**: stash (push/pop/apply/drop/clear)
+- **Worktree operations**: worktree (add/list/remove/move/prune)
+- **Additional operations**: reset, blame, reflog
+
+Each provider declares its **capabilities** through the `GitProviderCapabilities` interface, allowing consumers to check feature support before calling methods.
+
+#### BaseGitProvider Utilities
+
+The `BaseGitProvider` abstract class provides shared functionality:
+
+- **Capability checking**: `checkCapability(capability)` throws if unsupported
+- **Logging helpers**: `logOperationStart()`, `logOperationSuccess()`
+- **Validation**: `validateWorkingDirectory()`, `createOperationContext()`
+- **Error handling**: `extractErrorMessage()`, `isGitNotFoundError()`
 
 ---
 
