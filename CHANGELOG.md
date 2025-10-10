@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.0-alpha06 - 2025-10-10
+
+### Added
+
+- **Unit Tests**: Added a comprehensive suite of unit tests for core Git tools, including `git_add`, `git_branch`, `git_commit`, `git_log`, and `git_status`. This improves code quality and regression prevention.
+- **Test Infrastructure**: Established a new test directory structure under `tests/mcp-server/tools/` with helpers for mocking, assertions, and test context setup.
+
+### Changed
+
+- **Code Refinements**: Minor import reordering in `git-branch.tool.ts` and `git-diff.tool.ts` due to auto-formatting.
+- **Documentation**: Updated `docs/tree.md` to reflect the new test file structure.
+
 ## v2.4.0-alpha05 - 2025-10-10
 
 ### Changed
