@@ -32,9 +32,7 @@ const InputSchema = z.object({
   branch: BranchNameSchema.optional().describe(
     'Branch name (default: current branch).',
   ),
-  force: ForceSchema.describe(
-    'Force push (DANGEROUS - can overwrite remote history).',
-  ),
+  force: ForceSchema.describe('Force push (overwrites remote history).'),
   forceWithLease: z
     .boolean()
     .default(false)
@@ -47,6 +45,13 @@ const InputSchema = z.object({
     .describe('Set upstream tracking relationship for the branch.'),
   tags: z.boolean().default(false).describe('Push all tags to the remote.'),
   dryRun: DryRunSchema,
+  delete: z
+    .boolean()
+    .default(false)
+    .describe('Delete the specified remote branch.'),
+  remoteBranch: BranchNameSchema.optional().describe(
+    'Remote branch name to push to (if different from local branch name).',
+  ),
 });
 
 const OutputSchema = z.object({
@@ -100,6 +105,8 @@ async function gitPushLogic(
     setUpstream?: boolean;
     tags?: boolean;
     dryRun?: boolean;
+    delete?: boolean;
+    remoteBranch?: string;
   } = {};
 
   if (input.remote !== undefined) {
@@ -122,6 +129,12 @@ async function gitPushLogic(
   }
   if (input.dryRun !== undefined) {
     pushOptions.dryRun = input.dryRun;
+  }
+  if (input.delete !== undefined) {
+    pushOptions.delete = input.delete;
+  }
+  if (input.remoteBranch !== undefined) {
+    pushOptions.remoteBranch = input.remoteBranch;
   }
 
   const result = await provider.push(pushOptions, {

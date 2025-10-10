@@ -20,7 +20,15 @@ const TOOL_DESCRIPTION =
 
 const InputSchema = z.object({
   path: PathSchema,
-  upstream: CommitRefSchema.describe('Upstream branch to rebase onto.'),
+  mode: z
+    .enum(['start', 'continue', 'abort', 'skip'])
+    .default('start')
+    .describe(
+      "Rebase operation mode: 'start', 'continue', 'abort', or 'skip'.",
+    ),
+  upstream: CommitRefSchema.optional().describe(
+    'Upstream branch to rebase onto (required for start mode).',
+  ),
   branch: CommitRefSchema.optional().describe(
     'Branch to rebase (default: current branch).',
   ),
@@ -82,15 +90,20 @@ async function gitRebaseLogic(
   );
 
   const rebaseOptions: {
-    upstream: string;
+    mode?: 'start' | 'continue' | 'abort' | 'skip';
+    upstream?: string;
     branch?: string;
     interactive?: boolean;
     onto?: string;
     preserve?: boolean;
-  } = {
-    upstream: input.upstream,
-  };
+  } = {};
 
+  if (input.mode !== undefined) {
+    rebaseOptions.mode = input.mode;
+  }
+  if (input.upstream !== undefined) {
+    rebaseOptions.upstream = input.upstream;
+  }
   if (input.branch !== undefined) {
     rebaseOptions.branch = input.branch;
   }

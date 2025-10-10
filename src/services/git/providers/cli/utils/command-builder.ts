@@ -149,7 +149,9 @@ export function validateGitArgs(args: string[]): void {
   for (const arg of args) {
     // Critical: Prevent shell command injection characters
     // These could be used to chain commands or execute arbitrary code
-    if (/[;&|`$()<>]/.test(arg)) {
+    // Note: Parentheses () are allowed as they're safe in git format strings
+    // like --format=%(refname) and don't enable command injection when passed as arguments
+    if (/[;&|`$<>]/.test(arg)) {
       throw new Error(
         `Unsafe shell character detected in git argument: ${arg}`,
       );

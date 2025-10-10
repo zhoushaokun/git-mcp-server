@@ -36,6 +36,12 @@ const InputSchema = z.object({
     .boolean()
     .default(false)
     .describe('Show diff of staged changes instead of unstaged.'),
+  includeUntracked: z
+    .boolean()
+    .default(false)
+    .describe(
+      'Include untracked files in the diff. Useful for reviewing all upcoming changes.',
+    ),
   nameOnly: z
     .boolean()
     .default(false)
@@ -106,6 +112,7 @@ async function gitDiffLogic(
     source?: string;
     paths?: string[];
     staged?: boolean;
+    includeUntracked?: boolean;
     nameOnly?: boolean;
     stat?: boolean;
     contextLines?: number;
@@ -122,6 +129,9 @@ async function gitDiffLogic(
   }
   if (input.staged !== undefined) {
     diffOptions.staged = input.staged;
+  }
+  if (input.includeUntracked !== undefined) {
+    diffOptions.includeUntracked = input.includeUntracked;
   }
   if (input.nameOnly !== undefined) {
     diffOptions.nameOnly = input.nameOnly;

@@ -9,7 +9,11 @@ import { logger, type RequestContext } from '@/utils/index.js';
 import { resolveWorkingDirectory } from '../utils/git-validators.js';
 import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { PathSchema, CommitRefSchema } from '../schemas/common.js';
+import {
+  PathSchema,
+  CommitRefSchema,
+  MergeStrategySchema,
+} from '../schemas/common.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
 import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
 
@@ -32,10 +36,22 @@ const InputSchema = z.object({
     .boolean()
     .default(false)
     .describe('Continue cherry-pick after resolving conflicts.'),
-  abort: z
+  abort: z.boolean().default(false).describe('Abort cherry-pick operation.'),
+  mainline: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      'For merge commits, specify which parent to follow (1 for first parent, 2 for second, etc.).',
+    ),
+  strategy: MergeStrategySchema.describe(
+    'Merge strategy to use for cherry-pick.',
+  ),
+  signoff: z
     .boolean()
     .default(false)
-    .describe('Abort cherry-pick operation and return to previous state.'),
+    .describe('Add Signed-off-by line to the commit message.'),
 });
 
 const OutputSchema = z.object({
@@ -85,6 +101,9 @@ async function gitCherryPickLogic(
     noCommit?: boolean;
     continueOperation?: boolean;
     abort?: boolean;
+    mainline?: number;
+    strategy?: 'ort' | 'recursive' | 'octopus' | 'ours' | 'subtree';
+    signoff?: boolean;
   } = {
     commits: input.commits,
   };
@@ -97,6 +116,15 @@ async function gitCherryPickLogic(
   }
   if (input.abort !== undefined) {
     cherryPickOptions.abort = input.abort;
+  }
+  if (input.mainline !== undefined) {
+    cherryPickOptions.mainline = input.mainline;
+  }
+  if (input.strategy !== undefined) {
+    cherryPickOptions.strategy = input.strategy;
+  }
+  if (input.signoff !== undefined) {
+    cherryPickOptions.signoff = input.signoff;
   }
 
   const result = await provider.cherryPick(cherryPickOptions, {

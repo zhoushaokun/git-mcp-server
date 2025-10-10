@@ -48,6 +48,20 @@ const InputSchema = z.object({
     .string()
     .optional()
     .describe('New path for the worktree (for move operation).'),
+  detach: z
+    .boolean()
+    .default(false)
+    .describe('Create worktree with detached HEAD (for add operation).'),
+  verbose: z
+    .boolean()
+    .default(false)
+    .describe('Provide detailed output for worktree operations.'),
+  dryRun: z
+    .boolean()
+    .default(false)
+    .describe(
+      'Preview the operation without executing it (for prune operation).',
+    ),
 });
 
 const WorktreeInfoSchema = z.object({
@@ -123,6 +137,9 @@ async function gitWorktreeLogic(
     commitish?: string;
     force?: boolean;
     newPath?: string;
+    detach?: boolean;
+    verbose?: boolean;
+    dryRun?: boolean;
   } = {
     mode: input.mode,
   };
@@ -141,6 +158,15 @@ async function gitWorktreeLogic(
   }
   if (input.newPath !== undefined) {
     worktreeOptions.newPath = input.newPath;
+  }
+  if (input.detach !== undefined) {
+    worktreeOptions.detach = input.detach;
+  }
+  if (input.verbose !== undefined) {
+    worktreeOptions.verbose = input.verbose;
+  }
+  if (input.dryRun !== undefined) {
+    worktreeOptions.dryRun = input.dryRun;
   }
 
   const result = await provider.worktree(worktreeOptions, {

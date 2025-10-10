@@ -28,7 +28,7 @@ export const PathSchema = z
 export const ForceSchema = z
   .boolean()
   .default(false)
-  .describe('Force the operation, bypassing safety checks. Use with caution.');
+  .describe('Force the operation, bypassing safety checks.');
 
 /**
  * Dry-run flag for preview mode

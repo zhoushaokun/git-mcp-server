@@ -45,6 +45,18 @@ const InputSchema = z.object({
     .describe('Allow creating a commit with no changes.'),
   sign: SignSchema,
   noVerify: NoVerifySchema,
+  filesToStage: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'File paths to stage before committing (atomic stage+commit operation).',
+    ),
+  forceUnsignedOnFailure: z
+    .boolean()
+    .default(false)
+    .describe(
+      'If GPG/SSH signing fails, retry the commit without signing instead of failing.',
+    ),
 });
 
 const OutputSchema = z.object({
@@ -98,6 +110,22 @@ async function gitCommitLogic(
     storage,
   );
 
+  // Stage files if requested (atomic operation)
+  if (input.filesToStage && input.filesToStage.length > 0) {
+    logger.debug('Staging files before commit', {
+      ...appContext,
+      filesToStage: input.filesToStage,
+    });
+    await provider.add(
+      { paths: input.filesToStage },
+      {
+        workingDirectory: targetPath,
+        requestContext: appContext,
+        tenantId: appContext.tenantId || 'default-tenant',
+      },
+    );
+  }
+
   // Build options object with only defined properties
   const commitOptions: {
     message: string;
@@ -106,6 +134,7 @@ async function gitCommitLogic(
     allowEmpty?: boolean;
     sign?: boolean;
     noVerify?: boolean;
+    forceUnsignedOnFailure?: boolean;
   } = {
     message: input.message,
   };
@@ -124,6 +153,9 @@ async function gitCommitLogic(
   }
   if (input.noVerify !== undefined) {
     commitOptions.noVerify = input.noVerify;
+  }
+  if (input.forceUnsignedOnFailure !== undefined) {
+    commitOptions.forceUnsignedOnFailure = input.forceUnsignedOnFailure;
   }
 
   const result = await provider.commit(commitOptions, {

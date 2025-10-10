@@ -38,6 +38,10 @@ const InputSchema = z.object({
   message: CommitMessageSchema.optional().describe(
     'Custom merge commit message.',
   ),
+  abort: z
+    .boolean()
+    .default(false)
+    .describe('Abort an in-progress merge that has conflicts.'),
 });
 
 const OutputSchema = z.object({
@@ -86,6 +90,7 @@ async function gitMergeLogic(
     noFastForward?: boolean;
     squash?: boolean;
     message?: string;
+    abort?: boolean;
   } = {
     branch: input.branch,
   };
@@ -101,6 +106,9 @@ async function gitMergeLogic(
   }
   if (input.message !== undefined) {
     mergeOptions.message = input.message;
+  }
+  if (input.abort !== undefined) {
+    mergeOptions.abort = input.abort;
   }
 
   const result = await provider.merge(mergeOptions, {

@@ -31,9 +31,9 @@ export async function executeInit(
       args.push('--bare');
     }
 
-    if (options.initialBranch) {
-      args.push(`--initial-branch=${options.initialBranch}`);
-    }
+    // Default to 'main' if no initial branch is specified
+    const initialBranch = options.initialBranch || 'main';
+    args.push(`--initial-branch=${initialBranch}`);
 
     args.push(options.path);
 
@@ -43,7 +43,7 @@ export async function executeInit(
     const result = {
       success: true,
       path: options.path,
-      initialBranch: options.initialBranch || 'main',
+      initialBranch,
       bare: options.bare || false,
     };
 

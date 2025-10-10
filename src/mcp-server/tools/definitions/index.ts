@@ -8,11 +8,13 @@
 // Git tools - Core
 import { gitBlameTool } from './git-blame.tool.js';
 import { gitCleanTool } from './git-clean.tool.js';
+import { gitClearWorkingDirTool } from './git-clear-working-dir.tool.js';
 import { gitCloneTool } from './git-clone.tool.js';
 import { gitInitTool } from './git-init.tool.js';
 import { gitReflogTool } from './git-reflog.tool.js';
 import { gitSetWorkingDirTool } from './git-set-working-dir.tool.js';
 import { gitStatusTool } from './git-status.tool.js';
+import { gitWrapupInstructionsTool } from './git-wrapup-instructions.tool.js';
 
 // Git tools - Staging & Commits
 import { gitAddTool } from './git-add.tool.js';
@@ -42,36 +44,34 @@ import { gitWorktreeTool } from './git-worktree.tool.js';
 
 /**
  * An array containing all tool definitions for easy iteration.
+ * Alphabetized by tool name for maintainability.
  */
 export const allToolDefinitions = [
-  // Core
-  gitBlameTool,
-  gitCleanTool,
-  gitCloneTool,
-  gitInitTool,
-  gitReflogTool,
-  gitSetWorkingDirTool,
-  gitStatusTool,
-  // Staging & Commits
   gitAddTool,
-  gitCommitTool,
-  gitDiffTool,
-  gitLogTool,
-  gitShowTool,
-  // Branching & Merging
+  gitBlameTool,
   gitBranchTool,
   gitCheckoutTool,
-  gitMergeTool,
-  gitRebaseTool,
   gitCherryPickTool,
-  // Remote Operations
-  gitRemoteTool,
+  gitCleanTool,
+  gitClearWorkingDirTool,
+  gitCloneTool,
+  gitCommitTool,
+  gitDiffTool,
   gitFetchTool,
+  gitInitTool,
+  gitLogTool,
+  gitMergeTool,
   gitPullTool,
   gitPushTool,
-  // Advanced Workflows
-  gitTagTool,
-  gitStashTool,
+  gitRebaseTool,
+  gitReflogTool,
+  gitRemoteTool,
   gitResetTool,
+  gitSetWorkingDirTool,
+  gitShowTool,
+  gitStashTool,
+  gitStatusTool,
+  gitTagTool,
   gitWorktreeTool,
+  gitWrapupInstructionsTool,
 ];

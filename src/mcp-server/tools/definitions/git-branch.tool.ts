@@ -22,12 +22,12 @@ import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.
 const TOOL_NAME = 'git_branch';
 const TOOL_TITLE = 'Git Branch';
 const TOOL_DESCRIPTION =
-  'Manage branches: list all branches, create a new branch, delete a branch, or rename a branch.';
+  'Manage branches: list all branches, show current branch, create a new branch, delete a branch, or rename a branch.';
 
 const InputSchema = z.object({
   path: PathSchema,
   operation: z
-    .enum(['list', 'create', 'delete', 'rename'])
+    .enum(['list', 'create', 'delete', 'rename', 'show-current'])
     .default('list')
     .describe('The branch operation to perform.'),
   name: BranchNameSchema.optional().describe(
@@ -71,7 +71,7 @@ const BranchInfoSchema = z.object({
 
 const OutputSchema = z.object({
   success: z.boolean().describe('Indicates if the operation was successful.'),
-  operation: z.enum(['list', 'create', 'delete', 'rename']),
+  operation: z.enum(['list', 'create', 'delete', 'rename', 'show-current']),
   branches: z
     .array(BranchInfoSchema)
     .optional()
@@ -112,6 +112,31 @@ async function gitBranchLogic(
     storage,
   );
 
+  // Handle show-current operation separately (lightweight, no need for full branch call)
+  if (input.operation === 'show-current') {
+    const result = await provider.branch(
+      { mode: 'list' },
+      {
+        workingDirectory: targetPath,
+        requestContext: appContext,
+        tenantId: appContext.tenantId || 'default-tenant',
+      },
+    );
+
+    if (result.mode === 'list') {
+      const current = result.branches.find((b) => b.current);
+      return {
+        success: true,
+        operation: 'show-current',
+        branches: undefined,
+        currentBranch: current?.name,
+        message: current
+          ? `Current branch: ${current.name}`
+          : 'Not on any branch (detached HEAD)',
+      };
+    }
+  }
+
   // Build options object with only defined properties
   const branchOptions: {
     mode: 'list' | 'create' | 'delete' | 'rename';
@@ -121,7 +146,7 @@ async function gitBranchLogic(
     force?: boolean;
     remote?: boolean;
   } = {
-    mode: input.operation,
+    mode: input.operation as 'list' | 'create' | 'delete' | 'rename',
   };
 
   if (input.name !== undefined) {
@@ -184,7 +209,7 @@ async function gitBranchLogic(
 }
 
 function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const header = `# Git Branch - ${result.operation.charAt(0).toUpperCase() + result.operation.slice(1)}\n\n`;
+  const header = `# Git Branch - ${result.operation.charAt(0).toUpperCase() + result.operation.slice(1).replace('-', ' ')}\n\n`;
 
   if (result.operation === 'list' && result.branches) {
     const current = result.branches.find((b) => b.current);

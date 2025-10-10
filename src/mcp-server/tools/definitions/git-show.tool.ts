@@ -31,6 +31,12 @@ const InputSchema = z.object({
     .boolean()
     .default(false)
     .describe('Show diffstat instead of full diff.'),
+  filePath: z
+    .string()
+    .optional()
+    .describe(
+      'View specific file at a given commit reference. When provided, shows the file content from the specified object.',
+    ),
 });
 
 const OutputSchema = z.object({
@@ -80,6 +86,7 @@ async function gitShowLogic(
     object: string;
     format?: 'raw' | 'json';
     stat?: boolean;
+    filePath?: string;
   } = {
     object: input.object,
   };
@@ -89,6 +96,9 @@ async function gitShowLogic(
   }
   if (input.stat !== undefined) {
     showOptions.stat = input.stat;
+  }
+  if (input.filePath !== undefined) {
+    showOptions.filePath = input.filePath;
   }
 
   const result = await provider.show(showOptions, {

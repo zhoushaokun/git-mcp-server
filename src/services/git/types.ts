@@ -233,6 +233,10 @@ export interface GitCommitOptions {
   sign?: boolean;
   /** Skip pre-commit and commit-msg hooks */
   noVerify?: boolean;
+  /** File paths to stage before committing (atomic stage+commit operation) */
+  filesToStage?: string[];
+  /** If GPG/SSH signing fails, retry without signing instead of failing */
+  forceUnsignedOnFailure?: boolean;
 }
 
 export interface GitCommitResult {
@@ -263,7 +267,9 @@ export interface GitLogOptions {
   path?: string;
   /** Filter commits by message content (grep) */
   grep?: string;
-  /** Include GPG signature information */
+  /** Show commits from a specific branch or ref */
+  branch?: string;
+  /** Include GPG signature verification information */
   showSignature?: boolean;
 }
 
@@ -302,6 +308,8 @@ export interface GitShowOptions {
   format?: 'raw' | 'json';
   /** Include diffstat */
   stat?: boolean;
+  /** View specific file at a given commit reference */
+  filePath?: string;
 }
 
 export interface GitShowResult {
@@ -444,6 +452,8 @@ export interface GitMergeOptions {
   squash?: boolean;
   /** Custom merge commit message */
   message?: string;
+  /** Abort an in-progress merge that has conflicts */
+  abort?: boolean;
 }
 
 export interface GitMergeResult {
@@ -464,8 +474,10 @@ export interface GitMergeResult {
 }
 
 export interface GitRebaseOptions {
-  /** Upstream branch to rebase onto */
-  upstream: string;
+  /** Rebase operation mode */
+  mode?: 'start' | 'continue' | 'abort' | 'skip';
+  /** Upstream branch to rebase onto (required for start mode) */
+  upstream?: string;
   /** Branch to rebase (default: current) */
   branch?: string;
   /** Interactive rebase (not supported in all providers) */
@@ -498,6 +510,12 @@ export interface GitCherryPickOptions {
   continueOperation?: boolean;
   /** Abort cherry-pick operation */
   abort?: boolean;
+  /** For merge commits, specify which parent to follow (1 for first parent, 2 for second, etc.) */
+  mainline?: number;
+  /** Merge strategy to use for cherry-pick */
+  strategy?: 'ort' | 'recursive' | 'octopus' | 'ours' | 'subtree';
+  /** Add Signed-off-by line to the commit message */
+  signoff?: boolean;
 }
 
 export interface GitCherryPickResult {
@@ -587,6 +605,10 @@ export interface GitPushOptions {
   tags?: boolean;
   /** Dry run */
   dryRun?: boolean;
+  /** Delete the specified remote branch */
+  delete?: boolean;
+  /** Remote branch name to push to (if different from local branch name) */
+  remoteBranch?: string;
 }
 
 export interface GitPushResult {
@@ -737,6 +759,10 @@ export interface GitWorktreeOptions {
   force?: boolean;
   /** Create detached HEAD */
   detach?: boolean;
+  /** Provide detailed output for worktree operations */
+  verbose?: boolean;
+  /** Preview the operation without executing it (for prune operation) */
+  dryRun?: boolean;
 }
 
 export interface GitWorktreeInfo {
@@ -777,7 +803,7 @@ export interface GitWorktreeResult {
 
 export interface GitResetOptions {
   /** Reset mode */
-  mode: 'soft' | 'mixed' | 'hard';
+  mode: 'soft' | 'mixed' | 'hard' | 'merge' | 'keep';
   /** Commit to reset to (default: HEAD) */
   commit?: string;
   /** Specific paths to reset */

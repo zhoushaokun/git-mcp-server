@@ -88,12 +88,9 @@ export async function executeCommit(
     const authorName = metaParts[0] || '';
     const timestamp = parseInt(metaParts[1] || '0', 10);
 
-    // Parse changed files
-    const filesChanged =
-      parts[1]
-        ?.split('\n')
-        .filter((f) => f.trim())
-        .slice(0, -1) || [];
+    // Parse changed files from the second part of the output
+    // git show --name-only outputs filenames after the metadata section
+    const filesChanged = parts[1]?.split('\n').filter((f) => f.trim()) || [];
 
     const result = {
       success: true,

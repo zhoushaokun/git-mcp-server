@@ -64,6 +64,10 @@ const InputSchema = z.object({
     .boolean()
     .default(false)
     .describe('Include the full diff patch for each commit.'),
+  showSignature: z
+    .boolean()
+    .default(false)
+    .describe('Show GPG signature verification information for each commit.'),
 });
 
 const CommitSchema = z.object({
@@ -132,6 +136,7 @@ async function gitLogLogic(
     oneline?: boolean;
     stat?: boolean;
     patch?: boolean;
+    showSignature?: boolean;
   } = {};
 
   if (input.maxCount !== undefined) {
@@ -166,6 +171,9 @@ async function gitLogLogic(
   }
   if (input.patch !== undefined) {
     logOptions.patch = input.patch;
+  }
+  if (input.showSignature !== undefined) {
+    logOptions.showSignature = input.showSignature;
   }
 
   const result = await provider.log(logOptions, {

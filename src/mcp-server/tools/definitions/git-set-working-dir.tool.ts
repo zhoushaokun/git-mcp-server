@@ -88,6 +88,7 @@ async function gitSetWorkingDirLogic(
         await provider.init(
           {
             path: input.path,
+            initialBranch: 'main',
             bare: false,
           },
           {

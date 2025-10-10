@@ -60,6 +60,12 @@ export async function executeLog(
       args.push(`--grep=${options.grep}`);
     }
 
+    // Add branch argument if specified (must come before -- separator)
+    if (options.branch) {
+      args.push(options.branch);
+    }
+
+    // Add file path filter if specified (must come after -- separator)
     if (options.path) {
       args.push('--', options.path);
     }

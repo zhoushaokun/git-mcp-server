@@ -27,24 +27,40 @@ export async function executeRebase(
   try {
     const args: string[] = [];
 
-    if (options.onto) {
-      args.push('--onto', options.onto, options.upstream);
-      if (options.branch) {
-        args.push(options.branch);
-      }
+    // Handle mode-based operations
+    const mode = options.mode || 'start';
+
+    if (mode === 'continue') {
+      args.push('--continue');
+    } else if (mode === 'abort') {
+      args.push('--abort');
+    } else if (mode === 'skip') {
+      args.push('--skip');
     } else {
-      args.push(options.upstream);
-      if (options.branch) {
-        args.push(options.branch);
+      // Start mode - requires upstream
+      if (!options.upstream) {
+        throw new Error('upstream is required for start mode');
       }
-    }
 
-    if (options.interactive) {
-      args.push('--interactive');
-    }
+      if (options.onto) {
+        args.push('--onto', options.onto, options.upstream);
+        if (options.branch) {
+          args.push(options.branch);
+        }
+      } else {
+        args.push(options.upstream);
+        if (options.branch) {
+          args.push(options.branch);
+        }
+      }
 
-    if (options.preserve) {
-      args.push('--preserve-merges');
+      if (options.interactive) {
+        args.push('--interactive');
+      }
+
+      if (options.preserve) {
+        args.push('--preserve-merges');
+      }
     }
 
     const cmd = buildGitCommand({ command: 'rebase', args });

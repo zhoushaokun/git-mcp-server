@@ -21,10 +21,10 @@ const TOOL_DESCRIPTION =
 const InputSchema = z.object({
   path: PathSchema,
   mode: z
-    .enum(['soft', 'mixed', 'hard'])
+    .enum(['soft', 'mixed', 'hard', 'merge', 'keep'])
     .default('mixed')
     .describe(
-      'Reset mode: soft (keep changes staged), mixed (unstage changes), hard (discard all changes).',
+      'Reset mode: soft (keep changes staged), mixed (unstage changes), hard (discard all changes), merge (reset and merge), keep (reset but keep local changes).',
     ),
   target: CommitRefSchema.optional().describe(
     'Target commit to reset to (default: HEAD).',
@@ -73,7 +73,7 @@ async function gitResetLogic(
   );
 
   const resetOptions: {
-    mode: 'soft' | 'mixed' | 'hard';
+    mode: 'soft' | 'mixed' | 'hard' | 'merge' | 'keep';
     commit?: string;
     paths?: string[];
   } = {
