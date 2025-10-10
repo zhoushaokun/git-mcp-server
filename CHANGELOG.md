@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.0-alpha07 - 2025-10-10
+
+### Added
+
+- **Git Wrap-up Prompt**: Added a new `git_wrapup` prompt definition that provides a structured workflow for completing git sessions, including reviewing changes, updating documentation, and committing modifications. This prompt is specifically tailored for git-mcp-server's domain.
+
+### Removed
+
+- **Code Review Prompt**: Removed the generic `code_review` prompt definition as it was not aligned with the git-mcp-server's focused scope. The git-specific workflow prompt better serves this server's purpose.
+
+### Changed
+
+- **Prompt Registry**: Updated the prompt definitions index to export the new git-wrapup prompt instead of the code-review prompt.
+
 ## v2.4.0-alpha06 - 2025-10-10
 
 ### Added
