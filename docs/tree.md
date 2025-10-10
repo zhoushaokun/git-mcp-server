@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-10-10 08:44:13
+Generated on: 2025-10-10 09:33:49
 
 ```
 git-mcp-server
@@ -15,6 +15,7 @@ git-mcp-server
 ├── docs
 │   ├── migration-guide.md
 │   ├── new_arc_tool_review.md
+│   ├── server_comparison.md
 │   └── tree.md
 ├── old_tools
 │   ├── resources
@@ -160,13 +161,31 @@ git-mcp-server
 │   │   │   └── roots-registration.ts
 │   │   ├── tools
 │   │   │   ├── definitions
+│   │   │   │   ├── git-add.tool.ts
 │   │   │   │   ├── git-blame.tool.ts
+│   │   │   │   ├── git-branch.tool.ts
+│   │   │   │   ├── git-checkout.tool.ts
+│   │   │   │   ├── git-cherry-pick.tool.ts
 │   │   │   │   ├── git-clean.tool.ts
 │   │   │   │   ├── git-clone.tool.ts
+│   │   │   │   ├── git-commit.tool.ts
+│   │   │   │   ├── git-diff.tool.ts
+│   │   │   │   ├── git-fetch.tool.ts
 │   │   │   │   ├── git-init.tool.ts
+│   │   │   │   ├── git-log.tool.ts
+│   │   │   │   ├── git-merge.tool.ts
+│   │   │   │   ├── git-pull.tool.ts
+│   │   │   │   ├── git-push.tool.ts
+│   │   │   │   ├── git-rebase.tool.ts
 │   │   │   │   ├── git-reflog.tool.ts
+│   │   │   │   ├── git-remote.tool.ts
+│   │   │   │   ├── git-reset.tool.ts
 │   │   │   │   ├── git-set-working-dir.tool.ts
+│   │   │   │   ├── git-show.tool.ts
+│   │   │   │   ├── git-stash.tool.ts
 │   │   │   │   ├── git-status.tool.ts
+│   │   │   │   ├── git-tag.tool.ts
+│   │   │   │   ├── git-worktree.tool.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── schemas
 │   │   │   │   └── common.ts

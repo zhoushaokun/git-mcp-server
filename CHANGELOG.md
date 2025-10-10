@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.2 - 2025-10-10
+
+### Added
+
+- **New Git Tools**: Greatly expanded the server's capabilities by adding 19 new Git tools, completing the core Git command suite. The new tools are:
+  - **Staging & Commits**: `git_add`, `git_commit`, `git_diff`, `git_log`, `git_show`.
+  - **Branching & Merging**: `git_branch`, `git_checkout`, `git_merge`, `git_rebase`, `git_cherry_pick`.
+  - **Remote Operations**: `git_remote`, `git_fetch`, `git_pull`, `git_push`.
+  - **Advanced Workflows**: `git_tag`, `git_stash`, `git_reset`, `git_worktree`.
+- **Tool Definitions**: All new tools were added to the `allToolDefinitions` barrel export in `src/mcp-server/tools/definitions/index.ts` for automatic registration.
+- **Documentation**:
+  - Added `docs/server_comparison.md` to provide a detailed comparison between the production (`git-mcp-server`) and development (`git-mcp-server-development`) instances.
+
+### Changed
+
+- **Version Bump**: Incremented the project version from `2.4.1` to `2.4.2` in `package.json` and `README.md`.
+- **Documentation**: Updated `docs/tree.md` to accurately reflect the addition of the new tool definition files and documentation.
+
 ## v2.4.1 - 2025-10-10
 
 ### Added

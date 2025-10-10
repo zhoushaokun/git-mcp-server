@@ -5,7 +5,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.4.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/git-mcp-server/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/)
+[![Version](https://img.shields.io/badge/Version-2.4.2-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/git-mcp-server/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
@@ -15,14 +15,14 @@
 
 This server provides 26 comprehensive Git operations organized into six functional categories:
 
-| Category                    | Tools                                                                                                 | Description                                                                                |
-| :-------------------------- | :---------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------- |
-| **Repository Management**   | `git_init`, `git_clone`, `git_status`, `git_clean`                                                    | Initialize repos, clone from remotes, check status, and clean untracked files              |
-| **Staging & Commits**       | `git_add`, `git_commit`, `git_diff`                                                                   | Stage changes, create commits, and compare changes                                         |
-| **History & Inspection**    | `git_log`, `git_show`, `git_blame`, `git_reflog`                                                      | View commit history, inspect objects, trace line-by-line authorship, and view ref logs   |
-| **Branching & Merging**     | `git_branch`, `git_checkout`, `git_merge`, `git_rebase`, `git_cherry_pick`                            | Manage branches, switch contexts, integrate changes, and apply specific commits            |
-| **Remote Operations**       | `git_remote`, `git_fetch`, `git_pull`, `git_push`                                                     | Configure remotes, download updates, synchronize repositories, and publish changes         |
-| **Advanced Workflows**      | `git_tag`, `git_stash`, `git_reset`, `git_worktree`, `git_set_working_dir`, `git_wrapup_instructions` | Tag releases, stash changes, reset state, manage worktrees, and access workflow guidance |
+| Category                  | Tools                                                                                                 | Description                                                                              |
+| :------------------------ | :---------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| **Repository Management** | `git_init`, `git_clone`, `git_status`, `git_clean`                                                    | Initialize repos, clone from remotes, check status, and clean untracked files            |
+| **Staging & Commits**     | `git_add`, `git_commit`, `git_diff`                                                                   | Stage changes, create commits, and compare changes                                       |
+| **History & Inspection**  | `git_log`, `git_show`, `git_blame`, `git_reflog`                                                      | View commit history, inspect objects, trace line-by-line authorship, and view ref logs   |
+| **Branching & Merging**   | `git_branch`, `git_checkout`, `git_merge`, `git_rebase`, `git_cherry_pick`                            | Manage branches, switch contexts, integrate changes, and apply specific commits          |
+| **Remote Operations**     | `git_remote`, `git_fetch`, `git_pull`, `git_push`                                                     | Configure remotes, download updates, synchronize repositories, and publish changes       |
+| **Advanced Workflows**    | `git_tag`, `git_stash`, `git_reset`, `git_worktree`, `git_set_working_dir`, `git_wrapup_instructions` | Tag releases, stash changes, reset state, manage worktrees, and access workflow guidance |
 
 ### Key Capabilities
 
