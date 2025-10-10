@@ -5,19 +5,24 @@
  * @module src/mcp-server/tools/definitions
  */
 
-import { catFactTool } from './template-cat-fact.tool.js';
-import { codeReviewSamplingTool } from './template-code-review-sampling.tool.js';
-import { echoTool } from './template-echo-message.tool.js';
-import { imageTestTool } from './template-image-test.tool.js';
-import { madlibsElicitationTool } from './template-madlibs-elicitation.tool.js';
+// Git tools
+import { gitBlameTool } from './git-blame.tool.js';
+import { gitCleanTool } from './git-clean.tool.js';
+import { gitCloneTool } from './git-clone.tool.js';
+import { gitInitTool } from './git-init.tool.js';
+import { gitReflogTool } from './git-reflog.tool.js';
+import { gitSetWorkingDirTool } from './git-set-working-dir.tool.js';
+import { gitStatusTool } from './git-status.tool.js';
 
 /**
  * An array containing all tool definitions for easy iteration.
  */
 export const allToolDefinitions = [
-  catFactTool,
-  codeReviewSamplingTool,
-  echoTool,
-  imageTestTool,
-  madlibsElicitationTool,
+  gitBlameTool,
+  gitCleanTool,
+  gitCloneTool,
+  gitInitTool,
+  gitReflogTool,
+  gitSetWorkingDirTool,
+  gitStatusTool,
 ];
