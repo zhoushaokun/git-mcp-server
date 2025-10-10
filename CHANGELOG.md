@@ -2,7 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
-## v2.4.2 - 2025-10-10
+## v2.4.0-alpha04 - 2025-10-10
+
+### Added
+
+- **New Tools**:
+  - `git_clear_working_dir`: A new tool to clear the session's working directory.
+  - `git_wrapup_instructions`: A tool that provides a standardized workflow for reviewing and committing changes.
+- **New Resource**:
+  - `git-working-directory.resource.ts`: Exposes the current session working directory as a discoverable MCP resource (`git://working-directory`).
+
+### Changed
+
+- **Architectural Refinement**:
+  - **Storage Service**: Refactored `StorageService` to gracefully handle missing `tenantId` by defaulting to `'default-tenant'`. This significantly improves the developer experience, especially for STDIO transport and unauthenticated HTTP contexts, by preventing unnecessary errors.
+- **Tool Enhancements**: The following tools have been significantly enhanced with new options and capabilities to align them with the underlying `IGitProvider` interface:
+  - `git_branch`: Added a new `show-current` operation.
+  - `git_cherry_pick`: Added support for `mainline`, `strategy`, and `signoff` options.
+  - `git_commit`: Added `filesToStage` for atomic stage-and-commit operations and `forceUnsignedOnFailure` for better GPG/SSH signing resilience.
+  - `git_diff`: Added `includeUntracked` option to show untracked file content in the diff.
+  - `git_log`: Added `showSignature` option to display commit signature verification status.
+  - `git_merge`: Added `abort` option to cancel a merge with conflicts.
+  - `git_push`: Added `delete` and `remoteBranch` options.
+  - `git_rebase`: Re-architected to support `mode`-based operations (`start`, `continue`, `abort`, `skip`).
+  - `git_reset`: Expanded `mode` enum to include `merge` and `keep`.
+  - `git_show`: Added a `filePath` option to view the contents of a specific file at a given commit.
+  - `git_worktree`: Added `detach`, `verbose`, and `dryRun` options.
+- **Project Meta**:
+  - Bumped the project version to `2.4.0` in `package.json`.
+  - Updated `bun.lock` with the latest dependency versions (`pino-pretty`).
+- **Code Organization**:
+  - Re-alphabetized `allToolDefinitions` in `src/mcp-server/tools/definitions/index.ts` for improved maintainability.
+
+### Fixed
+
+- **Command Validation**: Corrected the argument validation in `command-builder.ts` to allow parentheses `()`, which are necessary for `git log` format strings.
+- **Git Init**: The `git_init` and `git_set_working_dir` (with `initializeIfNotPresent`) tools now correctly default to creating a new repository with an initial branch named `main`.
+- **Git Log**: Fixed an issue where `git_log` arguments for `branch` and `path` could be misinterpreted.
+
+### Removed
+
+- **Echo Resource**: Removed the `echo.resource.ts` as it was a template/example and not relevant to the server's core Git functionality.
+
+## v2.4.0-alpha03 - 2025-10-10
 
 ### Added
 
@@ -20,7 +62,7 @@ All notable changes to this project will be documented in this file.
 - **Version Bump**: Incremented the project version from `2.4.1` to `2.4.2` in `package.json` and `README.md`.
 - **Documentation**: Updated `docs/tree.md` to accurately reflect the addition of the new tool definition files and documentation.
 
-## v2.4.1 - 2025-10-10
+## v2.4.0-alpha02 - 2025-10-10
 
 ### Added
 
@@ -51,7 +93,7 @@ All notable changes to this project will be documented in this file.
 
 - **Template Tools**: Removed all template example tools (`template-cat-fact`, `template-code-review-sampling`, `template-echo-message`, `template-image-test`, `template-madlibs-elicitation`) and their associated tests to focus the server on Git operations.
 
-## v2.4.0 - 2025-10-09
+## v2.4.0-alpha01 - 2025-10-09
 
 ### Alignment
 

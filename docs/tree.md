@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-10-10 09:33:49
+Generated on: 2025-10-10 10:37:18
 
 ```
 git-mcp-server
@@ -16,6 +16,8 @@ git-mcp-server
 │   ├── migration-guide.md
 │   ├── new_arc_tool_review.md
 │   ├── server_comparison.md
+│   ├── tool-comparison-report.md
+│   ├── tool-test-analysis.md
 │   └── tree.md
 ├── old_tools
 │   ├── resources
@@ -151,7 +153,7 @@ git-mcp-server
 │   │   │   └── prompt-registration.ts
 │   │   ├── resources
 │   │   │   ├── definitions
-│   │   │   │   ├── echo.resource.ts
+│   │   │   │   ├── git-working-directory.resource.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── utils
 │   │   │   │   ├── resourceDefinition.ts
@@ -167,6 +169,7 @@ git-mcp-server
 │   │   │   │   ├── git-checkout.tool.ts
 │   │   │   │   ├── git-cherry-pick.tool.ts
 │   │   │   │   ├── git-clean.tool.ts
+│   │   │   │   ├── git-clear-working-dir.tool.ts
 │   │   │   │   ├── git-clone.tool.ts
 │   │   │   │   ├── git-commit.tool.ts
 │   │   │   │   ├── git-diff.tool.ts
@@ -186,6 +189,7 @@ git-mcp-server
 │   │   │   │   ├── git-status.tool.ts
 │   │   │   │   ├── git-tag.tool.ts
 │   │   │   │   ├── git-worktree.tool.ts
+│   │   │   │   ├── git-wrapup-instructions.tool.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── schemas
 │   │   │   │   └── common.ts
