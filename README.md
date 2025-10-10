@@ -240,7 +240,7 @@ Prompts are MCP primitives that LLM clients can discover and invoke through the 
 
 ## 📤 Understanding Tool Responses
 
-This server follows a dual-output architecture for all tools:
+This server follows MCP's dual-output architecture for all tools ([MCP Tools Specification](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)):
 
 ### What Users See (Human-Readable)
 When you invoke a tool through your MCP client, you see a **formatted summary** designed for human consumption. For example, `git_status` might show:
@@ -256,7 +256,7 @@ When you invoke a tool through your MCP client, you see a **formatted summary** 
 ```
 
 ### What the LLM Sees (Complete Structured Data)
-Behind the scenes, the LLM receives **complete structured data** via the `responseFormatter` function. This includes:
+Behind the scenes, the LLM receives **complete structured data** as [content blocks](https://modelcontextprotocol.io/specification/2025-06-18/server/tools#tool-results) via the `responseFormatter` function. This includes:
 - All metadata (commit hashes, timestamps, authors)
 - Full file lists and change details
 - Hierarchical summaries with markdown formatting
@@ -264,7 +264,7 @@ Behind the scenes, the LLM receives **complete structured data** via the `respon
 
 **Why This Matters**: The LLM can answer detailed questions like "Who made the last commit?" or "What files changed in commit abc123?" because it has access to the full dataset, even if you only saw a summary.
 
-**For Developers**: When creating custom tools, always include complete data in your `responseFormatter`. Balance human-readable summaries with comprehensive structured information. See [`CLAUDE.md`](CLAUDE.md) for response formatter best practices.
+**For Developers**: When creating custom tools, always include complete data in your `responseFormatter`. Balance human-readable summaries with comprehensive structured information. See [`CLAUDE.md`](CLAUDE.md) for response formatter best practices and the [MCP specification](https://modelcontextprotocol.io/specification/2025-06-18/server/tools) for technical details.
 
 ## 🧑‍💻 Agent Development Guide
 
