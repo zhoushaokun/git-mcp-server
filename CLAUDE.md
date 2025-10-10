@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.4.2
+**Version:** 2.4.0
 **Target Project:** git-mcp-server
 **Last Updated:** 2025-10-10
 

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.0-alpha05 - 2025-10-10
+
+### Changed
+
+- **Major Architectural Refactor**:
+  - All Git tools (`git-add`, `git-commit`, `git-status`, etc.) were refactored to delegate their logic to the `GitProvider` service via dependency injection, making the tool layer responsible only for input validation and output formatting.
+- **Tooling and Schemas**:
+  - Updated the schemas and logic for nearly all Git tools to align with the new provider-based architecture, improving consistency and type safety.
+  - Enhanced the `git_status` tool's logic to map the provider's structured output to the tool's output schema.
+- **Documentation**:
+  - Overhauled `AGENTS.md`, `CLAUDE.md`, and `.clinerules/clinerules.md` to extensively document the new provider architecture, including service layer boundaries, validator locations, and the execution layer consolidation. The version was also updated.
+
+### Removed
+
+- **Legacy Documentation**: Removed obsolete and now-irrelevant architectural and migration documents, including `docs/migration-guide.md`, `docs/new_arc_tool_review.md`, `docs/server_comparison.md`, `docs/tool-comparison-report.md`, and `docs/tool-test-analysis.md`.
+- **Obsolete Test**: Deleted `tests/mcp-server/resources/definitions/echo.resource.test.ts`, as the corresponding `echo` resource was previously removed.
+
 ## v2.4.0-alpha04 - 2025-10-10
 
 ### Added

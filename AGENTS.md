@@ -1,8 +1,8 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.4.1
+**Version:** 2.4.0
 **Target Project:** git-mcp-server
-**Last Updated:** 2025-10-09
+**Last Updated:** 2025-10-10
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
@@ -282,12 +282,12 @@ import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { logger, type RequestContext } from '@/utils/index.js';
-import { execGitCommand } from '../utils/git-helpers.js';
 import { resolveWorkingDirectory } from '../utils/git-validators.js';
 import type { SdkContext, ToolDefinition } from '../utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { PathSchema } from '../schemas/common.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
+import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
 
 const TOOL_NAME = 'git_status';
 const TOOL_TITLE = 'Git Status';
@@ -323,12 +323,18 @@ async function gitStatusLogic(
     toolInput: input,
   });
 
-  // Resolve working directory using DI and helper utility
+  // Resolve working directory and get git provider via DI
   const { container } = await import('tsyringe');
-  const { StorageService: StorageServiceToken } = await import(
-    '@/container/tokens.js'
-  );
+  const {
+    StorageService: StorageServiceToken,
+    GitProviderFactory: GitProviderFactoryToken,
+  } = await import('@/container/tokens.js');
+
   const storage = container.resolve<StorageService>(StorageServiceToken);
+  const factory = container.resolve<GitProviderFactory>(
+    GitProviderFactoryToken,
+  );
+  const provider = await factory.getProvider();
 
   // Helper handles both '.' (session) and absolute paths
   const targetPath = await resolveWorkingDirectory(
@@ -337,30 +343,30 @@ async function gitStatusLogic(
     storage,
   );
 
-  // Execute git status command
-  const result = await execGitCommand('status', ['--porcelain', '-b'], {
-    cwd: targetPath,
-    context: appContext,
-  });
+  // Call provider's status method - it handles execution and parsing
+  const result = await provider.status(
+    { includeUntracked: true },
+    {
+      workingDirectory: targetPath,
+      requestContext: appContext,
+      tenantId: appContext.tenantId || 'default-tenant',
+    },
+  );
 
-  // Parse the output (simplified example)
-  const lines = result.stdout.split('\n');
-  const branch = lines[0].replace('## ', '').split('...')[0];
-  const staged: string[] = [];
-  const unstaged: string[] = [];
-  const untracked: string[] = [];
-
-  lines.slice(1).forEach((line) => {
-    if (!line) return;
-    const status = line.substring(0, 2);
-    const file = line.substring(3);
-
-    if (status[0] !== ' ' && status[0] !== '?') staged.push(file);
-    if (status[1] !== ' ' && status[1] !== '?') unstaged.push(file);
-    if (status === '??') untracked.push(file);
-  });
-
-  return { branch, staged, unstaged, untracked };
+  // Map provider result to tool output
+  return {
+    branch: result.currentBranch || 'detached HEAD',
+    staged: [
+      ...(result.stagedChanges.added || []),
+      ...(result.stagedChanges.modified || []),
+      ...(result.stagedChanges.deleted || []),
+    ],
+    unstaged: [
+      ...(result.unstagedChanges.modified || []),
+      ...(result.unstagedChanges.deleted || []),
+    ],
+    untracked: result.untrackedFiles,
+  };
 }
 
 // Formatter for the final output to the LLM
@@ -421,18 +427,25 @@ Git tools need to support both explicit paths and session-based working director
 ```ts
 import { resolveWorkingDirectory } from '../utils/git-validators.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
+import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
 
 async function myGitToolLogic(
   input: ToolInput,
   appContext: RequestContext,
   _sdkContext: SdkContext,
 ): Promise<ToolOutput> {
-  // 1. Resolve StorageService via DI
+  // 1. Resolve dependencies via DI
   const { container } = await import('tsyringe');
-  const { StorageService: StorageServiceToken } = await import(
-    '@/container/tokens.js'
-  );
+  const {
+    StorageService: StorageServiceToken,
+    GitProviderFactory: GitProviderFactoryToken,
+  } = await import('@/container/tokens.js');
+
   const storage = container.resolve<StorageService>(StorageServiceToken);
+  const factory = container.resolve<GitProviderFactory>(
+    GitProviderFactoryToken,
+  );
+  const provider = await factory.getProvider();
 
   // 2. Resolve working directory (handles '.' and absolute paths)
   const targetPath = await resolveWorkingDirectory(
@@ -441,11 +454,15 @@ async function myGitToolLogic(
     storage, // StorageService instance
   );
 
-  // 3. Use targetPath for git operations
-  const result = await execGitCommand('status', ['--porcelain'], {
-    cwd: targetPath,
-    context: appContext,
-  });
+  // 3. Use provider for git operations
+  const result = await provider.status(
+    { includeUntracked: true },
+    {
+      workingDirectory: targetPath,
+      requestContext: appContext,
+      tenantId: appContext.tenantId || 'default-tenant',
+    },
+  );
 
   // ... rest of logic
 }
@@ -632,6 +649,82 @@ const status = await provider.status(options, context);
 - Simple key-value data (session working directory, user preferences)
 - Flat data structures without complex relationships
 - Basic CRUD operations without specialized queries
+
+---
+
+### Tool Layer vs Service Layer: Git Operations (git-mcp-server specific)
+
+**IMPORTANT:** Tools MUST use the GitProvider interface for all git operations. Direct git command execution is forbidden in the tool layer.
+
+#### Architecture Boundary
+
+```
+┌─────────────────────────────────────────────────┐
+│           Tool Layer (MCP Tools)                │
+│  - Input validation (Zod schemas)               │
+│  - Path resolution (session storage)            │
+│  - Pure validators (no git execution)           │
+│  - Output formatting for LLM                    │
+│  - Uses: resolveWorkingDirectory()              │
+│  Location: src/mcp-server/tools/                │
+└─────────────────────┬───────────────────────────┘
+                      │
+                      ▼ GitProvider interface
+┌─────────────────────────────────────────────────┐
+│          Service Layer (Git Provider)           │
+│  - Git command execution                        │
+│  - Git-specific validators                      │
+│  - Output parsing                               │
+│  - Error transformation                         │
+│  - Uses: executeGitCommand()                    │
+│  Location: src/services/git/                    │
+└─────────────────────────────────────────────────┘
+```
+
+#### Validator Location Rules
+
+| Validator Type                   | Location                                      | Reason                             |
+| -------------------------------- | --------------------------------------------- | ---------------------------------- |
+| **Path sanitization**            | Tool layer (`git-validators.ts`)              | Security, tool-specific            |
+| **Session directory resolution** | Tool layer (`git-validators.ts`)              | Uses StorageService, tool-specific |
+| **Protected branch checks**      | Tool layer (`git-validators.ts`)              | Pure logic, no git execution       |
+| **File path validation**         | Tool layer (`git-validators.ts`)              | Security, no git execution         |
+| **Commit message format**        | Tool layer (`git-validators.ts`)              | Pure validation, no git execution  |
+| **Git repository validation**    | Service layer (`cli/utils/git-validators.ts`) | Executes `git rev-parse`           |
+| **Branch existence check**       | Service layer (`cli/utils/git-validators.ts`) | Executes `git rev-parse --verify`  |
+| **Clean working dir check**      | Service layer (`cli/utils/git-validators.ts`) | Executes `git status --porcelain`  |
+| **Remote existence check**       | Service layer (`cli/utils/git-validators.ts`) | Executes `git remote get-url`      |
+
+#### Execution Layer Consolidation
+
+As of version 2.4.1, the tool layer **no longer contains git command execution logic**. The deprecated `git-helpers.ts` file has been removed.
+
+**❌ OLD (deprecated):**
+
+```typescript
+// Tool layer directly executing git commands
+import { execGitCommand } from '../utils/git-helpers.js';
+const result = await execGitCommand('status', ['--porcelain'], {
+  cwd,
+  context,
+});
+```
+
+**✅ NEW (required):**
+
+```typescript
+// Tools delegate to service layer via GitProvider
+const factory = container.resolve<GitProviderFactory>(GitProviderFactoryToken);
+const provider = await factory.getProvider();
+const result = await provider.status(options, context);
+```
+
+**Benefits:**
+
+- **Single execution path** - Easier to maintain, debug, and secure
+- **Better abstraction** - Tools don't know if git is CLI, isomorphic, or API-based
+- **Easier testing** - Mock `IGitProvider` interface instead of git commands
+- **Consistent error handling** - All git errors mapped to `McpError` in one place
 
 ---
 
