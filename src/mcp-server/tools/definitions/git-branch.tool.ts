@@ -7,11 +7,11 @@ import { z } from 'zod';
 
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import {
-  PathSchema,
+  AllSchema,
   BranchNameSchema,
   CommitRefSchema,
   ForceSchema,
-  AllSchema,
+  PathSchema,
 } from '../schemas/common.js';
 import type { ToolDefinition } from '../utils/toolDefinition.js';
 import {

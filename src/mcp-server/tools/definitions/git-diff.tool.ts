@@ -6,7 +6,7 @@ import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { PathSchema, CommitRefSchema } from '../schemas/common.js';
+import { CommitRefSchema, PathSchema } from '../schemas/common.js';
 import type { ToolDefinition } from '../utils/toolDefinition.js';
 import {
   createToolHandler,
