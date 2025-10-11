@@ -2,7 +2,6 @@
  * @fileoverview Git remote tool - manage remote repositories
  * @module mcp-server/tools/definitions/git-remote
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_remote';
 const TOOL_TITLE = 'Git Remote';
@@ -120,45 +123,35 @@ async function gitRemoteLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const header = `# Git Remote - ${result.mode.charAt(0).toUpperCase() + result.mode.slice(1)}\n\n`;
-
-  if (result.mode === 'list' && result.remotes) {
-    const remoteList = result.remotes
-      .map(
-        (remote) =>
-          `**${remote.name}**\n  Fetch: ${remote.fetchUrl}\n  Push:  ${remote.pushUrl}`,
-      )
-      .join('\n\n');
-    return [{ type: 'text', text: `${header}${remoteList}` }];
+/**
+ * Filter git_remote output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and mode only
+ * - standard: Above + complete remotes array (for list) or operation results (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitRemoteOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      mode: result.mode,
+    };
   }
 
-  if (result.added) {
-    return [
-      {
-        type: 'text',
-        text: `${header}Remote '${result.added.name}' added with URL: ${result.added.url}`,
-      },
-    ];
-  }
-
-  if (result.removed) {
-    return [
-      { type: 'text', text: `${header}Remote '${result.removed}' removed.` },
-    ];
-  }
-
-  if (result.renamed) {
-    return [
-      {
-        type: 'text',
-        text: `${header}Remote '${result.renamed.from}' renamed to '${result.renamed.to}'.`,
-      },
-    ];
-  }
-
-  return [{ type: 'text', text: `${header}Operation completed successfully.` }];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all remotes or operation results)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitRemoteOutput,
+});
 
 export const gitRemoteTool: ToolDefinition<
   typeof InputSchema,

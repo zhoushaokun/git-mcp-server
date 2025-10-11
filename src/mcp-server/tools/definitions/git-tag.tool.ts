@@ -2,7 +2,6 @@
  * @fileoverview Git tag tool - manage release tags
  * @module mcp-server/tools/definitions/git-tag
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -17,6 +16,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_tag';
 const TOOL_TITLE = 'Git Tag';
@@ -122,49 +125,35 @@ async function gitTagLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const header = `# Git Tag - ${result.mode.charAt(0).toUpperCase() + result.mode.slice(1)}\n\n`;
-
-  if (result.mode === 'list' && result.tags) {
-    if (result.tags.length === 0) {
-      return [{ type: 'text', text: `${header}No tags found.` }];
-    }
-
-    const tagList = result.tags
-      .map((tag) => {
-        const base = `**${tag.name}** → ${tag.commit.substring(0, 7)}`;
-        const msg = tag.message ? `\n  ${tag.message}` : '';
-        const tagger =
-          tag.tagger && tag.timestamp
-            ? `\n  By: ${tag.tagger} on ${new Date(tag.timestamp * 1000).toISOString().split('T')[0]}`
-            : '';
-        return base + msg + tagger;
-      })
-      .join('\n\n');
-
-    return [{ type: 'text', text: `${header}${tagList}` }];
+/**
+ * Filter git_tag output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and mode only
+ * - standard: Above + complete tags array (for list) or created/deleted name (for other ops) (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitTagOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      mode: result.mode,
+    };
   }
 
-  if (result.created) {
-    return [
-      {
-        type: 'text',
-        text: `${header}Tag '${result.created}' created successfully.`,
-      },
-    ];
-  }
-
-  if (result.deleted) {
-    return [
-      {
-        type: 'text',
-        text: `${header}Tag '${result.deleted}' deleted successfully.`,
-      },
-    ];
-  }
-
-  return [{ type: 'text', text: `${header}Operation completed.` }];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all tags or operation results)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitTagOutput,
+});
 
 export const gitTagTool: ToolDefinition<
   typeof InputSchema,

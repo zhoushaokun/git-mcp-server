@@ -2,7 +2,6 @@
  * @fileoverview Git add tool - stage files for commit
  * @module mcp-server/tools/definitions/git-add
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
@@ -12,7 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
-import { markdown } from '../utils/markdown-builder.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_add';
 const TOOL_TITLE = 'Git Add';
@@ -133,77 +135,53 @@ async function gitAddLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const md = markdown();
+/**
+ * Filter git_add output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Just staged files and success
+ * - standard: Above + basic repository status (RECOMMENDED)
+ * - full: Complete output including detailed status breakdown
+ */
+function filterGitAddOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential staging information only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      stagedFiles: result.stagedFiles,
+      totalFiles: result.totalFiles,
+    };
+  }
 
-  // Main heading
-  md.h1('Files Staged Successfully', '✅');
+  // standard: Above + complete repository status
+  if (level === 'standard') {
+    return {
+      success: result.success,
+      stagedFiles: result.stagedFiles,
+      totalFiles: result.totalFiles,
+      status: {
+        current_branch: result.status.current_branch,
+        is_clean: result.status.is_clean,
+        // Include complete status with all file arrays (LLMs need full context)
+        staged_changes: result.status.staged_changes,
+        unstaged_changes: result.status.unstaged_changes,
+        untracked_files: result.status.untracked_files,
+        conflicted_files: result.status.conflicted_files,
+      },
+    };
+  }
 
-  // Summary stats
-  md.keyValue('Total Files Staged', result.totalFiles).blankLine();
-
-  // List of staged files
-  md.when(result.stagedFiles.length > 0, () => {
-    md.section('Staged Files', 2, () => {
-      md.list(result.stagedFiles);
-    });
-  });
-
-  // Repository status after staging
-  md.section('Repository Status After Staging', 2, () => {
-    md.keyValue(
-      'Branch',
-      result.status.current_branch || 'detached HEAD',
-    ).keyValue(
-      'Ready to Commit',
-      Object.keys(result.status.staged_changes).length > 0 ? 'Yes' : 'No',
-    );
-
-    // Show all staged changes (including those from this operation)
-    const allStaged = Object.keys(result.status.staged_changes);
-    md.when(allStaged.length > 0, () => {
-      md.blankLine();
-      md.h3('All Staged Changes');
-      allStaged.forEach((type) => {
-        const files = (
-          result.status.staged_changes as Record<string, string[]>
-        )[type];
-        if (files && files.length > 0) {
-          md.keyValue(type, `${files.length} file(s)`);
-        }
-      });
-    });
-
-    // Show remaining unstaged changes
-    const unstaged = Object.keys(result.status.unstaged_changes);
-    md.when(unstaged.length > 0, () => {
-      md.blankLine();
-      md.h3('Remaining Unstaged Changes');
-      unstaged.forEach((type) => {
-        const files = (
-          result.status.unstaged_changes as Record<string, string[]>
-        )[type];
-        if (files && files.length > 0) {
-          md.keyValue(type, `${files.length} file(s)`);
-        }
-      });
-    });
-
-    // Show untracked files
-    md.when(result.status.untracked_files.length > 0, () => {
-      md.blankLine();
-      md.h3('Untracked Files');
-      md.keyValue('Count', result.status.untracked_files.length);
-    });
-  });
-
-  return [
-    {
-      type: 'text',
-      text: md.build(),
-    },
-  ];
+  // full: Complete output (no filtering)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitAddOutput,
+});
 
 export const gitAddTool: ToolDefinition<
   typeof InputSchema,

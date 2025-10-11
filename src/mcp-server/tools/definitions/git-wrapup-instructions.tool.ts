@@ -2,7 +2,6 @@
  * @fileoverview Git wrapup instructions tool - standard workflow guidance
  * @module mcp-server/tools/definitions/git-wrapup-instructions
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { z } from 'zod';
@@ -15,6 +14,10 @@ import {
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
 import { config } from '@/config/index.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_wrapup_instructions';
 const TOOL_TITLE = 'Git Wrap-up Instructions';
@@ -203,40 +206,33 @@ async function gitWrapupInstructionsLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  let text = result.instructions;
-
-  // Add git status section if available
-  if (result.gitStatus) {
-    const { branch, staged, unstaged, untracked } = result.gitStatus;
-    const totalChanges = staged.length + unstaged.length + untracked.length;
-
-    text +=
-      `\n\n---\n\n## Current Repository Status\n\n` +
-      `**Branch:** ${branch}\n` +
-      `**Total Changes:** ${totalChanges}\n\n`;
-
-    if (staged.length > 0) {
-      text += `**Staged (${staged.length}):**\n${staged.map((f) => `- ${f}`).join('\n')}\n\n`;
-    }
-
-    if (unstaged.length > 0) {
-      text += `**Unstaged (${unstaged.length}):**\n${unstaged.map((f) => `- ${f}`).join('\n')}\n\n`;
-    }
-
-    if (untracked.length > 0) {
-      text += `**Untracked (${untracked.length}):**\n${untracked.map((f) => `- ${f}`).join('\n')}\n\n`;
-    }
-
-    if (totalChanges === 0) {
-      text += `*Working directory is clean.*\n`;
-    }
-  } else if (result.gitStatusError) {
-    text += `\n\n---\n\n**Note:** ${result.gitStatusError}\n`;
+/**
+ * Filter git_wrapup_instructions output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Instructions only, no git status
+ * - standard: Above + complete git status (RECOMMENDED)
+ * - full: Complete output (same as standard)
+ */
+function filterGitWrapupInstructionsOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Instructions only
+  if (level === 'minimal') {
+    return {
+      instructions: result.instructions,
+    };
   }
 
-  return [{ type: 'text', text }];
+  // standard & full: Complete output with git status
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitWrapupInstructionsOutput,
+});
 
 export const gitWrapupInstructionsTool: ToolDefinition<
   typeof InputSchema,

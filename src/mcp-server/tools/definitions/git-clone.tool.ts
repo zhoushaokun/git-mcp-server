@@ -2,7 +2,6 @@
  * @fileoverview Git clone tool - clone a repository from a remote URL
  * @module mcp-server/tools/definitions/git-clone
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_clone';
 const TOOL_TITLE = 'Git Clone';
@@ -87,21 +90,38 @@ async function gitCloneLogic(
     remoteUrl: result.remoteUrl,
     localPath: result.localPath,
     branch: result.branch,
-    commitHash: undefined,
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = `# Repository Cloned Successfully\n\n`;
-  const details =
-    `**Remote URL:** ${result.remoteUrl}\n` +
-    `**Local Path:** ${result.localPath}\n` +
-    `**Branch:** ${result.branch}\n` +
-    (result.commitHash ? `**Current Commit:** ${result.commitHash}\n` : '') +
-    `\nThe repository has been successfully cloned and is ready for use.`;
+/**
+ * Filter git_clone output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success, local path, and remote URL only
+ * - standard: Above + branch and commit hash (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitCloneOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      remoteUrl: result.remoteUrl,
+      localPath: result.localPath,
+    };
+  }
 
-  return [{ type: 'text', text: `${summary}${details}` }];
+  // standard & full: Complete output
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitCloneOutput,
+});
 
 export const gitCloneTool: ToolDefinition<
   typeof InputSchema,

@@ -2,7 +2,6 @@
  * @fileoverview Git log tool - view commit history
  * @module mcp-server/tools/definitions/git-log
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -17,6 +16,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_log';
 const TOOL_TITLE = 'Git Log';
@@ -167,41 +170,35 @@ async function gitLogLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const header = `# Git Log (${result.totalCount} commit${result.totalCount !== 1 ? 's' : ''})\n\n`;
-
-  if (result.commits.length === 0) {
-    return [
-      {
-        type: 'text',
-        text: `${header}No commits found matching the specified criteria.`,
-      },
-    ];
+/**
+ * Filter git_log output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and total count only
+ * - standard: Above + complete commits array (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitLogOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential summary only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      totalCount: result.totalCount,
+    };
   }
 
-  const commits = result.commits
-    .map((commit) => {
-      const commitHeader = `## ${commit.shortHash} - ${commit.subject}\n`;
-      const commitMeta =
-        `**Author:** ${commit.author} <${commit.authorEmail}>\n` +
-        `**Date:** ${new Date(commit.timestamp * 1000).toISOString()}\n`;
-      const commitBody = commit.body ? `\n${commit.body}\n` : '';
-      const commitRefs =
-        commit.refs && commit.refs.length > 0
-          ? `**Refs:** ${commit.refs.join(', ')}\n`
-          : '';
-
-      return `${commitHeader}${commitMeta}${commitRefs}${commitBody}`;
-    })
-    .join('\n---\n\n');
-
-  return [
-    {
-      type: 'text',
-      text: `${header}${commits}`,
-    },
-  ];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all commits)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitLogOutput,
+});
 
 export const gitLogTool: ToolDefinition<
   typeof InputSchema,

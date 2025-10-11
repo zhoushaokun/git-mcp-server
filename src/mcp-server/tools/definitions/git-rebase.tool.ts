@@ -2,7 +2,6 @@
  * @fileoverview Git rebase tool - rebase commits onto another branch
  * @module mcp-server/tools/definitions/git-rebase
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_rebase';
 const TOOL_TITLE = 'Git Rebase';
@@ -111,29 +114,36 @@ async function gitRebaseLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = result.conflicts
-    ? `# Rebase Has Conflicts ⚠️\n\n`
-    : `# Rebase Complete\n\n`;
+/**
+ * Filter git_rebase output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success, conflicts flag, and rebased commits count only
+ * - standard: Above + complete conflict file list and current commit (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitRebaseOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential status only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      conflicts: result.conflicts,
+      rebasedCommits: result.rebasedCommits,
+    };
+  }
 
-  const stats = `**Commits Rebased:** ${result.rebasedCommits}\n`;
-  const currentInfo = result.currentCommit
-    ? `**Stopped At:** ${result.currentCommit.substring(0, 7)}\n`
-    : '';
-
-  const conflictsSection = result.conflicts
-    ? `\n## ⚠️ Conflicts (${result.conflictedFiles.length})\n` +
-      `${result.conflictedFiles.map((f) => `- ${f}`).join('\n')}\n\n` +
-      `**Action Required:** Resolve conflicts, then continue or abort rebase.\n`
-    : '';
-
-  return [
-    {
-      type: 'text',
-      text: `${summary}${stats}${currentInfo}${conflictsSection}`.trim(),
-    },
-  ];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all conflict files for resolution)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitRebaseOutput,
+});
 
 export const gitRebaseTool: ToolDefinition<
   typeof InputSchema,

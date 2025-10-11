@@ -2,7 +2,6 @@
  * @fileoverview Git checkout tool - switch branches or restore files
  * @module mcp-server/tools/definitions/git-checkout
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
@@ -17,6 +16,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_checkout';
 const TOOL_TITLE = 'Git Checkout';
@@ -97,30 +100,35 @@ async function gitCheckoutLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = result.branchCreated
-    ? `# Branch Created and Checked Out\n\n`
-    : result.filesModified.length > 0
-      ? `# Files Modified During Checkout\n\n`
-      : `# Checked Out Successfully\n\n`;
+/**
+ * Filter git_checkout output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and target only
+ * - standard: Above + branch creation status and complete files modified list (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitCheckoutOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      target: result.target,
+    };
+  }
 
-  const targetInfo = `**Target:** ${result.target}\n`;
-  const createdInfo = result.branchCreated
-    ? `**New Branch Created:** Yes\n`
-    : '';
-
-  const filesInfo =
-    result.filesModified.length > 0
-      ? `\n**Files Modified (${result.filesModified.length}):**\n${result.filesModified.map((f) => `- ${f}`).join('\n')}\n`
-      : '';
-
-  return [
-    {
-      type: 'text',
-      text: `${summary}${targetInfo}${createdInfo}${filesInfo}`.trim(),
-    },
-  ];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all modified files)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitCheckoutOutput,
+});
 
 export const gitCheckoutTool: ToolDefinition<
   typeof InputSchema,

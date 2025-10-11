@@ -2,7 +2,6 @@
  * @fileoverview Git push tool - upload changes to remote repository
  * @module mcp-server/tools/definitions/git-push
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -18,6 +17,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_push';
 const TOOL_TITLE = 'Git Push';
@@ -132,36 +135,36 @@ async function gitPushLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary =
-    result.rejectedRefs.length > 0
-      ? `# Push Failed (Some Refs Rejected) ⚠️\n\n`
-      : `# Push Complete\n\n`;
+/**
+ * Filter git_push output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success, remote, and branch only
+ * - standard: Above + complete lists of pushed and rejected refs (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitPushOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      remote: result.remote,
+      branch: result.branch,
+    };
+  }
 
-  const info =
-    `**Remote:** ${result.remote}\n` +
-    `**Branch:** ${result.branch}\n` +
-    (result.upstreamSet ? `**Upstream Set:** Yes\n` : '') +
-    `\n`;
-
-  const pushedSection =
-    result.pushedRefs.length > 0
-      ? `## Pushed References (${result.pushedRefs.length})\n${result.pushedRefs.map((ref) => `- ${ref}`).join('\n')}\n\n`
-      : '';
-
-  const rejectedSection =
-    result.rejectedRefs.length > 0
-      ? `## ⚠️ Rejected References (${result.rejectedRefs.length})\n${result.rejectedRefs.map((ref) => `- ${ref}`).join('\n')}\n\n` +
-        `**Hint:** Pull the latest changes or use force-with-lease if you're sure.\n`
-      : '';
-
-  return [
-    {
-      type: 'text',
-      text: `${summary}${info}${pushedSection}${rejectedSection}`.trim(),
-    },
-  ];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all pushed/rejected refs)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitPushOutput,
+});
 
 export const gitPushTool: ToolDefinition<
   typeof InputSchema,

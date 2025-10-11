@@ -2,7 +2,6 @@
  * @fileoverview Git init tool - initialize a new repository
  * @module mcp-server/tools/definitions/git-init
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_init';
 const TOOL_TITLE = 'Git Init';
@@ -72,16 +75,43 @@ async function gitInitLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = `# Repository Initialized\n\n`;
-  const details =
-    `**Path:** ${result.path}\n` +
-    `**Initial Branch:** ${result.initialBranch}\n` +
-    `**Type:** ${result.isBare ? 'Bare repository' : 'Standard repository'}\n\n` +
-    `The repository has been successfully initialized and is ready for use.`;
+/**
+ * Filter git_init output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and path only
+ * - standard: Above + initial branch name (RECOMMENDED)
+ * - full: Complete output including repository type
+ */
+function filterGitInitOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential initialization info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      path: result.path,
+    };
+  }
 
-  return [{ type: 'text', text: `${summary}${details}` }];
+  // standard: Above + branch information
+  if (level === 'standard') {
+    return {
+      success: result.success,
+      path: result.path,
+      initialBranch: result.initialBranch,
+    };
+  }
+
+  // full: Complete output (no filtering)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitInitOutput,
+});
 
 export const gitInitTool: ToolDefinition<
   typeof InputSchema,

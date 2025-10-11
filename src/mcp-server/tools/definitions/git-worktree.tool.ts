@@ -2,7 +2,6 @@
  * @fileoverview Git worktree tool - manage multiple working trees
  * @module mcp-server/tools/definitions/git-worktree
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -16,6 +15,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_worktree';
 const TOOL_TITLE = 'Git Worktree';
@@ -165,64 +168,35 @@ async function gitWorktreeLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const header = `# Git Worktree - ${result.mode.charAt(0).toUpperCase() + result.mode.slice(1)}\n\n`;
-
-  if (result.mode === 'list' && result.worktrees) {
-    if (result.worktrees.length === 0) {
-      return [{ type: 'text', text: `${header}No worktrees found.` }];
-    }
-
-    const worktreeList = result.worktrees
-      .map(
-        (wt) =>
-          `**${wt.path}**\n` +
-          `  ${wt.detached ? 'Detached HEAD' : wt.branch ? `Branch: ${wt.branch}` : 'No branch'}\n` +
-          `  HEAD: ${wt.head.substring(0, 7)}\n` +
-          (wt.bare ? `  Type: Bare\n` : '') +
-          (wt.locked ? `  Status: 🔒 Locked\n` : '') +
-          (wt.prunable ? `  Status: ⚠️ Prunable\n` : ''),
-      )
-      .join('\n');
-
-    return [{ type: 'text', text: `${header}${worktreeList}` }];
+/**
+ * Filter git_worktree output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and mode only
+ * - standard: Above + complete worktrees array (for list) or operation results (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitWorktreeOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      mode: result.mode,
+    };
   }
 
-  if (result.added) {
-    return [
-      {
-        type: 'text',
-        text: `${header}Worktree added at: ${result.added}`,
-      },
-    ];
-  }
-
-  if (result.removed) {
-    return [
-      { type: 'text', text: `${header}Worktree removed: ${result.removed}` },
-    ];
-  }
-
-  if (result.moved) {
-    return [
-      {
-        type: 'text',
-        text: `${header}Worktree moved:\n**From:** ${result.moved.from}\n**To:** ${result.moved.to}`,
-      },
-    ];
-  }
-
-  if (result.pruned && result.pruned.length > 0) {
-    return [
-      {
-        type: 'text',
-        text: `${header}Pruned ${result.pruned.length} worktree(s):\n${result.pruned.map((p) => `- ${p}`).join('\n')}`,
-      },
-    ];
-  }
-
-  return [{ type: 'text', text: `${header}Operation completed.` }];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all worktrees or operation results)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitWorktreeOutput,
+});
 
 export const gitWorktreeTool: ToolDefinition<
   typeof InputSchema,

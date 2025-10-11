@@ -2,7 +2,6 @@
  * @fileoverview Git reflog tool - view reference logs
  * @module mcp-server/tools/definitions/git-reflog
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_reflog';
 const TOOL_TITLE = 'Git Reflog';
@@ -24,7 +27,7 @@ const InputSchema = z.object({
     .string()
     .optional()
     .describe('Show reflog for specific reference (default: HEAD).'),
-  maxCount: LimitSchema.describe('Limit number of reflog entries.'),
+  maxCount: LimitSchema,
 });
 
 const ReflogEntrySchema = z.object({
@@ -83,34 +86,36 @@ async function gitReflogLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const { ref, entries, totalEntries } = result;
+/**
+ * Filter git_reflog output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success, ref name, and total entry count only
+ * - standard: Above + complete reflog entries array (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitReflogOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      ref: result.ref,
+      totalEntries: result.totalEntries,
+    };
+  }
 
-  const header = `# Git Reflog: ${ref}\n\n`;
-  const stats = `**Total Entries:** ${totalEntries}\n\n`;
-
-  const formattedEntries = entries
-    .map((entry) => {
-      const shortHash = entry.hash.substring(0, 7);
-      const date = new Date(entry.timestamp * 1000).toISOString();
-
-      return [
-        `## ${entry.refName}`,
-        `**Commit:** ${shortHash}`,
-        `**Date:** ${date}`,
-        `**Action:** ${entry.message}`,
-        '',
-      ].join('\n');
-    })
-    .join('\n');
-
-  return [
-    {
-      type: 'text',
-      text: `${header}${stats}${formattedEntries}`,
-    },
-  ];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all reflog entries)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitReflogOutput,
+});
 
 export const gitReflogTool: ToolDefinition<
   typeof InputSchema,

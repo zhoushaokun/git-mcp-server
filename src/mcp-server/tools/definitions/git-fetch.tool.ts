@@ -2,7 +2,6 @@
  * @fileoverview Git fetch tool - download objects and refs from remote
  * @module mcp-server/tools/definitions/git-fetch
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -17,6 +16,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_fetch';
 const TOOL_TITLE = 'Git Fetch';
@@ -85,31 +88,35 @@ async function gitFetchLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = `# Fetch Complete from '${result.remote}'\n\n`;
+/**
+ * Filter git_fetch output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and remote name only
+ * - standard: Above + complete lists of fetched/pruned refs (RECOMMENDED)
+ * - full: Complete output (same as standard)
+ */
+function filterGitFetchOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential status only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      remote: result.remote,
+    };
+  }
 
-  const fetchedSection =
-    result.fetchedRefs.length > 0
-      ? `## Fetched References (${result.fetchedRefs.length})\n${result.fetchedRefs.map((ref) => `- ${ref}`).join('\n')}\n\n`
-      : '';
-
-  const prunedSection =
-    result.prunedRefs.length > 0
-      ? `## Pruned References (${result.prunedRefs.length})\n${result.prunedRefs.map((ref) => `- ${ref}`).join('\n')}\n`
-      : '';
-
-  const message =
-    result.fetchedRefs.length === 0 && result.prunedRefs.length === 0
-      ? 'Already up to date.'
-      : '';
-
-  return [
-    {
-      type: 'text',
-      text: `${summary}${fetchedSection}${prunedSection}${message}`.trim(),
-    },
-  ];
+  // standard & full: Complete output with all ref lists
+  // (LLMs need complete context - include all fetched/pruned refs)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitFetchOutput,
+});
 
 export const gitFetchTool: ToolDefinition<
   typeof InputSchema,

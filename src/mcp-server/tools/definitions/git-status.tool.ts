@@ -2,7 +2,6 @@
  * @fileoverview Git status tool - show working tree status
  * @module mcp-server/tools/definitions/git-status
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_status';
 const TOOL_TITLE = 'Git Status';
@@ -27,6 +30,7 @@ const InputSchema = z.object({
 });
 
 const OutputSchema = z.object({
+  success: z.boolean().describe('Indicates if the operation was successful.'),
   currentBranch: z.string().nullable().describe('Current branch name.'),
   isClean: z.boolean().describe('True if working directory is clean.'),
   stagedChanges: z
@@ -97,6 +101,7 @@ async function gitStatusLogic(
   );
 
   return {
+    success: true,
     currentBranch: result.currentBranch,
     isClean: result.isClean,
     stagedChanges: result.stagedChanges,
@@ -106,74 +111,36 @@ async function gitStatusLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = `# Git Status${result.currentBranch ? `: ${result.currentBranch}` : ''}\n\n`;
-
-  // Clean status
-  if (result.isClean) {
-    return [
-      {
-        type: 'text',
-        text: `${summary}Working directory is clean - no changes to commit.`,
-      },
-    ];
+/**
+ * Filter git_status output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Branch and clean status only
+ * - standard: Above + complete status details (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitStatusOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential summary only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      currentBranch: result.currentBranch,
+      isClean: result.isClean,
+    };
   }
 
-  // Conflicted files
-  const conflictedSection =
-    result.conflictedFiles.length > 0
-      ? `## ⚠️ Conflicts (${result.conflictedFiles.length})\n${result.conflictedFiles.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-
-  // Staged changes
-  const stagedAdded =
-    result.stagedChanges.added && result.stagedChanges.added.length > 0
-      ? `### Added (${result.stagedChanges.added.length})\n${result.stagedChanges.added.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-  const stagedModified =
-    result.stagedChanges.modified && result.stagedChanges.modified.length > 0
-      ? `### Modified (${result.stagedChanges.modified.length})\n${result.stagedChanges.modified.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-  const stagedDeleted =
-    result.stagedChanges.deleted && result.stagedChanges.deleted.length > 0
-      ? `### Deleted (${result.stagedChanges.deleted.length})\n${result.stagedChanges.deleted.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-  const stagedRenamed =
-    result.stagedChanges.renamed && result.stagedChanges.renamed.length > 0
-      ? `### Renamed (${result.stagedChanges.renamed.length})\n${result.stagedChanges.renamed.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-
-  const stagedSection =
-    stagedAdded || stagedModified || stagedDeleted || stagedRenamed
-      ? `## Staged Changes\n\n${stagedAdded}${stagedModified}${stagedDeleted}${stagedRenamed}`
-      : '';
-
-  // Unstaged changes
-  const unstagedModified =
-    result.unstagedChanges.modified &&
-    result.unstagedChanges.modified.length > 0
-      ? `### Modified (${result.unstagedChanges.modified.length})\n${result.unstagedChanges.modified.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-  const unstagedDeleted =
-    result.unstagedChanges.deleted && result.unstagedChanges.deleted.length > 0
-      ? `### Deleted (${result.unstagedChanges.deleted.length})\n${result.unstagedChanges.deleted.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-
-  const unstagedSection =
-    unstagedModified || unstagedDeleted
-      ? `## Unstaged Changes\n\n${unstagedModified}${unstagedDeleted}`
-      : '';
-
-  // Untracked files
-  const untrackedSection =
-    result.untrackedFiles.length > 0
-      ? `## Untracked Files (${result.untrackedFiles.length})\n${result.untrackedFiles.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-
-  const text = `${summary}${conflictedSection}${stagedSection}${unstagedSection}${untrackedSection}`;
-
-  return [{ type: 'text', text: text.trim() }];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all file lists)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitStatusOutput,
+});
 
 export const gitStatusTool: ToolDefinition<
   typeof InputSchema,

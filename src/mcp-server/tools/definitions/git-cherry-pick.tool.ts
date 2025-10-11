@@ -2,7 +2,6 @@
  * @fileoverview Git cherry-pick tool - apply commits from other branches
  * @module mcp-server/tools/definitions/git-cherry-pick
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
@@ -16,6 +15,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_cherry_pick';
 const TOOL_TITLE = 'Git Cherry-Pick';
@@ -110,29 +113,35 @@ async function gitCherryPickLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = result.conflicts
-    ? `# Cherry-Pick Has Conflicts ⚠️\n\n`
-    : `# Cherry-Pick Complete\n\n`;
+/**
+ * Filter git_cherry_pick output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success, conflicts flag, and picked commit count only
+ * - standard: Above + complete lists of picked commits and conflicted files (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitCherryPickOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential status only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      conflicts: result.conflicts,
+    };
+  }
 
-  const pickedSection =
-    result.pickedCommits.length > 0
-      ? `**Commits Picked:** ${result.pickedCommits.length}\n${result.pickedCommits.map((c) => `- ${c.substring(0, 7)}`).join('\n')}\n\n`
-      : '';
-
-  const conflictsSection = result.conflicts
-    ? `## ⚠️ Conflicts (${result.conflictedFiles.length})\n` +
-      `${result.conflictedFiles.map((f) => `- ${f}`).join('\n')}\n\n` +
-      `**Action Required:** Resolve conflicts and continue or abort cherry-pick.\n`
-    : '';
-
-  return [
-    {
-      type: 'text',
-      text: `${summary}${pickedSection}${conflictsSection}`.trim(),
-    },
-  ];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all picked commits and conflicts)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitCherryPickOutput,
+});
 
 export const gitCherryPickTool: ToolDefinition<
   typeof InputSchema,

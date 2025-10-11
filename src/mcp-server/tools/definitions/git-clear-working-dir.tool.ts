@@ -2,7 +2,6 @@
  * @fileoverview Git clear working directory tool - clear session working directory
  * @module mcp-server/tools/definitions/git-clear-working-dir
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -11,6 +10,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_clear_working_dir';
 const TOOL_TITLE = 'Git Clear Working Directory';
@@ -60,15 +63,34 @@ async function gitClearWorkingDirLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const text =
-    `# Working Directory Cleared\n\n` +
-    `${result.message}\n\n` +
-    `Subsequent git operations will require an explicit path parameter unless ` +
-    `you call \`git_set_working_dir\` again to set a new working directory.`;
+/**
+ * Filter git_clear_working_dir output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and message only
+ * - standard: Above + previous path (RECOMMENDED)
+ * - full: Complete output (same as standard)
+ */
+function filterGitClearWorkingDirOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential status only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      message: result.message,
+    };
+  }
 
-  return [{ type: 'text', text }];
+  // standard & full: Complete output with previous path
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitClearWorkingDirOutput,
+});
 
 export const gitClearWorkingDirTool: ToolDefinition<
   typeof InputSchema,

@@ -2,7 +2,6 @@
  * @fileoverview Git pull tool - fetch and integrate changes from remote
  * @module mcp-server/tools/definitions/git-pull
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -16,6 +15,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_pull';
 const TOOL_TITLE = 'Git Pull';
@@ -94,32 +97,38 @@ async function gitPullLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = result.conflicts
-    ? `# Pull Has Conflicts ⚠️\n\n`
-    : `# Pull Complete\n\n`;
+/**
+ * Filter git_pull output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success, conflicts flag, remote, and branch only
+ * - standard: Above + complete list of changed files (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitPullOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      conflicts: result.conflicts,
+      remote: result.remote,
+      branch: result.branch,
+      strategy: result.strategy,
+    };
+  }
 
-  const info =
-    `**Remote:** ${result.remote}\n` +
-    `**Branch:** ${result.branch}\n` +
-    `**Strategy:** ${result.strategy}\n\n`;
-
-  const filesSection =
-    result.filesChanged.length > 0
-      ? `## Changed Files (${result.filesChanged.length})\n${result.filesChanged.map((f) => `- ${f}`).join('\n')}\n`
-      : 'Already up to date.';
-
-  const conflictWarning = result.conflicts
-    ? `\n\n**⚠️ Action Required:** Resolve conflicts before continuing.`
-    : '';
-
-  return [
-    {
-      type: 'text',
-      text: `${summary}${info}${filesSection}${conflictWarning}`.trim(),
-    },
-  ];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all changed files)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitPullOutput,
+});
 
 export const gitPullTool: ToolDefinition<
   typeof InputSchema,

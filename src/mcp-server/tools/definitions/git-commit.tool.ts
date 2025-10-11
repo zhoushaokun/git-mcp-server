@@ -2,7 +2,6 @@
  * @fileoverview Git commit tool - create a new commit
  * @module mcp-server/tools/definitions/git-commit
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
@@ -17,7 +16,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
-import { markdown } from '../utils/markdown-builder.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_commit';
 const TOOL_TITLE = 'Git Commit';
@@ -194,8 +196,6 @@ async function gitCommitLogic(
     timestamp: result.timestamp,
     filesChanged: result.filesChanged.length,
     committedFiles: result.filesChanged,
-    insertions: undefined,
-    deletions: undefined,
     status: {
       current_branch: statusResult.currentBranch,
       staged_changes: flattenChanges(statusResult.stagedChanges),
@@ -207,97 +207,67 @@ async function gitCommitLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const md = markdown();
-
-  // Main heading
-  md.h1('Commit Created Successfully', '✅');
-
-  // Commit metadata
-  md.keyValue('Commit Hash', result.commitHash.substring(0, 7))
-    .keyValue('Author', result.author)
-    .keyValue('Date', new Date(result.timestamp * 1000).toISOString())
-    .keyValue('Message', result.message)
-    .blankLine();
-
-  // Changes summary
-  if (result.filesChanged !== undefined) {
-    md.section('Changes', 2, () => {
-      md.keyValue('Files Changed', result.filesChanged!);
-      if (result.insertions !== undefined) {
-        md.keyValue('Insertions', `+${result.insertions}`);
-      }
-      if (result.deletions !== undefined) {
-        md.keyValue('Deletions', `-${result.deletions}`);
-      }
-    });
+/**
+ * Filter git_commit output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Core commit info only (hash, success, message)
+ * - standard: Above + file stats + basic status (RECOMMENDED)
+ * - full: Complete output including detailed status breakdown
+ */
+function filterGitCommitOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential commit information only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      commitHash: result.commitHash,
+      message: result.message,
+      status: {
+        current_branch: result.status.current_branch,
+        is_clean: result.status.is_clean,
+        staged_changes: {},
+        unstaged_changes: {},
+        untracked_files: [],
+        conflicted_files: [],
+      },
+    };
   }
 
-  // Committed files list
-  md.when(result.committedFiles.length > 0, () => {
-    md.section(`Committed Files (${result.committedFiles.length})`, 2, () => {
-      md.list(result.committedFiles);
-    });
-  });
+  // standard: Core info + file statistics + complete status
+  if (level === 'standard') {
+    return {
+      success: result.success,
+      commitHash: result.commitHash,
+      message: result.message,
+      author: result.author,
+      timestamp: result.timestamp,
+      filesChanged: result.filesChanged,
+      insertions: result.insertions,
+      deletions: result.deletions,
+      committedFiles: result.committedFiles,
+      status: {
+        current_branch: result.status.current_branch,
+        is_clean: result.status.is_clean,
+        // Include complete status with all file arrays (LLMs need full context)
+        staged_changes: result.status.staged_changes,
+        unstaged_changes: result.status.unstaged_changes,
+        untracked_files: result.status.untracked_files,
+        conflicted_files: result.status.conflicted_files,
+      },
+    };
+  }
 
-  // Repository status after commit
-  md.section('Repository Status After Commit', 2, () => {
-    md.keyValue(
-      'Branch',
-      result.status.current_branch || 'detached HEAD',
-    ).keyValue(
-      'Status',
-      result.status.is_clean
-        ? 'Clean (no uncommitted changes)'
-        : 'Has uncommitted changes',
-    );
-
-    // Show remaining changes if not clean
-    if (!result.status.is_clean) {
-      md.blankLine();
-
-      const staged = Object.keys(result.status.staged_changes);
-      const unstaged = Object.keys(result.status.unstaged_changes);
-      const untracked = result.status.untracked_files.length;
-
-      md.when(staged.length > 0, () => {
-        md.h3('Staged Changes');
-        staged.forEach((type) => {
-          const files = (
-            result.status.staged_changes as Record<string, string[]>
-          )[type];
-          if (files && files.length > 0) {
-            md.keyValue(type, `${files.length} file(s)`);
-          }
-        });
-      });
-
-      md.when(unstaged.length > 0, () => {
-        md.h3('Unstaged Changes');
-        unstaged.forEach((type) => {
-          const files = (
-            result.status.unstaged_changes as Record<string, string[]>
-          )[type];
-          if (files && files.length > 0) {
-            md.keyValue(type, `${files.length} file(s)`);
-          }
-        });
-      });
-
-      md.when(untracked > 0, () => {
-        md.h3('Untracked Files');
-        md.keyValue('Count', untracked);
-      });
-    }
-  });
-
-  return [
-    {
-      type: 'text',
-      text: md.build(),
-    },
-  ];
+  // full: Complete output (no filtering)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitCommitOutput,
+});
 
 export const gitCommitTool: ToolDefinition<
   typeof InputSchema,

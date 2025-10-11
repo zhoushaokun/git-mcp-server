@@ -2,7 +2,6 @@
  * @fileoverview Git stash tool - temporarily save changes
  * @module mcp-server/tools/definitions/git-stash
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_stash';
 const TOOL_TITLE = 'Git Stash';
@@ -124,36 +127,35 @@ async function gitStashLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const header = `# Git Stash - ${result.mode.charAt(0).toUpperCase() + result.mode.slice(1)}\n\n`;
-
-  if (result.mode === 'list' && result.stashes) {
-    if (result.stashes.length === 0) {
-      return [{ type: 'text', text: `${header}No stashes found.` }];
-    }
-
-    const stashList = result.stashes
-      .map(
-        (stash) =>
-          `**${stash.ref}** (${stash.branch})\n` +
-          `  ${stash.description}\n` +
-          `  ${new Date(stash.timestamp * 1000).toISOString()}`,
-      )
-      .join('\n\n');
-
-    return [{ type: 'text', text: `${header}${stashList}` }];
+/**
+ * Filter git_stash output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and mode only
+ * - standard: Above + complete stashes array (for list) or operation results (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitStashOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      mode: result.mode,
+    };
   }
 
-  const stashRef = result.created || result.applied || result.dropped;
-  const message = stashRef
-    ? `Operation completed for ${stashRef}.`
-    : 'Operation completed successfully.';
-  const conflictWarning = result.conflicts
-    ? '\n\n**⚠️ Conflicts detected** - resolve before continuing.'
-    : '';
-
-  return [{ type: 'text', text: `${header}${message}${conflictWarning}` }];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all stashes or operation results)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitStashOutput,
+});
 
 export const gitStashTool: ToolDefinition<
   typeof InputSchema,

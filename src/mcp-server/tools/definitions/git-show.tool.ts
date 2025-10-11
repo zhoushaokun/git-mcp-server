@@ -2,7 +2,6 @@
  * @fileoverview Git show tool - inspect git objects
  * @module mcp-server/tools/definitions/git-show
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_show';
 const TOOL_TITLE = 'Git Show';
@@ -94,27 +97,45 @@ async function gitShowLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const header = `# Git Show: ${result.type} ${result.object}\n\n`;
+/**
+ * Filter git_show output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Object reference and type only
+ * - standard: Above + metadata (RECOMMENDED)
+ * - full: Complete output including content (may be large for diffs)
+ */
+function filterGitShowOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential identification only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      object: result.object,
+      type: result.type,
+    };
+  }
 
-  const metadataSection =
-    result.metadata && Object.keys(result.metadata).length > 0
-      ? `## Metadata\n` +
-        Object.entries(result.metadata)
-          .map(([key, value]) => `**${key}:** ${String(value)}`)
-          .join('\n') +
-        `\n\n`
-      : '';
+  // standard: Above + metadata
+  if (level === 'standard') {
+    return {
+      success: result.success,
+      object: result.object,
+      type: result.type,
+      metadata: result.metadata,
+    };
+  }
 
-  const content =
-    result.content.length > 0
-      ? `## Content\n\n\`\`\`\n${result.content.length > 50000 ? result.content.substring(0, 50000) + '\n... (truncated, output too large)' : result.content}\n\`\`\`\n`
-      : '';
-
-  return [
-    { type: 'text', text: `${header}${metadataSection}${content}`.trim() },
-  ];
+  // full: Complete output including content
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitShowOutput,
+});
 
 export const gitShowTool: ToolDefinition<
   typeof InputSchema,

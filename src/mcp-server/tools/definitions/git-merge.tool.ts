@@ -2,7 +2,6 @@
  * @fileoverview Git merge tool - merge branches
  * @module mcp-server/tools/definitions/git-merge
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -17,6 +16,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_merge';
 const TOOL_TITLE = 'Git Merge';
@@ -107,36 +110,37 @@ async function gitMergeLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = result.conflicts
-    ? `# Merge Has Conflicts ⚠️\n\n`
-    : result.fastForward
-      ? `# Fast-Forward Merge Complete\n\n`
-      : `# Merge Complete\n\n`;
+/**
+ * Filter git_merge output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success, conflicts flag, and strategy only
+ * - standard: Above + complete conflict and merged file lists (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitMergeOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential status only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      conflicts: result.conflicts,
+      strategy: result.strategy,
+      fastForward: result.fastForward,
+    };
+  }
 
-  const info =
-    `**Strategy:** ${result.strategy}\n` +
-    `**Fast-Forward:** ${result.fastForward ? 'Yes' : 'No'}\n` +
-    `**Message:** ${result.message}\n\n`;
-
-  const conflictsSection = result.conflicts
-    ? `## ⚠️ Conflicts (${result.conflictedFiles.length})\n` +
-      `${result.conflictedFiles.map((f) => `- ${f}`).join('\n')}\n\n` +
-      `**Action Required:** Resolve conflicts and commit the merge.\n\n`
-    : '';
-
-  const mergedSection =
-    result.mergedFiles.length > 0
-      ? `## Merged Files (${result.mergedFiles.length})\n${result.mergedFiles.map((f) => `- ${f}`).join('\n')}\n`
-      : '';
-
-  return [
-    {
-      type: 'text',
-      text: `${summary}${info}${conflictsSection}${mergedSection}`.trim(),
-    },
-  ];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all file lists for conflict resolution)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitMergeOutput,
+});
 
 export const gitMergeTool: ToolDefinition<
   typeof InputSchema,

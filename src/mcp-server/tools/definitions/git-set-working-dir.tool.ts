@@ -2,7 +2,6 @@
  * @fileoverview Git set working directory tool - manage session working directory
  * @module mcp-server/tools/definitions/git-set-working-dir
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -11,6 +10,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_set_working_dir';
 const TOOL_TITLE = 'Git Set Working Directory';
@@ -91,15 +94,34 @@ async function gitSetWorkingDirLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const text =
-    `# Working Directory Set\n\n` +
-    `**Path:** ${result.path}\n\n` +
-    `All subsequent git operations will use this directory by default. ` +
-    `You can override this on a per-operation basis by providing an explicit path parameter.`;
+/**
+ * Filter git_set_working_dir output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and path only
+ * - standard: Above + confirmation message (RECOMMENDED)
+ * - full: Complete output (same as standard)
+ */
+function filterGitSetWorkingDirOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      path: result.path,
+    };
+  }
 
-  return [{ type: 'text', text }];
+  // standard & full: Complete output
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitSetWorkingDirOutput,
+});
 
 export const gitSetWorkingDirTool: ToolDefinition<
   typeof InputSchema,

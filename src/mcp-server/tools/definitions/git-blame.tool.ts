@@ -2,7 +2,6 @@
  * @fileoverview Git blame tool - show line-by-line authorship
  * @module mcp-server/tools/definitions/git-blame
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_blame';
 const TOOL_TITLE = 'Git Blame';
@@ -27,13 +30,13 @@ const InputSchema = z.object({
   startLine: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .optional()
     .describe('Start line number (1-indexed).'),
   endLine: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .optional()
     .describe('End line number (1-indexed).'),
   ignoreWhitespace: z
@@ -46,7 +49,7 @@ const BlameLineSchema = z.object({
   lineNumber: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .describe('Line number in the file (1-indexed).'),
   commitHash: z
     .string()
@@ -107,34 +110,36 @@ async function gitBlameLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const { file, lines, totalLines } = result;
+/**
+ * Filter git_blame output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: File and total lines only
+ * - standard: Above + complete line-by-line blame information (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitBlameOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential summary only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      file: result.file,
+      totalLines: result.totalLines,
+    };
+  }
 
-  const header = `# Git Blame: ${file}\n\n`;
-  const stats = `**Total Lines:** ${totalLines}\n\n`;
-
-  const formattedLines = lines
-    .map((line) => {
-      const shortHash = line.commitHash.substring(0, 7);
-      const date = new Date(line.timestamp * 1000).toISOString().split('T')[0];
-      const authorShort =
-        line.author.length > 20
-          ? line.author.substring(0, 17) + '...'
-          : line.author.padEnd(20);
-
-      return `${String(line.lineNumber).padStart(4)} | ${shortHash} | ${date} | ${authorShort} | ${line.content}`;
-    })
-    .join('\n');
-
-  const legend = '\n\n**Format:** Line | Commit | Date | Author | Content';
-
-  return [
-    {
-      type: 'text',
-      text: `${header}${stats}\`\`\`\n${formattedLines}\n\`\`\`${legend}`,
-    },
-  ];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all line details)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitBlameOutput,
+});
 
 export const gitBlameTool: ToolDefinition<
   typeof InputSchema,

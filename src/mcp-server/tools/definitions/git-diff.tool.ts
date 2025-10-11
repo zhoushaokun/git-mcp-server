@@ -2,7 +2,6 @@
  * @fileoverview Git diff tool - view differences between commits/files
  * @module mcp-server/tools/definitions/git-diff
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_diff';
 const TOOL_TITLE = 'Git Diff';
@@ -127,26 +130,37 @@ async function gitDiffLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = `# Git Diff\n\n`;
+/**
+ * Filter git_diff output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Files changed and stats only (no diff content)
+ * - standard: Above + diff content (RECOMMENDED, may be large)
+ * - full: Complete output (same as standard)
+ */
+function filterGitDiffOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Summary stats only, no diff content
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      filesChanged: result.filesChanged,
+      insertions: result.insertions,
+      deletions: result.deletions,
+    };
+  }
 
-  const stats =
-    `**Files Changed:** ${result.filesChanged}\n` +
-    (result.insertions !== undefined
-      ? `**Insertions:** +${result.insertions}\n`
-      : '') +
-    (result.deletions !== undefined
-      ? `**Deletions:** -${result.deletions}\n`
-      : '') +
-    `\n`;
-
-  const diffContent =
-    result.diff.length > 0
-      ? `## Diff Output\n\n\`\`\`diff\n${result.diff.length > 50000 ? result.diff.substring(0, 50000) + '\n... (truncated, diff too large)' : result.diff}\n\`\`\`\n`
-      : `No differences found.\n`;
-
-  return [{ type: 'text', text: `${summary}${stats}${diffContent}`.trim() }];
+  // standard & full: Complete output including diff content
+  // (LLMs need full diff to understand changes)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitDiffOutput,
+});
 
 export const gitDiffTool: ToolDefinition<
   typeof InputSchema,

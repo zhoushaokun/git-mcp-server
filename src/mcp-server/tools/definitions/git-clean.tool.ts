@@ -2,7 +2,6 @@
  * @fileoverview Git clean tool - remove untracked files
  * @module mcp-server/tools/definitions/git-clean
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_clean';
 const TOOL_TITLE = 'Git Clean';
@@ -69,49 +72,35 @@ async function gitCleanLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = result.dryRun
-    ? '# Git Clean - Preview (Dry Run)\n\n'
-    : '# Git Clean - Files Removed\n\n';
-
-  const totalFiles = result.filesRemoved.length;
-  const totalDirs = result.directoriesRemoved.length;
-
-  if (totalFiles === 0 && totalDirs === 0) {
-    return [
-      {
-        type: 'text',
-        text: `${summary}No untracked files or directories to remove.`,
-      },
-    ];
+/**
+ * Filter git_clean output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success and dry-run flag only
+ * - standard: Above + complete lists of removed files/directories (RECOMMENDED)
+ * - full: Complete output (same as standard)
+ */
+function filterGitCleanOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential status only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      dryRun: result.dryRun,
+    };
   }
 
-  const stats =
-    `**Files:** ${totalFiles}\n` +
-    `**Directories:** ${totalDirs}\n` +
-    `**Total Items:** ${totalFiles + totalDirs}\n\n`;
-
-  const filesSection =
-    result.filesRemoved.length > 0
-      ? `## Files${result.dryRun ? ' (would be removed)' : ''}\n${result.filesRemoved.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-
-  const dirsSection =
-    result.directoriesRemoved.length > 0
-      ? `## Directories${result.dryRun ? ' (would be removed)' : ''}\n${result.directoriesRemoved.map((d) => `- ${d}`).join('\n')}\n\n`
-      : '';
-
-  const warning = result.dryRun
-    ? '**Note:** This was a dry-run. No files were actually removed. Run again with dry-run=false to perform the cleanup.'
-    : '**Warning:** These files have been permanently removed and cannot be recovered.';
-
-  return [
-    {
-      type: 'text',
-      text: `${summary}${stats}${filesSection}${dirsSection}${warning}`,
-    },
-  ];
+  // standard & full: Complete output with all file lists
+  // (LLMs need complete context - include all removed items)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitCleanOutput,
+});
 
 export const gitCleanTool: ToolDefinition<
   typeof InputSchema,

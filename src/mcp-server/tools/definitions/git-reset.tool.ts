@@ -2,7 +2,6 @@
  * @fileoverview Git reset tool - reset current HEAD to specified state
  * @module mcp-server/tools/definitions/git-reset
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type { ToolDefinition } from '../utils/toolDefinition.js';
@@ -12,6 +11,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_reset';
 const TOOL_TITLE = 'Git Reset';
@@ -80,28 +83,36 @@ async function gitResetLogic(
   };
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = `# Git Reset (${result.mode})\n\n`;
-  const targetInfo = `**Reset to:** ${result.target}\n`;
-  const modeDesc =
-    result.mode === 'soft'
-      ? '**Effect:** Commits discarded, changes kept staged\n'
-      : result.mode === 'mixed'
-        ? '**Effect:** Commits discarded, changes kept unstaged\n'
-        : '**Effect:** ⚠️ All changes discarded permanently\n';
+/**
+ * Filter git_reset output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success, mode, and target only
+ * - standard: Above + complete list of reset files (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitResetOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      mode: result.mode,
+      target: result.target,
+    };
+  }
 
-  const filesSection =
-    result.filesReset.length > 0
-      ? `\n**Files Affected (${result.filesReset.length}):**\n${result.filesReset.map((f) => `- ${f}`).join('\n')}\n`
-      : '';
-
-  return [
-    {
-      type: 'text',
-      text: `${summary}${targetInfo}${modeDesc}${filesSection}`.trim(),
-    },
-  ];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all reset files)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitResetOutput,
+});
 
 export const gitResetTool: ToolDefinition<
   typeof InputSchema,

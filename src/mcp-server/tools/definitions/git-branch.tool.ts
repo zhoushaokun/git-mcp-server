@@ -2,7 +2,6 @@
  * @fileoverview Git branch tool - manage branches
  * @module mcp-server/tools/definitions/git-branch
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
@@ -18,6 +17,10 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_branch';
 const TOOL_TITLE = 'Git Branch';
@@ -196,38 +199,36 @@ async function gitBranchLogic(
   }
 }
 
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const header = `# Git Branch - ${result.operation.charAt(0).toUpperCase() + result.operation.slice(1).replace('-', ' ')}\n\n`;
-
-  if (result.operation === 'list' && result.branches) {
-    const current = result.branches.find((b) => b.current);
-    const currentInfo = current
-      ? `**Current Branch:** ${current.name}\n\n`
-      : '';
-
-    const branchList = result.branches
-      .map((branch) => {
-        const marker = branch.current ? '* ' : '  ';
-        const upstreamInfo = branch.upstream ? ` → ${branch.upstream}` : '';
-        const trackingInfo =
-          branch.ahead || branch.behind
-            ? ` [ahead ${branch.ahead || 0}, behind ${branch.behind || 0}]`
-            : '';
-        return `${marker}${branch.name}${upstreamInfo}${trackingInfo} (${branch.commitHash.substring(0, 7)})`;
-      })
-      .join('\n');
-
-    return [
-      {
-        type: 'text',
-        text: `${header}${currentInfo}## Branches (${result.branches.length})\n\`\`\`\n${branchList}\n\`\`\``,
-      },
-    ];
+/**
+ * Filter git_branch output based on verbosity level.
+ *
+ * Verbosity levels:
+ * - minimal: Success, operation, and current branch name only
+ * - standard: Above + complete branches array (for list) or message (for other ops) (RECOMMENDED)
+ * - full: Complete output
+ */
+function filterGitBranchOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  // minimal: Essential info only
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      operation: result.operation,
+      currentBranch: result.currentBranch,
+    };
   }
 
-  const message = result.message || 'Operation completed successfully.';
-  return [{ type: 'text', text: `${header}${message}` }];
+  // standard & full: Complete output
+  // (LLMs need complete context - include all branches or full message)
+  return result;
 }
+
+// Create JSON response formatter with verbosity filtering
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitBranchOutput,
+});
 
 export const gitBranchTool: ToolDefinition<
   typeof InputSchema,
