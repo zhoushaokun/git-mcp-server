@@ -50,6 +50,18 @@ export async function executeBranch(
 
         args.push(`--format=${format}`, refPrefix);
 
+        // Add merge filtering if specified
+        if (options.merged !== undefined) {
+          const mergedRef =
+            typeof options.merged === 'string' ? options.merged : 'HEAD';
+          args.push(`--merged=${mergedRef}`);
+        }
+        if (options.noMerged !== undefined) {
+          const noMergedRef =
+            typeof options.noMerged === 'string' ? options.noMerged : 'HEAD';
+          args.push(`--no-merged=${noMergedRef}`);
+        }
+
         const cmd = buildGitCommand({ command: 'for-each-ref', args });
         const result = await execGit(
           cmd,

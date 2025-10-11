@@ -370,6 +370,10 @@ export interface GitBranchOptions {
   force?: boolean;
   /** Include remote branches in list */
   remote?: boolean;
+  /** Filter to show only branches merged into specified commit (defaults to HEAD) */
+  merged?: boolean | string;
+  /** Filter to show only branches NOT merged into specified commit (defaults to HEAD) */
+  noMerged?: boolean | string;
 }
 
 export interface GitBranchInfo {

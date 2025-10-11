@@ -51,13 +51,17 @@ const InputSchema = z.object({
     .default(false)
     .describe('For list operation: show only remote branches.'),
   merged: z
-    .boolean()
+    .union([z.boolean(), CommitRefSchema])
     .optional()
-    .describe('For list operation: show only branches merged into HEAD.'),
+    .describe(
+      'For list operation: show only branches merged into HEAD (true) or specified commit (string).',
+    ),
   noMerged: z
-    .boolean()
+    .union([z.boolean(), CommitRefSchema])
     .optional()
-    .describe('For list operation: show only branches not merged into HEAD.'),
+    .describe(
+      'For list operation: show only branches not merged into HEAD (true) or specified commit (string).',
+    ),
 });
 
 const BranchInfoSchema = z.object({
@@ -119,15 +123,7 @@ async function gitBranchLogic(
   }
 
   // Build options object with only defined properties
-  const {
-    path: _path,
-    operation,
-    name,
-    newName,
-    merged: _merged,
-    noMerged: _noMerged,
-    ...rest
-  } = input;
+  const { path: _path, operation, name, newName, ...rest } = input;
 
   const branchOptions: {
     mode: 'list' | 'create' | 'delete' | 'rename';
@@ -136,6 +132,8 @@ async function gitBranchLogic(
     startPoint?: string;
     force?: boolean;
     remote?: boolean;
+    merged?: boolean | string;
+    noMerged?: boolean | string;
   } = {
     mode: operation as 'list' | 'create' | 'delete' | 'rename',
   };
@@ -154,6 +152,12 @@ async function gitBranchLogic(
   }
   if (rest.all !== undefined || rest.remote !== undefined) {
     branchOptions.remote = rest.remote || rest.all;
+  }
+  if (rest.merged !== undefined) {
+    branchOptions.merged = rest.merged;
+  }
+  if (rest.noMerged !== undefined) {
+    branchOptions.noMerged = rest.noMerged;
   }
 
   const result = await provider.branch(branchOptions, {
