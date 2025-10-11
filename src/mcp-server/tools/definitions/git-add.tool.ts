@@ -15,6 +15,7 @@ import {
   createJsonFormatter,
   type VerbosityLevel,
 } from '../utils/json-response-formatter.js';
+import { flattenChanges } from '../utils/git-formatters.js';
 
 const TOOL_NAME = 'git_add';
 const TOOL_TITLE = 'Git Add';
@@ -98,27 +99,6 @@ async function gitAddLogic(
       tenantId: appContext.tenantId || 'default-tenant',
     },
   );
-
-  // Helper to convert staged/unstaged changes to flat arrays
-  const flattenChanges = (changes: {
-    added?: string[];
-    modified?: string[];
-    deleted?: string[];
-    renamed?: string[];
-    copied?: string[];
-  }): Record<string, string[]> => {
-    const result: Record<string, string[]> = {};
-    if (changes.added && changes.added.length > 0) result.added = changes.added;
-    if (changes.modified && changes.modified.length > 0)
-      result.modified = changes.modified;
-    if (changes.deleted && changes.deleted.length > 0)
-      result.deleted = changes.deleted;
-    if (changes.renamed && changes.renamed.length > 0)
-      result.renamed = changes.renamed;
-    if (changes.copied && changes.copied.length > 0)
-      result.copied = changes.copied;
-    return result;
-  };
 
   return {
     success: result.success,
