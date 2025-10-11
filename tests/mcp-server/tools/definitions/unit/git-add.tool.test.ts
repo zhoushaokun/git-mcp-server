@@ -209,11 +209,21 @@ describe('git_add tool', () => {
   });
 
   describe('Response Formatter', () => {
+    const mockStatus = {
+      current_branch: 'main',
+      staged_changes: { modified: ['README.md'] },
+      unstaged_changes: {},
+      untracked_files: [],
+      conflicted_files: [],
+      is_clean: false,
+    };
+
     it('formats single file staging', () => {
       const result = {
         success: true,
         stagedFiles: ['README.md'],
         totalFiles: 1,
+        status: mockStatus,
       };
 
       const content = gitAddTool.responseFormatter!(result);
@@ -224,7 +234,7 @@ describe('git_add tool', () => {
         '## Staged Files',
         'README.md',
       ]);
-      assertTextContent(content, 'ready to be committed');
+      assertTextContent(content, 'Repository Status After Staging');
       assertLlmFriendlyFormat(content);
     });
 
@@ -233,6 +243,12 @@ describe('git_add tool', () => {
         success: true,
         stagedFiles: ['file1.txt', 'file2.txt', 'src/index.ts'],
         totalFiles: 3,
+        status: {
+          ...mockStatus,
+          staged_changes: {
+            modified: ['file1.txt', 'file2.txt', 'src/index.ts'],
+          },
+        },
       };
 
       const content = gitAddTool.responseFormatter!(result);
@@ -253,6 +269,17 @@ describe('git_add tool', () => {
           'docs/README.md',
         ],
         totalFiles: 4,
+        status: {
+          ...mockStatus,
+          staged_changes: {
+            modified: [
+              'package.json',
+              'src/main.ts',
+              'tests/main.test.ts',
+              'docs/README.md',
+            ],
+          },
+        },
       };
 
       const content = gitAddTool.responseFormatter!(result);
