@@ -59,19 +59,30 @@ export function escapeShellArg(str: string): string {
 /**
  * Build environment variables for git command.
  *
- * @param additionalEnv - Additional environment variables
- * @returns Combined environment object
+ * This function preserves the existing process environment (including PATH)
+ * to ensure git executable can be found, while adding git-specific settings.
+ *
+ * @param additionalEnv - Additional environment variables to override defaults
+ * @returns Combined environment object with PATH preserved
  */
 export function buildGitEnv(
   additionalEnv?: Record<string, string>,
 ): Record<string, string> {
-  const env: Record<string, string> = {
-    // Ensure git uses UTF-8 encoding
-    GIT_TERMINAL_PROMPT: '0', // Disable interactive prompts
-    LANG: 'en_US.UTF-8',
-    LC_ALL: 'en_US.UTF-8',
-  };
+  // Start with existing environment to preserve PATH and other critical vars
+  // This ensures git executable can be found in custom install locations
+  const env: Record<string, string> = { ...process.env } as Record<
+    string,
+    string
+  >;
 
+  // Override with git-specific settings
+  Object.assign(env, {
+    GIT_TERMINAL_PROMPT: '0', // Disable interactive prompts
+    LANG: 'en_US.UTF-8', // Ensure git uses UTF-8 encoding
+    LC_ALL: 'en_US.UTF-8',
+  });
+
+  // Apply any additional overrides (highest priority)
   if (additionalEnv) {
     Object.assign(env, additionalEnv);
   }
