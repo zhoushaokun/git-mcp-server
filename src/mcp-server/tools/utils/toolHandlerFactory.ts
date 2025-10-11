@@ -19,9 +19,9 @@ import { McpError } from '@/types-global/errors.js';
 import {
   ErrorHandler,
   logger,
-  type RequestContext,
   measureToolExecution,
   requestContextService,
+  type RequestContext,
 } from '@/utils/index.js';
 import type {
   CallToolResult,
@@ -29,6 +29,74 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { resolveWorkingDirectory } from './git-validators.js';
+
+/**
+ * Type guard for validating SdkContext (RequestHandlerExtra from MCP SDK).
+ *
+ * This is defensive programming - the MCP SDK should always pass a valid context,
+ * but this validation helps catch unexpected issues early and validate expected types.
+ *
+ * @param ctx - Unknown value to validate
+ * @returns True if the value is a valid SdkContext
+ */
+function validateSdkContext(ctx: unknown): ctx is SdkContext {
+  // Basic type check: must be an object
+  if (typeof ctx !== 'object' || ctx === null) {
+    return false;
+  }
+
+  // Validate optional properties if they exist
+  const sdkCtx = ctx as Record<string, unknown>;
+
+  // If signal exists, it should be an AbortSignal
+  if (
+    'signal' in sdkCtx &&
+    sdkCtx.signal !== null &&
+    sdkCtx.signal !== undefined
+  ) {
+    // Check for AbortSignal interface (has 'aborted' property and 'addEventListener' method)
+    const signal = sdkCtx.signal as Record<string, unknown>;
+    if (
+      typeof signal !== 'object' ||
+      !('aborted' in signal) ||
+      typeof signal.addEventListener !== 'function'
+    ) {
+      return false;
+    }
+  }
+
+  // If sendNotification exists, it should be a function
+  if (
+    'sendNotification' in sdkCtx &&
+    sdkCtx.sendNotification !== null &&
+    sdkCtx.sendNotification !== undefined &&
+    typeof sdkCtx.sendNotification !== 'function'
+  ) {
+    return false;
+  }
+
+  // If sendRequest exists, it should be a function
+  if (
+    'sendRequest' in sdkCtx &&
+    sdkCtx.sendRequest !== null &&
+    sdkCtx.sendRequest !== undefined &&
+    typeof sdkCtx.sendRequest !== 'function'
+  ) {
+    return false;
+  }
+
+  // If authInfo exists, it should be an object
+  if (
+    'authInfo' in sdkCtx &&
+    sdkCtx.authInfo !== null &&
+    sdkCtx.authInfo !== undefined &&
+    typeof sdkCtx.authInfo !== 'object'
+  ) {
+    return false;
+  }
+
+  return true;
+}
 
 // Define a type for a context that may have elicitation capabilities.
 type ElicitableContext = RequestContext & {
@@ -74,7 +142,21 @@ export function createMcpToolHandler<
     input: TInput,
     callContext: Record<string, unknown>,
   ): Promise<CallToolResult> => {
-    // The `callContext` from the SDK is cast to our specific SdkContext type.
+    // Validate SDK context (defensive programming)
+    // Note: This is purely defensive - the MCP SDK should always provide a valid context
+    if (!validateSdkContext(callContext)) {
+      // Log without context since we don't have a RequestContext yet
+      console.warn(
+        `[${toolName}] Invalid SDK context received from MCP framework:`,
+        {
+          contextType: typeof callContext,
+          hasContext: !!callContext,
+        },
+      );
+      // Continue anyway - MCP SDK controls this, so we trust it
+    }
+
+    // The `callContext` from the SDK is our specific SdkContext type.
     const sdkContext = callContext as SdkContext;
 
     const sessionId =
@@ -115,6 +197,16 @@ export function createMcpToolHandler<
         content: responseFormatter(result),
       };
     } catch (error) {
+      // Enhanced error context logging
+      logger.error('Tool execution failed', {
+        ...appContext,
+        toolName,
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        inputKeys:
+          typeof input === 'object' && input !== null ? Object.keys(input) : [],
+      });
+
       const mcpError = ErrorHandler.handleError(error, {
         operation: `tool:${toolName}`,
         context: appContext,
@@ -281,10 +373,35 @@ export function createToolHandler<TInput, TOutput>(
   appContext: RequestContext,
   sdkContext: SdkContext,
 ) => Promise<TOutput> {
-  // Use lazy resolution to avoid resolving dependencies at module load time.
+  // Lazy initialization with closure-based memoization (thread-safe singleton pattern)
   // Dependencies are resolved on first invocation and cached for subsequent calls.
-  let storage: StorageService | null = null;
-  let factory: GitProviderFactory | null = null;
+  const getDependencies = (() => {
+    let deps: {
+      storage: StorageService;
+      factory: GitProviderFactory;
+    } | null = null;
+
+    return (appContext?: RequestContext) => {
+      if (!deps) {
+        deps = {
+          storage: container.resolve<StorageService>(StorageServiceToken),
+          factory: container.resolve<GitProviderFactory>(
+            GitProviderFactoryToken,
+          ),
+        };
+
+        if (appContext) {
+          logger.debug('Initialized tool handler dependencies', {
+            ...appContext,
+            hasStorage: !!deps.storage,
+            hasFactory: !!deps.factory,
+            skipPathResolution: options.skipPathResolution,
+          });
+        }
+      }
+      return deps;
+    };
+  })();
 
   // Return the wrapped handler function that will be called for each tool invocation
   return async (
@@ -292,15 +409,27 @@ export function createToolHandler<TInput, TOutput>(
     appContext: RequestContext,
     sdkContext: SdkContext,
   ): Promise<TOutput> => {
-    // Lazy initialization: resolve dependencies on first call
-    if (!storage || !factory) {
-      storage = container.resolve<StorageService>(StorageServiceToken);
-      factory = container.resolve<GitProviderFactory>(GitProviderFactoryToken);
+    // Resolve dependencies using lazy singleton (passing context for initialization logging)
+    const { storage, factory } = getDependencies(appContext);
+
+    // Debug mode: log input details if enabled
+    // Performance optimization: only stringify input in verbose mode to avoid overhead
+    if (process.env.MCP_DEBUG_TOOL_INPUTS === 'true') {
+      const verboseMode = process.env.MCP_DEBUG_VERBOSE === 'true';
+      logger.debug('Tool input received', {
+        ...appContext,
+        input: verboseMode
+          ? JSON.stringify(input, null, 2)
+          : '<omitted - set MCP_DEBUG_VERBOSE=true to include>',
+        inputType: typeof input,
+        inputKeys: typeof input === 'object' && input ? Object.keys(input) : [],
+      });
     }
 
     logger.debug('Executing tool with handler factory', {
       ...appContext,
       toolInput: input,
+      skipPathResolution: options.skipPathResolution,
     });
 
     // Get the provider (factory caches the instance, so this is fast)
@@ -310,17 +439,46 @@ export function createToolHandler<TInput, TOutput>(
     // Skip resolution if the tool opts out (e.g., clone, clear-working-dir)
     let targetPath = '';
     if (!options.skipPathResolution) {
-      // This helper:
-      // - Loads from session storage when input.path is '.'
-      // - Uses provided path directly when it's an absolute path
-      // - Sanitizes the path to prevent directory traversal attacks
-      // - Defaults to '.' if path is undefined (uses session directory)
-      const pathInput = input as TInput & { path?: string | null };
-      targetPath = await resolveWorkingDirectory(
-        pathInput.path ?? '.',
-        appContext,
-        storage,
-      );
+      // Runtime check for path property to ensure type safety
+      // TypeScript narrowing: check if input is an object and has 'path' property
+      const hasPath =
+        typeof input === 'object' && input !== null && 'path' in input;
+
+      if (hasPath) {
+        // This helper:
+        // - Loads from session storage when input.path is '.'
+        // - Uses provided path directly when it's an absolute path
+        // - Sanitizes the path to prevent directory traversal attacks
+        // - Defaults to '.' if path is undefined (uses session directory)
+        const pathValue = (input as { path?: string | null }).path;
+        targetPath = await resolveWorkingDirectory(
+          pathValue ?? '.',
+          appContext,
+          storage,
+        );
+
+        logger.debug('Resolved working directory', {
+          ...appContext,
+          inputPath: pathValue,
+          resolvedPath: targetPath,
+        });
+      } else {
+        // Path expected but not found - this should never happen with correct schemas
+        // Fall back to session directory with warning
+        logger.warning(
+          'Tool expected path resolution but input has no path property',
+          {
+            ...appContext,
+            inputType: typeof input,
+            inputKeys:
+              typeof input === 'object' && input !== null
+                ? Object.keys(input)
+                : [],
+            skipPathResolution: options.skipPathResolution,
+          },
+        );
+        targetPath = await resolveWorkingDirectory('.', appContext, storage);
+      }
     }
 
     // Assemble all dependencies for the core logic
