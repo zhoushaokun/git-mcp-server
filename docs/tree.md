@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-10-11 05:08:08
+Generated on: 2025-10-11 06:14:10
 
 ```
 git-mcp-server
@@ -334,6 +334,7 @@ git-mcp-server
 ├── bun.lock
 ├── bunfig.toml
 ├── CHANGELOG.md
+├── CLAUDE.md
 ├── eslint.config.js
 ├── LICENSE
 ├── package.json

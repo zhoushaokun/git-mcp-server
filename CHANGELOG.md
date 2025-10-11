@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.3 - 2025-10-11
+
+### Fixed
+
+- **Git Branch Tool**: Fixed `git for-each-ref` command construction by correctly placing the command in the `command` parameter instead of args array
+- **Git Rebase Tool**: Enhanced `--continue` mode with fallback handling for `--no-edit` option, improving compatibility across different Git versions
+- **Git Command Builder**: Fixed environment variable construction to preserve PATH from process.env, ensuring git executable can be found in custom install locations
+
+### Changed
+
+- **Documentation**: Updated tree.md to reflect addition of CLAUDE.md file
+
 ## v2.4.2 - 2025-10-10
 
 ### Added
