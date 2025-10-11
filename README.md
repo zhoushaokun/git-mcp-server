@@ -72,11 +72,12 @@ This server is built on the [`mcp-ts-template`](https://github.com/cyanheads/mcp
 - **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `Cloudflare KV/R2`) without changing business logic.
 - **Full-Stack Observability**: Deep insights with structured logging (Pino) and optional, auto-instrumented OpenTelemetry for traces and metrics.
 - **Dependency Injection**: Built with `tsyringe` for a clean, decoupled, and testable architecture.
-- **Edge-Ready Architecture**: Built on an edge-compatible framework that runs seamlessly on local machines or Cloudflare Workers. _Note: Git operations require local git CLI and are not compatible with edge deployment. Edge support is available for the template architecture only._
+- **Edge-Ready Architecture**: Built on an edge-compatible framework that runs seamlessly on local machines or Cloudflare Workers. _Note: Current git operations use the CLI provider which requires local git installation. Edge deployment support is planned through the isomorphic-git provider integration._
 
 Plus, specialized features for **Git integration**:
 
-- **Direct Git CLI Execution**: Secure interaction with the standard `git` command-line tool via process execution.
+- **Provider-Based Architecture**: Pluggable git provider system with current CLI implementation and planned isomorphic-git provider for edge deployment.
+- **Optimized Git Execution**: Direct git CLI interaction via Bun.spawn for high-performance process management with streaming I/O and timeout handling (current CLI provider).
 - **Comprehensive Coverage**: 27 tools covering all essential Git operations from init to push.
 - **Working Directory Management**: Session-specific directory context for multi-repo workflows.
 - **Safety Features**: Explicit confirmations for destructive operations like `git clean` and `git reset --hard`.
@@ -349,6 +350,34 @@ This server uses [Vitest](https://vitest.dev/) for testing.
   ```sh
   bun test --watch
   ```
+
+## 🗺️ Roadmap
+
+### Planned Git Provider Integrations
+
+The server uses a **provider-based architecture** to support multiple git implementation backends:
+
+- **✅ CLI Provider** (Current): Full-featured git operations via native git CLI
+  - Complete coverage of all 27 git tools
+  - Executes git commands using Bun.spawn for optimal performance
+  - Streaming I/O handling for large outputs (10MB buffer limit)
+  - Configurable timeouts (60s default) and automatic process cleanup
+  - Requires local git installation
+  - Best for local development and server deployments
+
+- **🚧 Isomorphic Git Provider** (Planned): Pure JavaScript git implementation
+  - Edge deployment compatibility (Cloudflare Workers, Vercel Edge, Deno Deploy)
+  - No system dependencies required
+  - Enables true serverless git operations
+  - Core operations: clone, status, add, commit, push, pull, branch, checkout
+  - Implementation: [isomorphic-git](https://isomorphic-git.org/)
+
+- **💡 GitHub API Provider** (Maybe): Cloud-native git operations via GitHub REST/GraphQL APIs
+  - No local repository required
+  - Direct integration with GitHub-hosted repositories
+  - Ideal for GitHub-centric workflows
+
+The provider system allows seamless switching between implementations based on deployment environment and requirements. See [`AGENTS.md`](AGENTS.md#git-service-architecture-git-mcp-server-specific) for architectural details.
 
 ## 🤝 Contributing
 
