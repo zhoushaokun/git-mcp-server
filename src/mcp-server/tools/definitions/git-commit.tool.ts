@@ -17,6 +17,7 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import { markdown } from '../utils/markdown-builder.js';
 
 const TOOL_NAME = 'git_commit';
 const TOOL_TITLE = 'Git Commit';
@@ -207,81 +208,93 @@ async function gitCommitLogic(
 }
 
 function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = `# Commit Created Successfully\n\n`;
-  const commitInfo =
-    `**Commit Hash:** ${result.commitHash}\n` +
-    `**Author:** ${result.author}\n` +
-    `**Date:** ${new Date(result.timestamp * 1000).toISOString()}\n` +
-    `**Message:** ${result.message}\n\n`;
+  const md = markdown();
 
-  const stats =
-    result.filesChanged !== undefined
-      ? `## Changes\n` +
-        `- **Files Changed:** ${result.filesChanged}\n` +
-        (result.insertions !== undefined
-          ? `- **Insertions:** +${result.insertions}\n`
-          : '') +
-        (result.deletions !== undefined
-          ? `- **Deletions:** -${result.deletions}\n`
-          : '') +
-        `\n`
-      : '';
+  // Main heading
+  md.h1('Commit Created Successfully', '✅');
 
-  // List of committed files
-  const committedFilesSection =
-    result.committedFiles.length > 0
-      ? `## Committed Files (${result.committedFiles.length})\n${result.committedFiles.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
+  // Commit metadata
+  md.keyValue('Commit Hash', result.commitHash.substring(0, 7))
+    .keyValue('Author', result.author)
+    .keyValue('Date', new Date(result.timestamp * 1000).toISOString())
+    .keyValue('Message', result.message)
+    .blankLine();
+
+  // Changes summary
+  if (result.filesChanged !== undefined) {
+    md.section('Changes', 2, () => {
+      md.keyValue('Files Changed', result.filesChanged!);
+      if (result.insertions !== undefined) {
+        md.keyValue('Insertions', `+${result.insertions}`);
+      }
+      if (result.deletions !== undefined) {
+        md.keyValue('Deletions', `-${result.deletions}`);
+      }
+    });
+  }
+
+  // Committed files list
+  md.when(result.committedFiles.length > 0, () => {
+    md.section(`Committed Files (${result.committedFiles.length})`, 2, () => {
+      md.list(result.committedFiles);
+    });
+  });
 
   // Repository status after commit
-  const statusSection = `## Repository Status After Commit\n`;
-  const branchInfo = `**Branch:** ${result.status.current_branch || 'detached HEAD'}\n`;
-  const cleanStatus = result.status.is_clean
-    ? `**Status:** Clean (no uncommitted changes)\n\n`
-    : `**Status:** Has uncommitted changes\n\n`;
+  md.section('Repository Status After Commit', 2, () => {
+    md.keyValue(
+      'Branch',
+      result.status.current_branch || 'detached HEAD',
+    ).keyValue(
+      'Status',
+      result.status.is_clean
+        ? 'Clean (no uncommitted changes)'
+        : 'Has uncommitted changes',
+    );
 
-  // Show remaining changes if not clean
-  let remainingChanges = '';
-  if (!result.status.is_clean) {
-    const staged = Object.keys(result.status.staged_changes);
-    const unstaged = Object.keys(result.status.unstaged_changes);
-    const untracked = result.status.untracked_files.length;
+    // Show remaining changes if not clean
+    if (!result.status.is_clean) {
+      md.blankLine();
 
-    if (staged.length > 0) {
-      remainingChanges += `### Staged Changes\n`;
-      staged.forEach((type) => {
-        const files = (
-          result.status.staged_changes as Record<string, string[]>
-        )[type];
-        if (files && files.length > 0) {
-          remainingChanges += `**${type}:** ${files.length} file(s)\n`;
-        }
+      const staged = Object.keys(result.status.staged_changes);
+      const unstaged = Object.keys(result.status.unstaged_changes);
+      const untracked = result.status.untracked_files.length;
+
+      md.when(staged.length > 0, () => {
+        md.h3('Staged Changes');
+        staged.forEach((type) => {
+          const files = (
+            result.status.staged_changes as Record<string, string[]>
+          )[type];
+          if (files && files.length > 0) {
+            md.keyValue(type, `${files.length} file(s)`);
+          }
+        });
       });
-      remainingChanges += `\n`;
-    }
 
-    if (unstaged.length > 0) {
-      remainingChanges += `### Unstaged Changes\n`;
-      unstaged.forEach((type) => {
-        const files = (
-          result.status.unstaged_changes as Record<string, string[]>
-        )[type];
-        if (files && files.length > 0) {
-          remainingChanges += `**${type}:** ${files.length} file(s)\n`;
-        }
+      md.when(unstaged.length > 0, () => {
+        md.h3('Unstaged Changes');
+        unstaged.forEach((type) => {
+          const files = (
+            result.status.unstaged_changes as Record<string, string[]>
+          )[type];
+          if (files && files.length > 0) {
+            md.keyValue(type, `${files.length} file(s)`);
+          }
+        });
       });
-      remainingChanges += `\n`;
-    }
 
-    if (untracked > 0) {
-      remainingChanges += `### Untracked Files: ${untracked}\n\n`;
+      md.when(untracked > 0, () => {
+        md.h3('Untracked Files');
+        md.keyValue('Count', untracked);
+      });
     }
-  }
+  });
 
   return [
     {
       type: 'text',
-      text: `${summary}${commitInfo}${stats}${committedFilesSection}${statusSection}${branchInfo}${cleanStatus}${remainingChanges}`.trim(),
+      text: md.build(),
     },
   ];
 }

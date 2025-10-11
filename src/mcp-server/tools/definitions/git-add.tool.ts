@@ -12,6 +12,7 @@ import {
   createToolHandler,
   type ToolLogicDependencies,
 } from '../utils/toolHandlerFactory.js';
+import { markdown } from '../utils/markdown-builder.js';
 
 const TOOL_NAME = 'git_add';
 const TOOL_TITLE = 'Git Add';
@@ -43,6 +44,27 @@ const OutputSchema = z.object({
     .array(z.string())
     .describe('Files that were successfully staged.'),
   totalFiles: z.number().int().describe('Total number of files staged.'),
+  status: z
+    .object({
+      current_branch: z
+        .string()
+        .nullable()
+        .describe('Current branch name after staging.'),
+      staged_changes: z
+        .record(z.any())
+        .describe('All staged changes after this operation.'),
+      unstaged_changes: z
+        .record(z.any())
+        .describe('Remaining unstaged changes.'),
+      untracked_files: z
+        .array(z.string())
+        .describe('Remaining untracked files.'),
+      conflicted_files: z.array(z.string()).describe('Files with conflicts.'),
+      is_clean: z
+        .boolean()
+        .describe('Whether working directory is clean (ready to commit).'),
+    })
+    .describe('Repository status after staging files.'),
 });
 
 type ToolInput = z.infer<typeof InputSchema>;
@@ -53,7 +75,6 @@ async function gitAddLogic(
   { provider, targetPath, appContext }: ToolLogicDependencies,
 ): Promise<ToolOutput> {
   // Build options object using modern spread syntax
-
   const { path: _path, files, ...rest } = input;
   const addOptions = {
     paths: files,
@@ -66,25 +87,122 @@ async function gitAddLogic(
     tenantId: appContext.tenantId || 'default-tenant',
   });
 
+  // Get repository status after staging
+  const statusResult = await provider.status(
+    { includeUntracked: true },
+    {
+      workingDirectory: targetPath,
+      requestContext: appContext,
+      tenantId: appContext.tenantId || 'default-tenant',
+    },
+  );
+
+  // Helper to convert staged/unstaged changes to flat arrays
+  const flattenChanges = (changes: {
+    added?: string[];
+    modified?: string[];
+    deleted?: string[];
+    renamed?: string[];
+    copied?: string[];
+  }): Record<string, string[]> => {
+    const result: Record<string, string[]> = {};
+    if (changes.added && changes.added.length > 0) result.added = changes.added;
+    if (changes.modified && changes.modified.length > 0)
+      result.modified = changes.modified;
+    if (changes.deleted && changes.deleted.length > 0)
+      result.deleted = changes.deleted;
+    if (changes.renamed && changes.renamed.length > 0)
+      result.renamed = changes.renamed;
+    if (changes.copied && changes.copied.length > 0)
+      result.copied = changes.copied;
+    return result;
+  };
+
   return {
     success: result.success,
     stagedFiles: result.stagedFiles,
     totalFiles: result.stagedFiles.length,
+    status: {
+      current_branch: statusResult.currentBranch,
+      staged_changes: flattenChanges(statusResult.stagedChanges),
+      unstaged_changes: flattenChanges(statusResult.unstagedChanges),
+      untracked_files: statusResult.untrackedFiles,
+      conflicted_files: statusResult.conflictedFiles,
+      is_clean: statusResult.isClean,
+    },
   };
 }
 
 function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = `# Files Staged Successfully\n\n`;
-  const stats = `**Total Files Staged:** ${result.totalFiles}\n\n`;
+  const md = markdown();
 
-  const fileList =
-    result.stagedFiles.length > 0
-      ? `## Staged Files\n${result.stagedFiles.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
+  // Main heading
+  md.h1('Files Staged Successfully', '✅');
 
-  const message = `${summary}${stats}${fileList}These files are now in the staging area and ready to be committed.`;
+  // Summary stats
+  md.keyValue('Total Files Staged', result.totalFiles).blankLine();
 
-  return [{ type: 'text', text: message.trim() }];
+  // List of staged files
+  md.when(result.stagedFiles.length > 0, () => {
+    md.section('Staged Files', 2, () => {
+      md.list(result.stagedFiles);
+    });
+  });
+
+  // Repository status after staging
+  md.section('Repository Status After Staging', 2, () => {
+    md.keyValue(
+      'Branch',
+      result.status.current_branch || 'detached HEAD',
+    ).keyValue(
+      'Ready to Commit',
+      Object.keys(result.status.staged_changes).length > 0 ? 'Yes' : 'No',
+    );
+
+    // Show all staged changes (including those from this operation)
+    const allStaged = Object.keys(result.status.staged_changes);
+    md.when(allStaged.length > 0, () => {
+      md.blankLine();
+      md.h3('All Staged Changes');
+      allStaged.forEach((type) => {
+        const files = (
+          result.status.staged_changes as Record<string, string[]>
+        )[type];
+        if (files && files.length > 0) {
+          md.keyValue(type, `${files.length} file(s)`);
+        }
+      });
+    });
+
+    // Show remaining unstaged changes
+    const unstaged = Object.keys(result.status.unstaged_changes);
+    md.when(unstaged.length > 0, () => {
+      md.blankLine();
+      md.h3('Remaining Unstaged Changes');
+      unstaged.forEach((type) => {
+        const files = (
+          result.status.unstaged_changes as Record<string, string[]>
+        )[type];
+        if (files && files.length > 0) {
+          md.keyValue(type, `${files.length} file(s)`);
+        }
+      });
+    });
+
+    // Show untracked files
+    md.when(result.status.untracked_files.length > 0, () => {
+      md.blankLine();
+      md.h3('Untracked Files');
+      md.keyValue('Count', result.status.untracked_files.length);
+    });
+  });
+
+  return [
+    {
+      type: 'text',
+      text: md.build(),
+    },
+  ];
 }
 
 export const gitAddTool: ToolDefinition<
