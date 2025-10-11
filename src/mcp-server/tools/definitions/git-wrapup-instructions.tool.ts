@@ -142,7 +142,7 @@ async function gitWrapupInstructionsLogic(
 
   // Add optional instructions
   if (input.updateAgentMetaFiles) {
-    finalInstructions += `\nExtra request: review and update if needed the .clinerules and claude.md files if present.`;
+    finalInstructions += `\nExtra request: review and update if needed the .cline_rules and claude.md files if present.`;
   }
 
   if (input.createTag) {
