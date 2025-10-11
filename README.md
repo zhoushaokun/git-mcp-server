@@ -1,6 +1,8 @@
 <div align="center">
-  <h1>git-mcp-server</h1>
-  <p><b>A comprehensive Git Model Context Protocol (MCP) server enabling AI agents to perform complete version control operations. Built for security and scalability with native support for both local and serverless deployment.</b></p>
+  <h1>@cyanheads/git-mcp-server</h1>
+  <p><b>A secure and scalable Git MCP server giving AI agents powerful version control for local and (soon) serverless environments.</b>
+  <div>27 Tools • 1 Resources • 1 Prompt</div>
+  </p>
 </div>
 
 <div align="center">
@@ -24,43 +26,6 @@ This server provides 27 comprehensive Git operations organized into six function
 | **Remote Operations**     | `git_remote`, `git_fetch`, `git_pull`, `git_push`                                                                              | Configure remotes, download updates, synchronize repositories, and publish changes                                    |
 | **Advanced Workflows**    | `git_tag`, `git_stash`, `git_reset`, `git_worktree`, `git_set_working_dir`, `git_clear_working_dir`, `git_wrapup_instructions` | Tag releases, stash changes, reset state, manage worktrees, set/clear session directory, and access workflow guidance |
 
-### Key Capabilities
-
-**Repository Operations**
-
-- Initialize new repositories or clone from any Git remote
-- Comprehensive status checking with detailed file states
-- Safe cleanup of untracked files with force confirmation
-
-**Commit Management**
-
-- Create conventional commits with automatic message validation
-- Full commit history with filtering by author, date, file, and message
-- Inspect any Git object (commits, tags, trees) with detailed output
-- Compare changes between commits, branches, or working tree states
-
-**Branching & Integration**
-
-- Complete branch lifecycle: create, list, rename, delete
-- Smart merging with conflict detection and strategy selection
-- Interactive rebasing for clean commit history
-- Cherry-pick specific commits across branches
-
-**Remote Collaboration**
-
-- Manage multiple remotes with full CRUD operations
-- Fetch updates with pruning and tag management
-- Pull with automatic merge or rebase strategies
-- Push with force-with-lease protection and upstream tracking
-
-**Advanced Features**
-
-- Tag management for releases and milestones
-- Stash operations for temporary work storage
-- Reset capabilities with safety confirmations
-- Worktree support for parallel work on multiple branches
-- Persistent working directory for session continuity
-- Workflow instructions for best practices
 
 ## ✨ Features
 
