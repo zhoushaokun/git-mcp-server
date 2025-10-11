@@ -147,6 +147,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
 | `OTEL_ENABLED`                 | Set to `true` to enable OpenTelemetry.                                                         | `false`     |
 | `MCP_LOG_LEVEL`                | The minimum level for logging (`debug`, `info`, `warn`, `error`).                              | `info`      |
 | `GIT_SIGN_COMMITS`             | Set to `"true"` to enable GPG/SSH signing for commits. Requires server-side Git configuration. | `false`     |
+| `GIT_BASE_DIR`                 | Optional absolute path to restrict all git operations to a specific directory tree. Provides security sandboxing for multi-tenant or shared environments. | `(none)`    |
 | `GIT_WRAPUP_INSTRUCTIONS_PATH` | Optional path to custom markdown file with Git workflow instructions.                          | `(none)`    |
 | `MCP_AUTH_SECRET_KEY`          | **Required for `jwt` auth.** A 32+ character secret key.                                       | `(none)`    |
 | `OAUTH_ISSUER_URL`             | **Required for `oauth` auth.** URL of the OIDC provider.                                       | `(none)`    |
@@ -324,7 +325,8 @@ For strict rules when using this server with an AI agent, refer to the **`AGENTS
 ## 🔒 Security Features
 
 - **Path Sanitization**: All file paths are validated and sanitized to prevent directory traversal attacks.
-- **Command Injection Prevention**: Git commands are executed with carefully validated arguments.
+- **Base Directory Restriction**: Optional `GIT_BASE_DIR` configuration to restrict all git operations to a specific directory tree, providing security sandboxing for multi-tenant or shared hosting environments.
+- **Command Injection Prevention**: Git commands are executed with carefully validated arguments via Bun.spawn.
 - **Destructive Operation Protection**: Dangerous operations require explicit confirmation flags.
 - **Authentication Support**: Built-in JWT and OAuth support for secure deployments.
 - **Rate Limiting**: Optional rate limiting via the DI-managed `RateLimiter` service.

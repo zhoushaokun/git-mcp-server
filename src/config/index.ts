@@ -180,6 +180,16 @@ const ConfigSchema = z.object({
     ),
     signCommits: z.coerce.boolean().default(false),
     wrapupInstructionsPath: z.string().optional(),
+    baseDir: z.preprocess(
+      emptyStringAsUndefined,
+      z
+        .string()
+        .refine((path) => !path || path.startsWith('/'), {
+          message:
+            'GIT_BASE_DIR must be an absolute path starting with "/" if provided',
+        })
+        .optional(),
+    ),
     maxCommandTimeoutMs: z.coerce.number().default(30000),
     maxBufferSizeMb: z.coerce.number().default(10),
   }),
@@ -311,6 +321,7 @@ const parseConfig = () => {
       provider: env.GIT_PROVIDER,
       signCommits: env.GIT_SIGN_COMMITS,
       wrapupInstructionsPath: env.GIT_WRAPUP_INSTRUCTIONS_PATH,
+      baseDir: env.GIT_BASE_DIR,
       maxCommandTimeoutMs: env.GIT_MAX_COMMAND_TIMEOUT_MS,
       maxBufferSizeMb: env.GIT_MAX_BUFFER_SIZE_MB,
     },

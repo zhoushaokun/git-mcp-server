@@ -93,14 +93,18 @@ export async function resolveWorkingDirectory(
   }
 
   // Sanitize path for security (prevent directory traversal)
+  // If GIT_BASE_DIR is configured, restrict operations to that directory tree
+  const config = await import('@/config/index.js');
   const { sanitizedPath } = sanitization.sanitizePath(workingDir, {
     allowAbsolute: true,
+    rootDir: config.default.git.baseDir, // Optional base directory restriction
   });
 
   logger.debug('Sanitized working directory path', {
     ...appContext,
     original: workingDir,
     sanitized: sanitizedPath,
+    baseDir: config.default.git.baseDir,
   });
 
   return sanitizedPath;

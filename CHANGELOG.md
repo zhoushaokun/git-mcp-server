@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **Enhanced Repository Context**: The `git_set_working_dir` tool now provides rich repository context by default when setting the working directory. Includes immediate status, branch information, configured remotes, and recent commits. Context gathering can be disabled via the new `includeContext` parameter.
+- **Base Directory Security**: New optional `GIT_BASE_DIR` environment variable to restrict all git operations to a specific directory tree. Provides security sandboxing for multi-tenant or shared hosting environments. When configured, prevents git operations from accessing paths outside the specified base directory.
 
 ### Changed
 
