@@ -16,6 +16,9 @@ startCommand:
         type: string
         default: 'info'
         description: 'Minimum logging level.'
+      GIT_BASE_DIR:
+        type: string
+        description: 'Optional absolute path to restrict all git operations to a specific directory tree. Provides security sandboxing for multi-tenant or shared environments.'
   commandFunction: |
     (config) => ({
       "command": "bunx",
@@ -23,6 +26,7 @@ startCommand:
       "env": {
         "MCP_TRANSPORT_TYPE": config.MCP_TRANSPORT_TYPE,
         "MCP_HTTP_PORT": config.MCP_HTTP_PORT,
-        "MCP_LOG_LEVEL": config.MCP_LOG_LEVEL
+        "MCP_LOG_LEVEL": config.MCP_LOG_LEVEL,
+        "GIT_BASE_DIR": config.GIT_BASE_DIR
       }
     })

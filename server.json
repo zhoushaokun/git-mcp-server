@@ -31,6 +31,12 @@
           "format": "string",
           "isRequired": false,
           "default": "info"
+        },
+        {
+          "name": "GIT_BASE_DIR",
+          "description": "Optional absolute path to restrict all git operations to a specific directory tree. Provides security sandboxing for multi-tenant or shared environments.",
+          "format": "string",
+          "isRequired": false
         }
       ],
       "transport": {
@@ -88,6 +94,12 @@
           "format": "string",
           "isRequired": false,
           "default": "info"
+        },
+        {
+          "name": "GIT_BASE_DIR",
+          "description": "Optional absolute path to restrict all git operations to a specific directory tree. Provides security sandboxing for multi-tenant or shared environments.",
+          "format": "string",
+          "isRequired": false
         }
       ],
       "transport": {
