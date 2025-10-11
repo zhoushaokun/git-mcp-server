@@ -15,8 +15,8 @@ import {
   createTestSdkContext,
   createMockGitProvider,
   createMockStorageService,
-  assertTextContent,
-  assertMarkdownContent,
+  assertJsonContent,
+  assertJsonField,
   assertLlmFriendlyFormat,
 } from '../helpers/index.js';
 import type { GitAddResult } from '@/services/git/types.js';
@@ -92,7 +92,17 @@ describe('git_add tool', () => {
         stagedFiles: ['file.txt'],
       };
 
+      const mockStatusResult = {
+        currentBranch: 'main',
+        stagedChanges: { modified: ['file.txt'] },
+        unstagedChanges: {},
+        untrackedFiles: [],
+        conflictedFiles: [],
+        isClean: false,
+      };
+
       mockProvider.add.mockResolvedValue(mockResult);
+      mockProvider.status.mockResolvedValue(mockStatusResult);
 
       const parsedInput = gitAddTool.inputSchema.parse({
         path: '.',
@@ -123,7 +133,19 @@ describe('git_add tool', () => {
         stagedFiles: ['file1.txt', 'file2.txt', 'dir/file3.txt'],
       };
 
+      const mockStatusResult = {
+        currentBranch: 'main',
+        stagedChanges: {
+          modified: ['file1.txt', 'file2.txt', 'dir/file3.txt'],
+        },
+        unstagedChanges: {},
+        untrackedFiles: [],
+        conflictedFiles: [],
+        isClean: false,
+      };
+
       mockProvider.add.mockResolvedValue(mockResult);
+      mockProvider.status.mockResolvedValue(mockStatusResult);
 
       const parsedInput = gitAddTool.inputSchema.parse({
         path: '.',
@@ -148,7 +170,17 @@ describe('git_add tool', () => {
         stagedFiles: ['modified.txt'],
       };
 
+      const mockStatusResult = {
+        currentBranch: 'main',
+        stagedChanges: { modified: ['modified.txt'] },
+        unstagedChanges: {},
+        untrackedFiles: [],
+        conflictedFiles: [],
+        isClean: false,
+      };
+
       mockProvider.add.mockResolvedValue(mockResult);
+      mockProvider.status.mockResolvedValue(mockStatusResult);
 
       const parsedInput = gitAddTool.inputSchema.parse({
         path: '.',
@@ -170,7 +202,17 @@ describe('git_add tool', () => {
         stagedFiles: ['ignored.txt'],
       };
 
+      const mockStatusResult = {
+        currentBranch: 'main',
+        stagedChanges: { added: ['ignored.txt'] },
+        unstagedChanges: {},
+        untrackedFiles: [],
+        conflictedFiles: [],
+        isClean: false,
+      };
+
       mockProvider.add.mockResolvedValue(mockResult);
+      mockProvider.status.mockResolvedValue(mockStatusResult);
 
       const parsedInput = gitAddTool.inputSchema.parse({
         path: '.',
@@ -192,7 +234,17 @@ describe('git_add tool', () => {
         stagedFiles: ['file.txt'],
       };
 
+      const mockStatusResult = {
+        currentBranch: 'main',
+        stagedChanges: { modified: ['file.txt'] },
+        unstagedChanges: {},
+        untrackedFiles: [],
+        conflictedFiles: [],
+        isClean: false,
+      };
+
       mockProvider.add.mockResolvedValue(mockResult);
+      mockProvider.status.mockResolvedValue(mockStatusResult);
 
       const parsedInput = gitAddTool.inputSchema.parse({
         path: '/absolute/path',
@@ -228,13 +280,19 @@ describe('git_add tool', () => {
 
       const content = gitAddTool.responseFormatter!(result);
 
-      assertMarkdownContent(content, [
-        '# Files Staged Successfully',
-        '**Total Files Staged:** 1',
-        '## Staged Files',
-        'README.md',
-      ]);
-      assertTextContent(content, 'Repository Status After Staging');
+      // Should return JSON format with expected structure
+      assertJsonContent(content, {
+        success: true,
+        stagedFiles: ['README.md'],
+        totalFiles: 1,
+        status: {
+          current_branch: 'main',
+          is_clean: false,
+        },
+      });
+
+      assertJsonField(content, 'stagedFiles', ['README.md']);
+      assertJsonField(content, 'totalFiles', 1);
       assertLlmFriendlyFormat(content);
     });
 
@@ -253,10 +311,18 @@ describe('git_add tool', () => {
 
       const content = gitAddTool.responseFormatter!(result);
 
-      assertTextContent(content, 'Total Files Staged:** 3');
-      assertTextContent(content, 'file1.txt');
-      assertTextContent(content, 'file2.txt');
-      assertTextContent(content, 'src/index.ts');
+      assertJsonContent(content, {
+        success: true,
+        stagedFiles: ['file1.txt', 'file2.txt', 'src/index.ts'],
+        totalFiles: 3,
+      });
+
+      assertJsonField(content, 'totalFiles', 3);
+      assertJsonField(content, 'stagedFiles', [
+        'file1.txt',
+        'file2.txt',
+        'src/index.ts',
+      ]);
     });
 
     it('lists all staged files', () => {
@@ -283,13 +349,18 @@ describe('git_add tool', () => {
       };
 
       const content = gitAddTool.responseFormatter!(result);
-      const text = (content[0] as { type: 'text'; text: string }).text;
 
-      expect(text).toContain('package.json');
-      expect(text).toContain('src/main.ts');
-      expect(text).toContain('tests/main.test.ts');
-      expect(text).toContain('docs/README.md');
-      expect(text).toMatch(/Staged Files/);
+      assertJsonContent(content, {
+        success: true,
+        totalFiles: 4,
+      });
+
+      assertJsonField(content, 'stagedFiles', [
+        'package.json',
+        'src/main.ts',
+        'tests/main.test.ts',
+        'docs/README.md',
+      ]);
     });
   });
 

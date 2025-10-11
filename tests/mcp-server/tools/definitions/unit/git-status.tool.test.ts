@@ -15,8 +15,9 @@ import {
   createTestSdkContext,
   createMockGitProvider,
   createMockStorageService,
-  assertTextContent,
-  assertMarkdownContent,
+  assertJsonContent,
+  assertJsonField,
+  parseJsonContent,
   assertProviderCalledWithContext,
   assertLlmFriendlyFormat,
 } from '../helpers/index.js';
@@ -229,6 +230,7 @@ describe('git_status tool', () => {
   describe('Response Formatter', () => {
     it('formats clean repository status correctly', () => {
       const result = {
+        success: true,
         currentBranch: 'main',
         isClean: true,
         stagedChanges: {},
@@ -239,13 +241,20 @@ describe('git_status tool', () => {
 
       const content = gitStatusTool.responseFormatter!(result);
 
-      assertTextContent(content, 'Working directory is clean');
-      assertTextContent(content, 'main');
+      assertJsonContent(content, {
+        success: true,
+        currentBranch: 'main',
+        isClean: true,
+      });
+
+      assertJsonField(content, 'currentBranch', 'main');
+      assertJsonField(content, 'isClean', true);
       assertLlmFriendlyFormat(content, 30);
     });
 
     it('formats status with changes correctly', () => {
       const result = {
+        success: true,
         currentBranch: 'feature-branch',
         isClean: false,
         stagedChanges: {
@@ -261,28 +270,32 @@ describe('git_status tool', () => {
 
       const content = gitStatusTool.responseFormatter!(result);
 
-      // Check for all expected sections
-      assertMarkdownContent(content, [
-        'Git Status',
-        'feature-branch',
-        'Staged Changes',
-        'Added',
-        'Modified',
-        'Unstaged Changes',
-        'Untracked Files',
-      ]);
+      assertJsonContent(content, {
+        success: true,
+        currentBranch: 'feature-branch',
+        isClean: false,
+      });
 
-      // Check for specific files
-      assertTextContent(content, 'new-file.txt');
-      assertTextContent(content, 'existing-file.txt');
-      assertTextContent(content, 'changed-file.txt');
-      assertTextContent(content, 'untracked.txt');
+      assertJsonField(content, 'currentBranch', 'feature-branch');
+      assertJsonField(content, 'isClean', false);
+
+      const parsed = parseJsonContent(content) as {
+        stagedChanges: { added: string[]; modified: string[] };
+        unstagedChanges: { modified: string[] };
+        untrackedFiles: string[];
+      };
+
+      expect(parsed.stagedChanges.added).toContain('new-file.txt');
+      expect(parsed.stagedChanges.modified).toContain('existing-file.txt');
+      expect(parsed.unstagedChanges.modified).toContain('changed-file.txt');
+      expect(parsed.untrackedFiles).toContain('untracked.txt');
 
       assertLlmFriendlyFormat(content);
     });
 
     it('formats status with conflicts', () => {
       const result = {
+        success: true,
         currentBranch: 'main',
         isClean: false,
         stagedChanges: {},
@@ -293,12 +306,26 @@ describe('git_status tool', () => {
 
       const content = gitStatusTool.responseFormatter!(result);
 
-      assertMarkdownContent(content, ['Conflicts', 'conflict1.txt']);
-      assertTextContent(content, '⚠️');
+      assertJsonContent(content, {
+        success: true,
+        currentBranch: 'main',
+        isClean: false,
+      });
+
+      assertJsonField(content, 'conflictedFiles', [
+        'conflict1.txt',
+        'conflict2.txt',
+      ]);
+
+      const parsed = parseJsonContent(content) as {
+        conflictedFiles: string[];
+      };
+      expect(parsed.conflictedFiles).toHaveLength(2);
     });
 
     it('formats status without branch (detached HEAD)', () => {
       const result = {
+        success: true,
         currentBranch: null,
         isClean: true,
         stagedChanges: {},
@@ -309,12 +336,19 @@ describe('git_status tool', () => {
 
       const content = gitStatusTool.responseFormatter!(result);
 
-      assertTextContent(content, 'Git Status');
-      assertTextContent(content, 'clean');
+      assertJsonContent(content, {
+        success: true,
+        currentBranch: null,
+        isClean: true,
+      });
+
+      assertJsonField(content, 'currentBranch', null);
+      assertJsonField(content, 'isClean', true);
     });
 
     it('includes counts for each category', () => {
       const result = {
+        success: true,
         currentBranch: 'main',
         isClean: false,
         stagedChanges: {
@@ -329,13 +363,24 @@ describe('git_status tool', () => {
       };
 
       const content = gitStatusTool.responseFormatter!(result);
-      const text = (content[0] as { type: 'text'; text: string }).text;
+
+      assertJsonContent(content, {
+        success: true,
+        currentBranch: 'main',
+        isClean: false,
+      });
+
+      const parsed = parseJsonContent(content) as {
+        stagedChanges: { added: string[]; modified: string[] };
+        unstagedChanges: { modified: string[] };
+        untrackedFiles: string[];
+      };
 
       // Check for counts
-      expect(text).toMatch(/Added.*\(2\)/);
-      expect(text).toMatch(/Modified.*\(1\)/); // Staged modified
-      expect(text).toMatch(/Modified.*\(3\)/); // Unstaged modified
-      expect(text).toMatch(/Untracked Files.*\(1\)/);
+      expect(parsed.stagedChanges.added).toHaveLength(2);
+      expect(parsed.stagedChanges.modified).toHaveLength(1);
+      expect(parsed.unstagedChanges.modified).toHaveLength(3);
+      expect(parsed.untrackedFiles).toHaveLength(1);
     });
   });
 

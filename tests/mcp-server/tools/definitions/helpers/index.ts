@@ -25,4 +25,7 @@ export {
   assertErrorData,
   assertSanitizedContent,
   assertLlmFriendlyFormat,
+  assertJsonContent,
+  parseJsonContent,
+  assertJsonField,
 } from './assertions.js';

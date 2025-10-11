@@ -122,6 +122,7 @@ export function assertSanitizedContent(content: ContentBlock[]): void {
 
 /**
  * Assert that response formatter output is LLM-friendly
+ * Now supports both JSON and Markdown formats
  */
 export function assertLlmFriendlyFormat(
   content: ContentBlock[],
@@ -133,14 +134,86 @@ export function assertLlmFriendlyFormat(
   // Should have meaningful content
   expect(textContent.length).toBeGreaterThan(minLength);
 
-  // Should use markdown formatting
-  expect(textContent).toMatch(/^#\s+/m); // Has headers
-
-  // Should not be pure JSON (unless intentionally)
+  // Check if it's JSON or Markdown
   const isJsonOnly =
     textContent.trim().startsWith('{') && textContent.trim().endsWith('}');
+
   if (isJsonOnly) {
-    // If it's JSON, it should be formatted
+    // If it's JSON, it should be formatted (pretty-printed)
     expect(textContent).toMatch(/\n/);
+
+    // Should be valid JSON
+    expect(() => JSON.parse(textContent)).not.toThrow();
+  } else {
+    // If it's Markdown, should have headers
+    expect(textContent).toMatch(/^#\s+/m);
+  }
+}
+
+/**
+ * Assert that content blocks contain valid JSON with expected structure
+ */
+export function assertJsonContent(
+  content: ContentBlock[],
+  expectedStructure: Record<string, unknown>,
+): void {
+  expect(content).toHaveLength(1);
+  expect(content[0]).toHaveProperty('type', 'text');
+  const textContent = (content[0] as { type: 'text'; text: string }).text;
+
+  // Should be valid JSON
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(textContent);
+  } catch (error) {
+    throw new Error(`Content is not valid JSON: ${textContent}`);
+  }
+
+  // Should match expected structure
+  expect(parsedJson).toMatchObject(expectedStructure);
+}
+
+/**
+ * Assert that content blocks contain valid JSON and return parsed object
+ */
+export function parseJsonContent(content: ContentBlock[]): unknown {
+  expect(content).toHaveLength(1);
+  expect(content[0]).toHaveProperty('type', 'text');
+  const textContent = (content[0] as { type: 'text'; text: string }).text;
+
+  try {
+    return JSON.parse(textContent);
+  } catch (error) {
+    throw new Error(`Content is not valid JSON: ${textContent}`);
+  }
+}
+
+/**
+ * Assert that JSON content has specific field with expected value
+ */
+export function assertJsonField(
+  content: ContentBlock[],
+  fieldPath: string,
+  expectedValue: unknown,
+): void {
+  const parsed = parseJsonContent(content) as Record<string, unknown>;
+
+  // Support nested paths like "status.current_branch"
+  const pathParts = fieldPath.split('.');
+  let value: unknown = parsed;
+
+  for (const part of pathParts) {
+    if (value && typeof value === 'object' && part in value) {
+      value = (value as Record<string, unknown>)[part];
+    } else {
+      throw new Error(`Field path "${fieldPath}" not found in JSON`);
+    }
+  }
+
+  if (typeof expectedValue === 'function') {
+    // Allow for expect matchers like expect.any(Array)
+    expect(value).toEqual(expectedValue);
+  } else {
+    expect(value).toEqual(expectedValue);
   }
 }

@@ -15,8 +15,9 @@ import {
   createTestSdkContext,
   createMockGitProvider,
   createMockStorageService,
-  assertTextContent,
-  assertMarkdownContent,
+  assertJsonContent,
+  assertJsonField,
+  parseJsonContent,
   assertLlmFriendlyFormat,
 } from '../helpers/index.js';
 import type { GitLogResult } from '@/services/git/types.js';
@@ -274,14 +275,16 @@ describe('git_log tool', () => {
 
       const content = gitLogTool.responseFormatter!(result);
 
-      assertMarkdownContent(content, [
-        '# Git Log',
-        '## abc123d',
-        'John Doe',
-        'Add feature',
-      ]);
-      assertTextContent(content, 'jane@example.com');
-      assertTextContent(content, 'Fix bug');
+      // Should return JSON format with commits
+      assertJsonContent(content, {
+        success: true,
+        totalCount: 2,
+      });
+
+      const parsed = parseJsonContent(content) as { commits: unknown[] };
+      expect(parsed.commits).toHaveLength(2);
+
+      assertJsonField(content, 'commits', expect.any(Array));
       assertLlmFriendlyFormat(content);
     });
 
@@ -294,11 +297,17 @@ describe('git_log tool', () => {
 
       const content = gitLogTool.responseFormatter!(result);
 
-      assertTextContent(content, 'No commits found');
+      assertJsonContent(content, {
+        success: true,
+        commits: [],
+        totalCount: 0,
+      });
+
+      assertJsonField(content, 'commits', []);
       assertLlmFriendlyFormat(content, 20);
     });
 
-    it('includes commit count in header', () => {
+    it('includes commit count', () => {
       const result = {
         success: true,
         commits: [
@@ -317,9 +326,15 @@ describe('git_log tool', () => {
       };
 
       const content = gitLogTool.responseFormatter!(result);
-      const text = (content[0] as { type: 'text'; text: string }).text;
 
-      expect(text).toMatch(/1.*commit/i);
+      assertJsonContent(content, {
+        success: true,
+        totalCount: 1,
+      });
+
+      assertJsonField(content, 'totalCount', 1);
+      const parsed = parseJsonContent(content) as { commits: unknown[] };
+      expect(parsed.commits).toHaveLength(1);
     });
   });
 

@@ -15,8 +15,9 @@ import {
   createTestSdkContext,
   createMockGitProvider,
   createMockStorageService,
-  assertTextContent,
-  assertMarkdownContent,
+  assertJsonContent,
+  assertJsonField,
+  parseJsonContent,
   assertLlmFriendlyFormat,
 } from '../helpers/index.js';
 import type { GitBranchResult } from '@/services/git/types.js';
@@ -275,14 +276,24 @@ describe('git_branch tool', () => {
 
       const content = gitBranchTool.responseFormatter!(result);
 
-      assertMarkdownContent(content, [
-        '# Git Branch',
-        '**Current Branch:** main',
-        '## Branches',
-      ]);
-      assertTextContent(content, '* main');
-      assertTextContent(content, 'origin/main');
-      assertTextContent(content, 'develop');
+      assertJsonContent(content, {
+        success: true,
+        operation: 'list',
+        currentBranch: 'main',
+      });
+
+      assertJsonField(content, 'currentBranch', 'main');
+      assertJsonField(content, 'operation', 'list');
+
+      const parsed = parseJsonContent(content) as {
+        branches: Array<{ name: string; current: boolean }>;
+      };
+
+      expect(parsed.branches).toHaveLength(2);
+      expect(parsed.branches[0]!.name).toBe('main');
+      expect(parsed.branches[0]!.current).toBe(true);
+      expect(parsed.branches[1]!.name).toBe('develop');
+
       assertLlmFriendlyFormat(content);
     });
 
@@ -297,8 +308,17 @@ describe('git_branch tool', () => {
 
       const content = gitBranchTool.responseFormatter!(result);
 
-      assertTextContent(content, 'feature-x');
-      assertTextContent(content, 'created');
+      assertJsonContent(content, {
+        success: true,
+        operation: 'create',
+      });
+
+      assertJsonField(content, 'operation', 'create');
+      assertJsonField(
+        content,
+        'message',
+        "Branch 'feature-x' created successfully.",
+      );
     });
 
     it('formats delete operation result', () => {
@@ -312,8 +332,17 @@ describe('git_branch tool', () => {
 
       const content = gitBranchTool.responseFormatter!(result);
 
-      assertTextContent(content, 'old-branch');
-      assertTextContent(content, 'deleted');
+      assertJsonContent(content, {
+        success: true,
+        operation: 'delete',
+      });
+
+      assertJsonField(content, 'operation', 'delete');
+      assertJsonField(
+        content,
+        'message',
+        "Branch 'old-branch' deleted successfully.",
+      );
     });
   });
 

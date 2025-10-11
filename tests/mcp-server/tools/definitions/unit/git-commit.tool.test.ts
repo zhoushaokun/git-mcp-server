@@ -15,8 +15,9 @@ import {
   createTestSdkContext,
   createMockGitProvider,
   createMockStorageService,
-  assertTextContent,
-  assertMarkdownContent,
+  assertJsonContent,
+  assertJsonField,
+  parseJsonContent,
   assertLlmFriendlyFormat,
 } from '../helpers/index.js';
 import type { GitCommitResult, GitStatusResult } from '@/services/git/types.js';
@@ -341,19 +342,17 @@ describe('git_commit tool', () => {
 
       const content = gitCommitTool.responseFormatter!(result);
 
-      assertMarkdownContent(content, [
-        '# Commit Created Successfully',
-        '**Commit Hash:**',
-        '**Author:**',
-        '**Message:**',
-        'Add new feature',
-        '## Committed Files',
-        '## Repository Status After Commit',
-        'Clean',
-      ]);
+      assertJsonContent(content, {
+        success: true,
+        commitHash: 'abc123def456789',
+        message: 'Add new feature',
+        filesChanged: 3,
+      });
 
-      assertTextContent(content, 'abc123def456789');
-      assertTextContent(content, 'Test User');
+      assertJsonField(content, 'commitHash', 'abc123def456789');
+      assertJsonField(content, 'message', 'Add new feature');
+      assertJsonField(content, 'filesChanged', 3);
+      assertJsonField(content, 'status.is_clean', true);
       assertLlmFriendlyFormat(content);
     });
 
@@ -378,12 +377,19 @@ describe('git_commit tool', () => {
 
       const content = gitCommitTool.responseFormatter!(result);
 
-      assertTextContent(content, 'Has uncommitted changes');
-      assertMarkdownContent(content, [
-        '### Staged Changes',
-        '### Unstaged Changes',
-        '### Untracked Files',
-      ]);
+      assertJsonContent(content, {
+        success: true,
+        commitHash: 'abc123',
+        message: 'Partial commit',
+      });
+
+      assertJsonField(content, 'status.is_clean', false);
+      assertJsonField(content, 'status.current_branch', 'develop');
+
+      const parsed = parseJsonContent(content) as {
+        status: { untracked_files: string[] };
+      };
+      expect(parsed.status.untracked_files).toContain('untracked.txt');
     });
 
     it('formats commit with file statistics', () => {
@@ -409,9 +415,17 @@ describe('git_commit tool', () => {
 
       const content = gitCommitTool.responseFormatter!(result);
 
-      assertTextContent(content, 'Files Changed:** 5');
-      assertTextContent(content, 'Insertions:** +100');
-      assertTextContent(content, 'Deletions:** -50');
+      assertJsonContent(content, {
+        success: true,
+        commitHash: 'abc123',
+        filesChanged: 5,
+        insertions: 100,
+        deletions: 50,
+      });
+
+      assertJsonField(content, 'filesChanged', 5);
+      assertJsonField(content, 'insertions', 100);
+      assertJsonField(content, 'deletions', 50);
     });
 
     it('lists all committed files', () => {
@@ -435,9 +449,21 @@ describe('git_commit tool', () => {
 
       const content = gitCommitTool.responseFormatter!(result);
 
-      assertTextContent(content, 'important.txt');
-      assertTextContent(content, 'feature.js');
-      assertMarkdownContent(content, ['## Committed Files (2)']);
+      assertJsonContent(content, {
+        success: true,
+        commitHash: 'abc123',
+        filesChanged: 2,
+      });
+
+      assertJsonField(content, 'committedFiles', [
+        'important.txt',
+        'feature.js',
+      ]);
+
+      const parsed = parseJsonContent(content) as {
+        committedFiles: string[];
+      };
+      expect(parsed.committedFiles).toHaveLength(2);
     });
   });
 
