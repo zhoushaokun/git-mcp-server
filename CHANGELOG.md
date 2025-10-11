@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **Import Order**: Corrected import organization in `git-set-working-dir.tool.ts` to follow project conventions (framework imports first, internal imports second).
+- **Config Import**: Fixed config import in `git-validators.ts` to use named export pattern with proper TypeScript typing for optional GIT_BASE_DIR value. Added defensive null-safety checks to handle undefined config in test environments.
 
 ## v2.4.3 - 2025-10-11
 

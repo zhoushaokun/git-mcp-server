@@ -102,8 +102,9 @@ export async function resolveWorkingDirectory(
     allowAbsolute: true,
   };
 
-  // Only set rootDir if GIT_BASE_DIR is configured
-  if (config.git.baseDir) {
+  // Only set rootDir if config exists and GIT_BASE_DIR is configured
+  // (config may be undefined in test environments)
+  if (config?.git?.baseDir) {
     sanitizeOptions.rootDir = config.git.baseDir;
   }
 
@@ -116,7 +117,7 @@ export async function resolveWorkingDirectory(
     ...appContext,
     original: workingDir,
     sanitized: sanitizedPath,
-    baseDir: config.git.baseDir,
+    baseDir: config?.git?.baseDir,
   });
 
   return sanitizedPath;

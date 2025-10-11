@@ -133,24 +133,24 @@ bun install
 
 All configuration is centralized and validated at startup in `src/config/index.ts`. Key environment variables in your `.env` file include:
 
-| Variable                       | Description                                                                                    | Default     |
-| :----------------------------- | :--------------------------------------------------------------------------------------------- | :---------- |
-| `MCP_TRANSPORT_TYPE`           | The transport to use: `stdio` or `http`.                                                       | `stdio`     |
-| `MCP_SESSION_MODE`             | Session mode for HTTP transport: `stateless`, `stateful`, or `auto`.                           | `auto`      |
-| `MCP_RESPONSE_FORMAT`          | Response format: `json` (LLM-optimized), `markdown` (human-readable), or `auto`.               | `json`      |
-| `MCP_RESPONSE_VERBOSITY`       | Response detail level: `minimal`, `standard`, or `full`.                                       | `standard`  |
-| `MCP_HTTP_PORT`                | The port for the HTTP server.                                                                  | `3015`      |
-| `MCP_HTTP_HOST`                | The hostname for the HTTP server.                                                              | `127.0.0.1` |
-| `MCP_HTTP_ENDPOINT_PATH`       | The endpoint path for MCP requests.                                                            | `/mcp`      |
-| `MCP_AUTH_MODE`                | Authentication mode: `none`, `jwt`, or `oauth`.                                                | `none`      |
-| `STORAGE_PROVIDER_TYPE`        | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-kv`, `r2`.                 | `in-memory` |
-| `OTEL_ENABLED`                 | Set to `true` to enable OpenTelemetry.                                                         | `false`     |
-| `MCP_LOG_LEVEL`                | The minimum level for logging (`debug`, `info`, `warn`, `error`).                              | `info`      |
-| `GIT_SIGN_COMMITS`             | Set to `"true"` to enable GPG/SSH signing for commits. Requires server-side Git configuration. | `false`     |
+| Variable                       | Description                                                                                                                                               | Default     |
+| :----------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------- |
+| `MCP_TRANSPORT_TYPE`           | The transport to use: `stdio` or `http`.                                                                                                                  | `stdio`     |
+| `MCP_SESSION_MODE`             | Session mode for HTTP transport: `stateless`, `stateful`, or `auto`.                                                                                      | `auto`      |
+| `MCP_RESPONSE_FORMAT`          | Response format: `json` (LLM-optimized), `markdown` (human-readable), or `auto`.                                                                          | `json`      |
+| `MCP_RESPONSE_VERBOSITY`       | Response detail level: `minimal`, `standard`, or `full`.                                                                                                  | `standard`  |
+| `MCP_HTTP_PORT`                | The port for the HTTP server.                                                                                                                             | `3015`      |
+| `MCP_HTTP_HOST`                | The hostname for the HTTP server.                                                                                                                         | `127.0.0.1` |
+| `MCP_HTTP_ENDPOINT_PATH`       | The endpoint path for MCP requests.                                                                                                                       | `/mcp`      |
+| `MCP_AUTH_MODE`                | Authentication mode: `none`, `jwt`, or `oauth`.                                                                                                           | `none`      |
+| `STORAGE_PROVIDER_TYPE`        | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-kv`, `r2`.                                                                            | `in-memory` |
+| `OTEL_ENABLED`                 | Set to `true` to enable OpenTelemetry.                                                                                                                    | `false`     |
+| `MCP_LOG_LEVEL`                | The minimum level for logging (`debug`, `info`, `warn`, `error`).                                                                                         | `info`      |
+| `GIT_SIGN_COMMITS`             | Set to `"true"` to enable GPG/SSH signing for commits. Requires server-side Git configuration.                                                            | `false`     |
 | `GIT_BASE_DIR`                 | Optional absolute path to restrict all git operations to a specific directory tree. Provides security sandboxing for multi-tenant or shared environments. | `(none)`    |
-| `GIT_WRAPUP_INSTRUCTIONS_PATH` | Optional path to custom markdown file with Git workflow instructions.                          | `(none)`    |
-| `MCP_AUTH_SECRET_KEY`          | **Required for `jwt` auth.** A 32+ character secret key.                                       | `(none)`    |
-| `OAUTH_ISSUER_URL`             | **Required for `oauth` auth.** URL of the OIDC provider.                                       | `(none)`    |
+| `GIT_WRAPUP_INSTRUCTIONS_PATH` | Optional path to custom markdown file with Git workflow instructions.                                                                                     | `(none)`    |
+| `MCP_AUTH_SECRET_KEY`          | **Required for `jwt` auth.** A 32+ character secret key.                                                                                                  | `(none)`    |
+| `OAUTH_ISSUER_URL`             | **Required for `oauth` auth.** URL of the OIDC provider.                                                                                                  | `(none)`    |
 
 ## ▶️ Running the Server
 
