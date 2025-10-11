@@ -77,7 +77,7 @@ This server is built on the [`mcp-ts-template`](https://github.com/cyanheads/mcp
 Plus, specialized features for **Git integration**:
 
 - **Direct Git CLI Execution**: Secure interaction with the standard `git` command-line tool via process execution.
-- **Comprehensive Coverage**: 23 tools covering all essential Git operations from init to push.
+- **Comprehensive Coverage**: 26 tools covering all essential Git operations from init to push.
 - **Working Directory Management**: Session-specific directory context for multi-repo workflows.
 - **Safety Features**: Explicit confirmations for destructive operations like `git clean` and `git reset --hard`.
 - **Commit Signing**: Optional GPG/SSH signing support for verified commits.
@@ -269,11 +269,11 @@ Behind the scenes, the LLM receives **complete structured data** as [content blo
 
 **Why This Matters**: The LLM can answer detailed questions like "Who made the last commit?" or "What files changed in commit abc123?" because it has access to the full dataset, even if you only saw a summary.
 
-**For Developers**: When creating custom tools, always include complete data in your `responseFormatter`. Balance human-readable summaries with comprehensive structured information. See [`CLAUDE.md`](CLAUDE.md) for response formatter best practices and the [MCP specification](https://modelcontextprotocol.io/specification/2025-06-18/server/tools) for technical details.
+**For Developers**: When creating custom tools, always include complete data in your `responseFormatter`. Balance human-readable summaries with comprehensive structured information. See [`AGENTS.md`](AGENTS.md) for response formatter best practices and the [MCP specification](https://modelcontextprotocol.io/specification/2025-06-18/server/tools) for technical details.
 
 ## 🧑‍💻 Agent Development Guide
 
-For strict rules when using this server with an AI agent, refer to the **`CLAUDE.md`** and **`AGENTS.md`** files in this repository. Key principles include:
+For strict rules when using this server with an AI agent, refer to the **`AGENTS.md`** file in this repository. Key principles include:
 
 - **Logic Throws, Handlers Catch**: Never use `try/catch` in your tool `logic`. Throw an `McpError` instead.
 - **Pass the Context**: Always pass the `RequestContext` object through your call stack for logging and tracing.
