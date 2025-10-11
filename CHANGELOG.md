@@ -2,7 +2,140 @@
 
 All notable changes to this project will be documented in this file.
 
-## v2.3.5 - 2025-09-29ig.json` to improve compatibility with the Bun runtime.
+## v2.4.4 - 2025-10-11
+
+### Added
+
+- **Enhanced Repository Context**: The `git_set_working_dir` tool now provides rich repository context by default when setting the working directory. Includes immediate status, branch information, configured remotes, and recent commits. Context gathering can be disabled via the new `includeContext` parameter.
+- **Base Directory Security**: New optional `GIT_BASE_DIR` environment variable to restrict all git operations to a specific directory tree. Provides security sandboxing for multi-tenant or shared hosting environments. When configured, prevents git operations from accessing paths outside the specified base directory.
+
+### Changed
+
+- **Configuration**: Updated default HTTP port from 3010 to 3015 across all configuration files (`.env.example`, `src/config/index.ts`, `smithery.yaml`, tests).
+- **Documentation**: Enhanced response format documentation in README with comprehensive examples showing both JSON (LLM-optimized) and Markdown (human-readable) output formats. Added detailed explanation of verbosity levels and when to use each format.
+- **Documentation**: Clarified tool count (now 27 with addition of `git_clear_working_dir`) and updated Advanced Workflows category to reflect both `git_set_working_dir` and `git_clear_working_dir` tools.
+- **Documentation**: Added comprehensive Roadmap section detailing provider-based architecture and planned git provider integrations (CLI via Bun.spawn, isomorphic-git, GitHub API). Includes technical details about current CLI provider implementation (streaming I/O, timeout handling, buffer limits).
+- **Documentation**: Enhanced Features section to highlight provider-based architecture and optimized git execution via Bun.spawn with streaming I/O and timeout handling.
+- **Branding**: Updated project references from `mcp-ts-template` to `git-mcp-server` in configuration files (`typedoc.json`, `smithery.yaml`, `wrangler.toml`).
+
+### Fixed
+
+- **Import Order**: Corrected import organization in `git-set-working-dir.tool.ts` to follow project conventions (framework imports first, internal imports second).
+- **Config Import**: Fixed config import in `git-validators.ts` to use named export pattern with proper TypeScript typing for optional GIT_BASE_DIR value. Added defensive null-safety checks to handle undefined config in test environments.
+
+## v2.4.3 - 2025-10-11
+
+### Fixed
+
+- **Git Branch Tool**: Fixed `git for-each-ref` command construction by correctly placing the command in the `command` parameter instead of args array
+- **Git Rebase Tool**: Enhanced `--continue` mode with fallback handling for `--no-edit` option, improving compatibility across different Git versions
+- **Git Command Builder**: Fixed environment variable construction to preserve PATH from process.env, ensuring git executable can be found in custom install locations
+
+### Changed
+
+- **Documentation**: Updated tree.md to reflect addition of CLAUDE.md file
+
+## v2.4.2 - 2025-10-10
+
+### Added
+
+- **JSON Response Formatter**: Introduced a new `json-response-formatter` utility (`src/mcp-server/tools/utils/json-response-formatter.ts`) to create LLM-optimized, structured JSON responses for tools. This improves parsing efficiency and reduces token usage compared to Markdown. The formatter supports configurable verbosity levels (`minimal`, `standard`, `full`).
+
+### Changed
+
+- **Tool Architecture**: Refactored all Git tools to align with the new v2.4.0 architecture. All `responseFormatter` implementations now use the new `createJsonFormatter`, and Git command execution is consistently delegated to the `GitProvider` service layer.
+- **Test Suite**: Updated the entire test suite to reflect the architectural changes. Test helpers, assertions, and unit tests have been modified to validate structured JSON output instead of Markdown.
+- **Configuration**: The `.env.example` file has been updated to include the new `MCP_RESPONSE_VERBOSITY` configuration option.
+- **Logging**: The logger (`src/utils/internal/logger.ts`) has been enhanced to include a `notice` level and an improved startup banner.
+
+### Dependencies
+
+- Updated `package.json` and `bun.lock` with the latest versions of project dependencies.
+
+## v2.4.1 - 2025-10-11
+
+### Added
+
+- **Markdown Builder Utility**: Added a fluent interface markdown builder (`src/mcp-server/tools/utils/markdown-builder.ts`) for constructing LLM-optimized response formatters. Provides chainable methods for headings, sections, lists, key-value pairs, and conditional content. Improves consistency and maintainability across all tool response formatters.
+- **SDK Context Validation**: Added defensive type guard (`validateSdkContext`) in tool handler factory to validate MCP SDK context structure, catching unexpected issues early and improving robustness.
+
+### Changed
+
+- **Tool Response Formatters**: Refactored `git_add` and `git_commit` response formatters to use the new markdown builder utility, resulting in cleaner, more maintainable code with consistent formatting.
+- **Enhanced Tool Output**:
+  - `git_add` tool now includes comprehensive repository status after staging, showing all staged changes, remaining unstaged changes, untracked files, and whether the repository is ready to commit.
+  - `git_commit` tool response formatter refactored for improved readability and structure using markdown builder.
+- **Tool Handler Improvements**:
+  - Enhanced dependency injection with closure-based memoization for thread-safe singleton pattern.
+  - Added debug mode logging for tool inputs (enabled via `MCP_DEBUG_TOOL_INPUTS=true`).
+  - Improved error context logging with more detailed information about failures.
+  - Better path resolution with runtime type safety checks and comprehensive logging.
+  - Added graceful fallback when path property is unexpectedly missing from tool input.
+
+### Fixed
+
+- **Tool Handler Type Safety**: Improved runtime type checking for tool inputs with path properties, preventing potential type mismatches during working directory resolution.
+
+### Documentation
+
+- **README**: Enhanced formatting and improved documentation structure for prompts and tool responses sections.
+- **CHANGELOG**: Consolidated alpha release notes into cohesive v2.4.0 release notes.
+
+### Dependencies
+
+- Updated `@cloudflare/workers-types` to `^4.20251011.0`
+- Updated `@types/bun` to `^1.3.0`
+- Updated `bun-types` to `^1.3.0`
+- Removed unused transitive dependencies from lock file
+
+## v2.4.0 - 2025-10-10
+
+- Aligned with [mcp-ts-template](https://github.com/cyanheads/mcp-ts-template) v2.3.5
+- Moved to [Bun](https://bun.sh) for dependency management, scripting, and runtime execution.
+- Major architectural refactor to a dual-output tool architecture with structured content and User-optimized responses.
+
+### New Features
+
+- **Git Wrapup Prompt** (`git_wrapup`): A new structured workflow prompt for completing git sessions. Guides users through a systematic protocol including reviewing changes with `git_diff`, updating changelog and documentation, creating logical commits, and optionally creating release tags. Features configurable options for skipping documentation review, creating tags, and updating agent meta files. Integrates with the `git_wrapup_instructions` tool for context-aware workflow generation.
+- **Git Blame Tool** (`git_blame`): Show line-by-line authorship information for files, displaying who last modified each line and when. Supports optional line range filtering (`startLine`, `endLine`), whitespace change ignoring, and provides formatted output with commit hash, date, author, and content for each line.
+- **Git Reflog Tool** (`git_reflog`): View reference logs (reflog) to track when branch tips and other references were updated. Essential for recovering lost commits and understanding repository history. Supports filtering by specific references (default: HEAD) and configurable entry limits. Output includes chronological history of all git operations.
+
+### Added
+
+- **Dual-Output Tool Architecture**: All tools now implement a sophisticated dual-output system that provides different perspectives of the same operation:
+  - **Structured Content** (`outputSchema`): Type-safe Zod schemas define the complete, machine-readable data structure returned by tool logic. This is the "source of truth" containing all operational details.
+  - **Response Formatter** (`responseFormatter`): Transforms structured output into LLM-optimized `ContentBlock[]` arrays. These formatted responses balance human-readable summaries with complete data, ensuring LLMs have full context to answer follow-up questions. Supports markdown formatting, hierarchical organization, and intelligent truncation.
+  - **Key Benefit**: Clients can access raw structured data for processing while LLMs receive optimized, contextual narratives—all from a single tool invocation.
+- **Architectural Foundation**:
+  - **Dependency Injection**: Integrated `tsyringe` for robust dependency injection, decoupling services and tools. A central DI `container` now manages object lifetimes.
+  - **Service/Provider Pattern**: Introduced a standardized service and provider pattern (`src/services/`, `src/storage/`) for abstracting external integrations and data persistence.
+  - **Declarative Definitions**: Resources and tools are now self-contained, declarative `ToolDefinition` and `ResourceDefinition` objects in `src/mcp-server/tools/definitions/` and `src/mcp-server/resources/definitions/`, respectively. This simplifies registration and improves modularity.
+- **Core Utilities**:
+  - **Observability**: Added `performance` and `telemetry` utilities for tracing and metrics, including `measureToolExecution` for automatic performance tracking.
+  - **Runtime Helpers**: New utilities for runtime detection (`isBun`, `isCloudflareWorker`) and startup banners.
+  - **Health Checks**: A new internal health check utility for verifying service status.
+- **Authorization**: Implemented `withToolAuth` and `withResourceAuth` wrapper functions to apply scope-based authorization declaratively to tools and resources.
+- **Build & Development**:
+  - **Bun**: Fully migrated to `bun` for dependency management, scripting, and runtime execution, replacing `npm` and `tsx`.
+  - **Devcheck Script**: Added a new `devcheck` script (`scripts/devcheck.ts`) for comprehensive quality checks (lint, format, typecheck, audit).
+
+### Changed
+
+- **Major Architectural Refactor**: The entire server has been overhauled to align with the `mcp-ts-template v2.3.5` architecture. This is a breaking change for the internal structure but maintains external API compatibility.
+  - **File Structure**: Massively reorganized the `src` directory to enforce a strict separation of concerns, with new top-level directories for `container`, `services`, `storage`, and `mcp-server`.
+  - **Tool Registration**: The previous registration system (`registration.ts` files) has been replaced by a barrel export (`index.ts`) in the `definitions` directories, which is automatically consumed by the DI container.
+  - **Configuration**: Enhanced `src/config/index.ts` with more detailed Zod validation and runtime-specific configurations.
+  - **Transports**: Refactored transport management (`src/mcp-server/transports/`) with a unified `TransportManager` and a clear `ITransport` interface.
+- **Error Handling**: Centralized error handling logic into `src/utils/internal/error-handler/`, improving consistency.
+
+### Removed
+
+- **Legacy Tool Structure**: Deleted the entire old tool directory structure (`src/mcp-server/tools/[toolName]/{index.ts, logic.ts, registration.ts}`). All tools were rewritten as declarative definitions.
+- **Legacy Resource Structure**: Deleted the old resource directory structure for `gitWorkingDir`.
+- **Legacy Transport Core**: Removed outdated transport management files from `src/mcp-server/transports/core/`.
+- **Build & Config Files**: Removed `package-lock.json`, `.ncurc.json`, `Dockerfile`, and `tsconfig.typedoc.json`, which are no longer needed with the `bun`-based workflow.
+
+## v2.3.5 - 2025-09-29
 
 ### Changed
 

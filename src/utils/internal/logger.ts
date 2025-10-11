@@ -1,463 +1,406 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import winston from "winston";
-import TransportStream from "winston-transport";
-import { config } from "../../config/index.js";
-
 /**
- * Supported logging levels based on RFC 5424 Syslog severity levels used by MCP.
- * emerg: 0, alert: 1, crit: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7
+ * @fileoverview Pino-backed singleton logger with environment-adaptive output.
+ * Implements RFC5424 level mapping, structured context, automatic trace injection via
+ * OpenTelemetry, and graceful shutdown. In a serverless environment (like Cloudflare
+ * Workers), it uses a lightweight console-based logger.
+ * @module src/utils/internal/logger
  */
-export type McpLogLevel =
-  | "debug"
-  | "info"
-  | "notice"
-  | "warning"
-  | "error"
-  | "crit"
-  | "alert"
-  | "emerg";
+import type { LevelWithSilent, Logger as PinoLogger } from 'pino';
+import pino from 'pino';
 
-// Define the numeric severity for comparison (lower is more severe)
-const mcpLevelSeverity: Record<McpLogLevel, number> = {
-  emerg: 0,
-  alert: 1,
-  crit: 2,
-  error: 3,
-  warning: 4,
-  notice: 5,
+import { config } from '@/config/index.js';
+import {
+  requestContextService,
+  type RequestContext,
+} from '@/utils/internal/requestContext.js';
+import { sanitization } from '@/utils/security/sanitization.js';
+
+export type McpLogLevel =
+  | 'debug'
+  | 'info'
+  | 'notice'
+  | 'warning'
+  | 'error'
+  | 'crit'
+  | 'alert'
+  | 'emerg';
+
+const mcpToPinoLevel: Record<McpLogLevel, LevelWithSilent> = {
+  emerg: 'fatal',
+  alert: 'fatal',
+  crit: 'error',
+  error: 'error',
+  warning: 'warn',
+  notice: 'info',
+  info: 'info',
+  debug: 'debug',
+};
+
+const pinoToMcpLevelSeverity: Record<string, number> = {
+  fatal: 0,
+  error: 2,
+  warn: 4,
   info: 6,
   debug: 7,
 };
 
-// Map MCP levels to Winston's core levels for file logging
-const mcpToWinstonLevel: Record<
-  McpLogLevel,
-  "debug" | "info" | "warn" | "error"
-> = {
-  debug: "debug",
-  info: "info",
-  notice: "info", // Map notice to info for file logging
-  warning: "warn",
-  error: "error",
-  crit: "error", // Map critical levels to error for file logging
-  alert: "error",
-  emerg: "error",
-};
+const isServerless =
+  typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
 
-// Type for the MCP notification sender function
-export type McpNotificationSender = (
-  level: McpLogLevel,
-  data: Record<string, unknown>,
-  loggerName?: string,
-) => void;
-
-// Resolve __dirname for ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Calculate project root robustly (works from src/ or dist/)
-const isRunningFromDist = __dirname.includes(path.sep + "dist" + path.sep);
-const levelsToGoUp = isRunningFromDist ? 3 : 2;
-const pathSegments = Array(levelsToGoUp).fill("..");
-const projectRoot = path.resolve(__dirname, ...pathSegments);
-
-const logsDir = path.join(projectRoot, "logs");
-
-// Security: ensure logsDir is within projectRoot
-const resolvedLogsDir = path.resolve(logsDir);
-const isLogsDirSafe =
-  resolvedLogsDir === projectRoot ||
-  resolvedLogsDir.startsWith(projectRoot + path.sep);
-if (!isLogsDirSafe) {
-  // Use console.error for critical pre-init errors.
-  // Only log to console if TTY to avoid polluting stdout for stdio MCP clients.
-  if (process.stdout.isTTY) {
-    console.error(
-      `FATAL: logs directory "${resolvedLogsDir}" is outside project root "${projectRoot}". File logging disabled.`,
-    );
-  }
-}
-
-/**
- * Helper function to create the Winston console format.
- * This is extracted to avoid duplication between initialize and setLevel.
- */
-function createWinstonConsoleFormat() {
-  return winston.format.combine(
-    winston.format.colorize(),
-    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-    winston.format.printf(({ timestamp, level, message, ...meta }) => {
-      let metaString = "";
-      const metaCopy = { ...meta };
-      if (metaCopy.error && typeof metaCopy.error === "object") {
-        const errorObj = metaCopy.error as { message?: string; stack?: string };
-        if (errorObj.message) metaString += `\n  Error: ${errorObj.message}`;
-        if (errorObj.stack)
-          metaString += `\n  Stack: ${String(errorObj.stack)
-            .split("\n")
-            .map((l: string) => `    ${l}`)
-            .join("\n")}`;
-        delete metaCopy.error;
-      }
-      if (Object.keys(metaCopy).length > 0) {
-        try {
-          const remainingMetaJson = JSON.stringify(metaCopy, null, 2);
-          if (remainingMetaJson !== "{}")
-            metaString += `\n  Meta: ${remainingMetaJson}`;
-        } catch (stringifyError) {
-          metaString += `\n  Meta: [Error stringifying metadata: ${(stringifyError as Error).message}]`;
-        }
-      }
-      return `${timestamp} ${level}: ${message}${metaString}`;
-    }),
-  );
-}
-
-/**
- * Singleton Logger wrapping Winston, adapted for MCP.
- * Logs to files and optionally sends MCP notifications/message.
- */
 export class Logger {
-  private static instance: Logger;
-  private winstonLogger?: winston.Logger;
+  private static readonly instance: Logger = new Logger();
+  private pinoLogger?: PinoLogger;
+  private interactionLogger?: PinoLogger | undefined;
   private initialized = false;
-  private mcpNotificationSender?: McpNotificationSender;
-  private currentMcpLevel: McpLogLevel = "info"; // Default MCP level
-  private currentWinstonLevel: "debug" | "info" | "warn" | "error" = "info"; // Default Winston level
+  private currentMcpLevel: McpLogLevel = 'info';
 
-  private constructor() {}
+  private rateLimitThreshold = 10;
+  private rateLimitWindow = 60000;
+  private messageCounts = new Map<
+    string,
+    { count: number; firstSeen: number }
+  >();
+  private suppressedMessages = new Map<string, number>();
+  private cleanupTimer?: NodeJS.Timeout;
 
-  /**
-   * Initialize Winston logger for file transport. Must be called once at app start.
-   * Console transport is added conditionally.
-   * @param level Initial minimum level to log ('info' default).
-   */
-  public async initialize(level: McpLogLevel = "info"): Promise<void> {
-    if (this.initialized) {
-      this.warning("Logger already initialized.", { loggerSetup: true });
-      return;
+  private constructor() {
+    // The constructor is now safe to call in a global scope.
+  }
+
+  public static getInstance(): Logger {
+    return Logger.instance;
+  }
+
+  private async createPinoLogger(level: McpLogLevel): Promise<PinoLogger> {
+    const pinoLevel = mcpToPinoLevel[level] || 'info';
+
+    const pinoOptions: pino.LoggerOptions = {
+      level: pinoLevel,
+      base: {
+        env: config.environment,
+        version: config.mcpServerVersion,
+        pid: !isServerless ? process.pid : undefined,
+      },
+      redact: {
+        paths: sanitization.getSensitivePinoFields(),
+        censor: '[REDACTED]',
+      },
+    };
+
+    if (isServerless) {
+      return pino(pinoOptions);
     }
-    this.currentMcpLevel = level;
-    this.currentWinstonLevel = mcpToWinstonLevel[level];
 
-    let logsDirCreatedMessage: string | null = null;
+    // Node.js specific transports
+    const { default: fs } = await import('fs');
+    const { default: path } = await import('path');
 
-    // Ensure logs directory exists
-    if (isLogsDirSafe) {
+    const transports: pino.TransportTargetOptions[] = [];
+    const isDevelopment = config.environment === 'development';
+    const isTest = config.environment === 'testing';
+
+    if (isDevelopment && !isServerless) {
+      // Try to resolve 'pino-pretty' robustly even when bundled (e.g., Bun/ESM),
+      // falling back to JSON stdout if resolution fails.
       try {
-        if (!fs.existsSync(resolvedLogsDir)) {
-          fs.mkdirSync(resolvedLogsDir, { recursive: true });
-          logsDirCreatedMessage = `Created logs directory: ${resolvedLogsDir}`;
-        }
+        const { createRequire } = await import('node:module');
+        const require = createRequire(import.meta.url);
+        const prettyTarget = require.resolve('pino-pretty');
+        transports.push({
+          target: prettyTarget,
+          options: { colorize: true, translateTime: 'yyyy-mm-dd HH:MM:ss' },
+        });
       } catch (err) {
-        // Conditional console output for pre-init errors to avoid issues with stdio MCP clients.
-        if (process.stdout.isTTY) {
-          console.error(
-            `Error creating logs directory at ${resolvedLogsDir}: ${(err as Error).message}. File logging disabled.`,
-          );
-        }
+        console.warn(
+          `[Logger Init] Pretty transport unavailable (${err instanceof Error ? err.message : String(err)}); falling back to stdout JSON.`,
+        );
+        transports.push({ target: 'pino/file', options: { destination: 1 } });
       }
+    } else if (!isTest) {
+      transports.push({ target: 'pino/file', options: { destination: 1 } });
     }
 
-    // Common format for files
-    const fileFormat = winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.errors({ stack: true }),
-      winston.format.json(),
-    );
-
-    const transports: TransportStream[] = [];
-
-    // Add file transports only if the directory is safe
-    if (isLogsDirSafe) {
-      transports.push(
-        new winston.transports.File({
-          filename: path.join(resolvedLogsDir, "error.log"),
-          level: "error",
-          format: fileFormat,
-        }),
-        new winston.transports.File({
-          filename: path.join(resolvedLogsDir, "warn.log"),
-          level: "warn",
-          format: fileFormat,
-        }),
-        new winston.transports.File({
-          filename: path.join(resolvedLogsDir, "info.log"),
-          level: "info",
-          format: fileFormat,
-        }),
-        new winston.transports.File({
-          filename: path.join(resolvedLogsDir, "debug.log"),
-          level: "debug",
-          format: fileFormat,
-        }),
-        new winston.transports.File({
-          filename: path.join(resolvedLogsDir, "combined.log"),
-          format: fileFormat,
-        }),
-      );
-    } else {
-      // Conditional console output for pre-init warnings.
-      if (process.stdout.isTTY) {
-        console.warn(
-          "File logging disabled due to unsafe logs directory path.",
+    if (config.logsPath) {
+      try {
+        if (!fs.existsSync(config.logsPath)) {
+          fs.mkdirSync(config.logsPath, { recursive: true });
+        }
+        transports.push({
+          level: pinoLevel,
+          target: 'pino/file',
+          options: {
+            destination: path.join(config.logsPath, 'combined.log'),
+            mkdir: true,
+          },
+        });
+        transports.push({
+          level: 'error',
+          target: 'pino/file',
+          options: {
+            destination: path.join(config.logsPath, 'error.log'),
+            mkdir: true,
+          },
+        });
+      } catch (err) {
+        console.error(
+          `[Logger Init] Failed to configure file logging: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }
 
-    let consoleLoggingEnabledMessage: string | null = null;
-    let consoleLoggingSkippedMessage: string | null = null;
+    return pino({ ...pinoOptions, transport: { targets: transports } });
+  }
 
-    // Conditionally add Console transport only if:
-    // 1. MCP level is 'debug'
-    // 2. stdout is a TTY (interactive terminal, not piped)
-    if (this.currentMcpLevel === "debug" && process.stdout.isTTY) {
-      const consoleFormat = createWinstonConsoleFormat();
-      transports.push(
-        new winston.transports.Console({
-          level: "debug",
-          format: consoleFormat,
+  private async createInteractionLogger(): Promise<PinoLogger | undefined> {
+    if (isServerless || !config.logsPath) return undefined;
+
+    const { default: path } = await import('path');
+    return pino({
+      transport: {
+        target: 'pino/file',
+        options: {
+          destination: path.join(config.logsPath, 'interactions.log'),
+          mkdir: true,
+        },
+      },
+    });
+  }
+
+  public async initialize(level: McpLogLevel = 'info'): Promise<void> {
+    if (this.initialized) {
+      this.warning(
+        'Logger already initialized.',
+        requestContextService.createRequestContext({
+          operation: 'loggerReinit',
         }),
       );
-      consoleLoggingEnabledMessage =
-        "Console logging enabled at level: debug (stdout is TTY)";
-    } else if (this.currentMcpLevel === "debug" && !process.stdout.isTTY) {
-      consoleLoggingSkippedMessage =
-        "Console logging skipped: Level is debug, but stdout is not a TTY (likely stdio transport).";
+      return;
     }
+    this.currentMcpLevel = level;
+    this.pinoLogger = await this.createPinoLogger(level);
+    this.interactionLogger = await this.createInteractionLogger();
 
-    // Create logger with the initial Winston level and configured transports
-    this.winstonLogger = winston.createLogger({
-      level: this.currentWinstonLevel,
-      transports,
-      exitOnError: false,
-    });
-
-    // Log deferred messages now that winstonLogger is initialized
-    if (logsDirCreatedMessage) {
-      this.info(logsDirCreatedMessage, { loggerSetup: true });
-    }
-    if (consoleLoggingEnabledMessage) {
-      this.info(consoleLoggingEnabledMessage, { loggerSetup: true });
-    }
-    if (consoleLoggingSkippedMessage) {
-      this.info(consoleLoggingSkippedMessage, { loggerSetup: true });
+    // Start the cleanup timer only after initialization and only in Node.js
+    if (!isServerless && !this.cleanupTimer) {
+      this.cleanupTimer = setInterval(
+        () => this.flushSuppressedMessages(),
+        this.rateLimitWindow,
+      );
+      this.cleanupTimer.unref?.();
     }
 
     this.initialized = true;
-    await Promise.resolve(); // Yield to event loop
     this.info(
-      `Logger initialized. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${process.stdout.isTTY && this.currentMcpLevel === "debug" ? "enabled" : "disabled"}`,
-      { loggerSetup: true },
+      `Logger initialized. MCP level: ${level}.`,
+      requestContextService.createRequestContext({ operation: 'loggerInit' }),
     );
   }
 
-  /**
-   * Sets the function used to send MCP 'notifications/message'.
-   */
-  public setMcpNotificationSender(
-    sender: McpNotificationSender | undefined,
-  ): void {
-    this.mcpNotificationSender = sender;
-    const status = sender ? "enabled" : "disabled";
-    this.info(`MCP notification sending ${status}.`, { loggerSetup: true });
-  }
-
-  /**
-   * Dynamically sets the minimum logging level.
-   */
   public setLevel(newLevel: McpLogLevel): void {
-    if (!this.ensureInitialized()) {
-      // Conditional console output if logger not usable.
-      if (process.stdout.isTTY) {
-        console.error("Cannot set level: Logger not initialized.");
-      }
+    if (!this.pinoLogger || !this.initialized) {
+      console.error('Cannot set level: Logger not initialized.');
       return;
     }
-    if (!(newLevel in mcpLevelSeverity)) {
-      this.warning(
-        `Invalid MCP log level provided: ${newLevel}. Level not changed.`,
-      );
-      return;
-    }
-
-    const oldLevel = this.currentMcpLevel;
     this.currentMcpLevel = newLevel;
-    this.currentWinstonLevel = mcpToWinstonLevel[newLevel];
-    this.winstonLogger!.level = this.currentWinstonLevel;
-
-    // Add or remove console transport based on the new level and TTY status
-    const consoleTransport = this.winstonLogger!.transports.find(
-      (t) => t instanceof winston.transports.Console,
+    this.pinoLogger.level = mcpToPinoLevel[newLevel] || 'info';
+    this.info(
+      `Log level changed to ${newLevel}.`,
+      requestContextService.createRequestContext({
+        operation: 'loggerSetLevel',
+      }),
     );
-    const shouldHaveConsole = newLevel === "debug" && process.stdout.isTTY;
-
-    if (shouldHaveConsole && !consoleTransport) {
-      // Add console transport
-      const consoleFormat = createWinstonConsoleFormat();
-      this.winstonLogger!.add(
-        new winston.transports.Console({
-          level: "debug",
-          format: consoleFormat,
-        }),
-      );
-      this.info("Console logging dynamically enabled.", { loggerSetup: true });
-    } else if (!shouldHaveConsole && consoleTransport) {
-      // Remove console transport
-      this.winstonLogger!.remove(consoleTransport);
-      this.info("Console logging dynamically disabled.", { loggerSetup: true });
-    }
-
-    if (oldLevel !== newLevel) {
-      this.info(
-        `Log level changed. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${shouldHaveConsole ? "enabled" : "disabled"}`,
-        { loggerSetup: true },
-      );
-    }
   }
 
-  /** Get singleton instance. */
-  public static getInstance(): Logger {
-    if (!Logger.instance) {
-      Logger.instance = new Logger();
-    }
-    return Logger.instance;
+  public async close(): Promise<void> {
+    if (!this.initialized) return Promise.resolve();
+    this.info(
+      'Logger shutting down.',
+      requestContextService.createRequestContext({ operation: 'loggerClose' }),
+    );
+    if (this.cleanupTimer) clearInterval(this.cleanupTimer);
+    this.flushSuppressedMessages();
+
+    // Wait for all pending writes to complete
+    await Promise.all([
+      new Promise<void>((resolve) => {
+        if (this.pinoLogger) {
+          this.pinoLogger.flush((err) => {
+            if (err) console.error('Error flushing main logger:', err);
+            resolve();
+          });
+        } else {
+          resolve();
+        }
+      }),
+      new Promise<void>((resolve) => {
+        if (this.interactionLogger) {
+          this.interactionLogger.flush((err) => {
+            if (err) console.error('Error flushing interaction logger:', err);
+            resolve();
+          });
+        } else {
+          resolve();
+        }
+      }),
+    ]);
+
+    this.initialized = false;
   }
 
-  /**
-   * Resets the singleton instance for testing purposes.
-   * This should only be used in test environments.
-   */
-  public static resetForTesting(): void {
-    // This allows tests to get a fresh instance for each run.
-    Logger.instance = new Logger();
+  public isInitialized(): boolean {
+    return this.initialized;
   }
 
-  /** Ensures the logger has been initialized. */
-  private ensureInitialized(): boolean {
-    if (!this.initialized || !this.winstonLogger) {
-      // Conditional console output if logger not usable.
-      if (process.stdout.isTTY) {
-        console.warn("Logger not initialized; message dropped.");
-      }
+  private isRateLimited(message: string): boolean {
+    const now = Date.now();
+    const entry = this.messageCounts.get(message);
+    if (!entry) {
+      this.messageCounts.set(message, { count: 1, firstSeen: now });
       return false;
     }
-    return true;
+    if (now - entry.firstSeen > this.rateLimitWindow) {
+      this.messageCounts.set(message, { count: 1, firstSeen: now });
+      return false;
+    }
+    entry.count++;
+    if (entry.count > this.rateLimitThreshold) {
+      this.suppressedMessages.set(
+        message,
+        (this.suppressedMessages.get(message) || 0) + 1,
+      );
+      return true;
+    }
+    return false;
   }
 
-  /** Centralized log processing */
+  private flushSuppressedMessages(): void {
+    if (this.suppressedMessages.size === 0) return;
+    for (const [message, count] of this.suppressedMessages.entries()) {
+      this.warning(
+        `Log message suppressed ${count} times due to rate limiting.`,
+        requestContextService.createRequestContext({
+          operation: 'loggerRateLimitFlush',
+          additionalContext: { originalMessage: message },
+        }),
+      );
+    }
+    this.suppressedMessages.clear();
+    this.messageCounts.clear();
+  }
+
   private log(
     level: McpLogLevel,
     msg: string,
-    context?: Record<string, unknown>,
+    context?: RequestContext,
     error?: Error,
   ): void {
-    if (!this.ensureInitialized()) return;
-    if (mcpLevelSeverity[level] > mcpLevelSeverity[this.currentMcpLevel]) {
+    if (!this.pinoLogger || !this.initialized) return;
+
+    const pinoLevel = mcpToPinoLevel[level] || 'info';
+    const currentPinoLevel = mcpToPinoLevel[this.currentMcpLevel] || 'info';
+
+    const levelSeverity = pinoToMcpLevelSeverity[pinoLevel];
+    const currentLevelSeverity = pinoToMcpLevelSeverity[currentPinoLevel];
+
+    if (
+      typeof levelSeverity === 'number' &&
+      typeof currentLevelSeverity === 'number' &&
+      levelSeverity > currentLevelSeverity
+    ) {
       return;
     }
 
-    const logData: Record<string, unknown> = { ...context };
-    const winstonLevel = mcpToWinstonLevel[level];
+    if (this.isRateLimited(msg)) return;
 
-    if (error) {
-      this.winstonLogger!.log(winstonLevel, msg, { ...logData, error: error });
-    } else {
-      this.winstonLogger!.log(winstonLevel, msg, logData);
-    }
+    const logObject: Record<string, unknown> = { ...context };
+    if (error) logObject.err = pino.stdSerializers.err(error);
 
-    if (this.mcpNotificationSender) {
-      const mcpDataPayload: Record<string, unknown> = { message: msg };
-      if (context) mcpDataPayload.context = context;
-      if (error) {
-        const errorPayload: { message: string; stack?: string } = {
-          message: error.message,
-        };
-        if (this.currentMcpLevel === "debug" && error.stack) {
-          errorPayload.stack = error.stack.substring(0, 500);
-        }
-        mcpDataPayload.error = errorPayload;
-      }
-      try {
-        this.mcpNotificationSender(level, mcpDataPayload, config.mcpServerName);
-      } catch (sendError) {
-        this.winstonLogger!.error("Failed to send MCP log notification", {
-          originalLevel: level,
-          originalMessage: msg,
-          sendError:
-            sendError instanceof Error ? sendError.message : String(sendError),
-          mcpPayload: mcpDataPayload,
-        });
-      }
-    }
+    this.pinoLogger[pinoLevel](logObject, msg);
   }
 
-  // --- Public Logging Methods ---
-  public debug(msg: string, context?: Record<string, unknown>): void {
-    this.log("debug", msg, context);
+  public debug(msg: string, context?: RequestContext): void {
+    this.log('debug', msg, context);
   }
-  public info(msg: string, context?: Record<string, unknown>): void {
-    this.log("info", msg, context);
+  public info(msg: string, context?: RequestContext): void {
+    this.log('info', msg, context);
   }
-  public notice(msg: string, context?: Record<string, unknown>): void {
-    this.log("notice", msg, context);
+  public notice(msg: string, context?: RequestContext): void {
+    this.log('notice', msg, context);
   }
-  public warning(msg: string, context?: Record<string, unknown>): void {
-    this.log("warning", msg, context);
+  public warning(msg: string, context?: RequestContext): void {
+    this.log('warning', msg, context);
   }
+
   public error(
     msg: string,
-    err?: Error | Record<string, unknown>,
-    context?: Record<string, unknown>,
+    errorOrContext: Error | RequestContext,
+    context?: RequestContext,
   ): void {
-    const errorObj = err instanceof Error ? err : undefined;
-    const combinedContext =
-      err instanceof Error ? context : { ...(err || {}), ...(context || {}) };
-    this.log("error", msg, combinedContext, errorObj);
+    const errorObj =
+      errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext =
+      errorOrContext instanceof Error ? context : errorOrContext;
+    this.log('error', msg, actualContext, errorObj);
   }
+
   public crit(
     msg: string,
-    err?: Error | Record<string, unknown>,
-    context?: Record<string, unknown>,
+    errorOrContext: Error | RequestContext,
+    context?: RequestContext,
   ): void {
-    const errorObj = err instanceof Error ? err : undefined;
-    const combinedContext =
-      err instanceof Error ? context : { ...(err || {}), ...(context || {}) };
-    this.log("crit", msg, combinedContext, errorObj);
+    const errorObj =
+      errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext =
+      errorOrContext instanceof Error ? context : errorOrContext;
+    this.log('crit', msg, actualContext, errorObj);
   }
+
   public alert(
     msg: string,
-    err?: Error | Record<string, unknown>,
-    context?: Record<string, unknown>,
+    errorOrContext: Error | RequestContext,
+    context?: RequestContext,
   ): void {
-    const errorObj = err instanceof Error ? err : undefined;
-    const combinedContext =
-      err instanceof Error ? context : { ...(err || {}), ...(context || {}) };
-    this.log("alert", msg, combinedContext, errorObj);
+    const errorObj =
+      errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext =
+      errorOrContext instanceof Error ? context : errorOrContext;
+    this.log('alert', msg, actualContext, errorObj);
   }
+
   public emerg(
     msg: string,
-    err?: Error | Record<string, unknown>,
-    context?: Record<string, unknown>,
+    errorOrContext: Error | RequestContext,
+    context?: RequestContext,
   ): void {
-    const errorObj = err instanceof Error ? err : undefined;
-    const combinedContext =
-      err instanceof Error ? context : { ...(err || {}), ...(context || {}) };
-    this.log("emerg", msg, combinedContext, errorObj);
+    const errorObj =
+      errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext =
+      errorOrContext instanceof Error ? context : errorOrContext;
+    this.log('emerg', msg, actualContext, errorObj);
   }
+
   public fatal(
     msg: string,
-    err?: Error | Record<string, unknown>,
-    context?: Record<string, unknown>,
+    errorOrContext: Error | RequestContext,
+    context?: RequestContext,
   ): void {
-    const errorObj = err instanceof Error ? err : undefined;
-    const combinedContext =
-      err instanceof Error ? context : { ...(err || {}), ...(context || {}) };
-    this.log("emerg", msg, combinedContext, errorObj);
+    this.emerg(msg, errorOrContext, context);
+  }
+
+  public logInteraction(
+    interactionName: string,
+    data: Record<string, unknown>,
+  ): void {
+    if (!this.interactionLogger) {
+      if (!isServerless)
+        this.warning(
+          'Interaction logger not available.',
+          (data.context || {}) as RequestContext,
+        );
+      return;
+    }
+    this.interactionLogger.info({ interactionName, ...data });
   }
 }
 
-// Export singleton instance
 export const logger = Logger.getInstance();
