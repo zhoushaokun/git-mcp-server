@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.5 - 2025-10-11
+
+### Added
+
+- **Tilde Expansion Support**: Configuration now supports tilde (`~`) expansion in path environment variables for improved developer experience. Applies to `LOGS_DIR`, `STORAGE_FILESYSTEM_PATH`, `GIT_WRAPUP_INSTRUCTIONS_PATH`, and `GIT_BASE_DIR`. Supports both `~/path` (expands to `homedir/path`) and `~` alone (expands to `homedir`).
+- **Enhanced Git Branch Filtering**: The `git_branch` tool now accepts commit references for `merged` and `noMerged` parameters. Users can specify a commit hash or branch name to filter branches (e.g., `merged: "main"` shows branches merged into main, not just HEAD).
+- **Shared Formatter Utility**: Extracted duplicate `flattenChanges` helper function into shared utility module (`git-formatters.ts`) for better code reuse across git tools.
+
+### Fixed
+
+- **Documentation Typo**: Corrected agent meta files reference in `git_wrapup_instructions` tool from `.clinerules` to `.cline_rules`.
+
+### Changed
+
+- **Version Bump**: Updated version from 2.4.4 to 2.4.5 in package.json and README.md.
+- **Code Refactoring**: Consolidated duplicate change flattening logic from `git_add` and `git_commit` tools into the shared `flattenChanges` utility, improving maintainability.
+- **Documentation**: Updated tree.md to reflect addition of `git-formatters.ts` utility.
+- **README Examples**: Enhanced README with more comprehensive configuration examples including git username, email, base directory, and logs directory settings.
+
 ## v2.4.4 - 2025-10-11
 
 ### Added
