@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-10-11 03:10:00
+Generated on: 2025-10-11 05:08:08
 
 ```
 git-mcp-server
@@ -83,6 +83,7 @@ git-mcp-server
 │   │   │   │   └── common.ts
 │   │   │   ├── utils
 │   │   │   │   ├── git-validators.ts
+│   │   │   │   ├── json-response-formatter.ts
 │   │   │   │   ├── markdown-builder.ts
 │   │   │   │   ├── toolDefinition.ts
 │   │   │   │   └── toolHandlerFactory.ts
@@ -333,7 +334,6 @@ git-mcp-server
 ├── bun.lock
 ├── bunfig.toml
 ├── CHANGELOG.md
-├── CLAUDE.md
 ├── eslint.config.js
 ├── LICENSE
 ├── package.json

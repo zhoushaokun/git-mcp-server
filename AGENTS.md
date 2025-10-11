@@ -153,121 +153,123 @@ const TOOL_DESCRIPTION =
 
 ---
 
-### Response Formatter Best Practices
+### Response Formatter: JSON Output Pattern
 
-The `responseFormatter` function determines what the LLM receives. Follow these guidelines:
+**As of v2.4.1**, all tools should use the standardized `createJsonFormatter` utility for consistent, machine-readable JSON output.
 
-**❌ DO NOT:**
+#### Why JSON Formatting?
 
-- Return only a summary with "Full details in structured output" (there is no separate structured output for the LLM)
-- Omit critical data that the LLM needs to answer follow-up questions
-- Assume the LLM can access the raw result object
+1. **Consistency & Machine Readability**: Structured JSON ensures LLMs can reliably parse tool output
+2. **Verbosity Control**: Users can choose `minimal`, `standard`, or `full` detail levels
+3. **Complete Context**: LLMs receive complete data needed to answer follow-up questions
+
+#### Basic Usage Pattern
+
+```typescript
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
+
+// 1. Define a filter function for verbosity control
+function filterGitStatusOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  if (level === 'minimal') {
+    return {
+      success: result.success,
+      branch: result.branch,
+    };
+  }
+
+  if (level === 'standard') {
+    return {
+      success: result.success,
+      branch: result.branch,
+      staged: result.staged, // Complete array, not truncated
+      unstaged: result.unstaged,
+    };
+  }
+
+  return result; // Full - everything
+}
+
+// 2. Create the formatter
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitStatusOutput,
+});
+
+// 3. Use in tool definition
+export const gitStatusTool: ToolDefinition<...> = {
+  // ...
+  responseFormatter,
+};
+```
+
+#### Critical Rules for Filter Functions
 
 **✅ DO:**
 
-- Include both human-readable summaries AND complete data
-- Structure output hierarchically (summary → details)
-- Truncate extremely long fields (commit messages, diffs) but include key information
-- For comparisons, show both commonalities/differences AND detailed breakdowns
-- Use markdown formatting for clarity (headings, lists, code blocks)
+- Include or omit entire fields based on verbosity level
+- Use `shouldInclude(level, 'standard')` for conditional field inclusion
+- Return complete arrays when included (LLMs need full context)
+- Omit fields entirely at lower verbosity levels if not needed
 
-**Examples for Git Operations:**
+**❌ DON'T:**
+
+- Truncate arrays (breaks LLM context understanding)
+- Return summaries without structured data
+- Assume LLM can access the raw output object
+
+**Example - Field Inclusion Pattern:**
 
 ```typescript
-// BAD: Summary only - LLM cannot answer detailed questions
-function badFormatter(result: CommitOutput): ContentBlock[] {
-  return [
-    {
-      type: 'text',
-      text: 'Commit created successfully. See structured output for details.',
-    },
-  ];
-}
+import { shouldInclude } from '../utils/json-response-formatter.js';
 
-// GOOD: Summary + Details - LLM has everything it needs
-function goodFormatter(result: CommitOutput): ContentBlock[] {
-  const summary = `# Commit Created Successfully\n\n`;
-  const commitInfo =
-    `**Commit Hash:** ${result.commitHash}\n` +
-    `**Author:** ${result.author}\n` +
-    `**Date:** ${result.date}\n` +
-    `**Message:** ${result.message}\n\n`;
-
-  const filesChanged =
-    result.files.length > 0
-      ? `## Files Changed (${result.files.length})\n${result.files.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-
-  return [{ type: 'text', text: `${summary}${commitInfo}${filesChanged}` }];
-}
-
-// ALSO GOOD: Pure JSON for maximum flexibility
-function jsonFormatter(result: CommitOutput): ContentBlock[] {
-  return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
+function filterOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  return {
+    success: result.success,
+    commitHash: result.commitHash,
+    // Include complete files array only at standard or higher
+    ...(shouldInclude(level, 'standard') && { files: result.files }),
+    // Include detailed status only at full verbosity
+    ...(shouldInclude(level, 'full') && {
+      detailedStatus: result.detailedStatus,
+    }),
+  };
 }
 ```
 
-**When to use each approach:**
+#### Advanced Features
 
-- **Summary + Details**: Best for commits, logs, status, branch operations
-- **Pure JSON**: Best for simple operations like init, fetch confirmation
-- **Hybrid**: Use for complex operations like diff, log with many entries
+The `createJsonFormatter` utility provides several helper functions:
 
-#### Real-World Example: Git Log Formatter
+- **`filterByVerbosity<T>()`** - Field-based filtering with field lists per level
+- **`shouldInclude()`** - Conditional field inclusion helper
+- **`mergeFilters<T>()`** - Compose multiple filter functions
+- **`createFieldMapper<T, R>()`** - Transform/rename fields during filtering
+- **`createConditionalFilter<T>()`** - Apply different filters based on data properties
+
+See [`docs/updating-tool-responses.md`](docs/updating-tool-responses.md) for complete migration guide and advanced usage patterns.
+
+#### When to Skip the Filter Function
+
+If your tool doesn't need verbosity control, you can omit the filter entirely:
 
 ```typescript
-// Git log returns multiple commit entries
-type GitLogOutput = {
-  commits: Array<{
-    hash: string;
-    author: string;
-    date: string;
-    message: string;
-    files?: string[];
-  }>;
-  totalCount: number;
-};
-
-// ❌ BAD: Only a summary
-function badFormatter(result: GitLogOutput): ContentBlock[] {
-  return [
-    {
-      type: 'text',
-      text: `Found ${result.totalCount} commits.`,
-    },
-  ];
-}
-
-// ✅ GOOD: Summary + formatted commit history
-function goodFormatter(result: GitLogOutput): ContentBlock[] {
-  const header = `# Git Log (${result.totalCount} commits)\n\n`;
-
-  const commits = result.commits
-    .map(
-      (commit) =>
-        `## ${commit.hash.substring(0, 7)}\n` +
-        `**Author:** ${commit.author}\n` +
-        `**Date:** ${commit.date}\n` +
-        `**Message:** ${commit.message}\n` +
-        (commit.files ? `**Files:** ${commit.files.join(', ')}\n` : ''),
-    )
-    .join('\n---\n\n');
-
-  return [
-    {
-      type: 'text',
-      text: `${header}${commits}`,
-    },
-  ];
-}
+// Simple tools - always return full output as JSON
+const responseFormatter = createJsonFormatter<ToolOutput>();
 ```
 
-**Key principles demonstrated:**
+This is appropriate for:
 
-1. **Hierarchy:** Header → Individual commits with metadata
-2. **Complete data:** All commit hashes, authors, dates, messages included
-3. **LLM-friendly:** LLM can answer "Who made the last commit?" or "What files changed?"
-4. **Human-readable:** Clear formatting with markdown headers and separators
+- Simple confirmation operations (init, fetch)
+- Tools with minimal output data
+- Operations where all data is always relevant
 
 ---
 
@@ -278,7 +280,6 @@ function goodFormatter(result: GitLogOutput): ContentBlock[] {
  * @fileoverview Git status tool - shows working tree status.
  * @module
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { logger, type RequestContext } from '@/utils/index.js';
@@ -288,6 +289,10 @@ import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { PathSchema } from '../schemas/common.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
 import type { GitProviderFactory } from '@/services/git/core/GitProviderFactory.js';
+import {
+  createJsonFormatter,
+  type VerbosityLevel,
+} from '../utils/json-response-formatter.js';
 
 const TOOL_NAME = 'git_status';
 const TOOL_TITLE = 'Git Status';
@@ -369,34 +374,30 @@ async function gitStatusLogic(
   };
 }
 
-// Formatter for the final output to the LLM
-function responseFormatter(result: ToolOutput): ContentBlock[] {
-  const summary = `# Git Status: ${result.branch}\n\n`;
+// Filter function for verbosity control
+function filterGitStatusOutput(
+  result: ToolOutput,
+  level: VerbosityLevel,
+): Partial<ToolOutput> {
+  if (level === 'minimal') {
+    // Essential info only
+    return {
+      branch: result.branch,
+      staged: result.staged,
+      unstaged: result.unstaged,
+      untracked: result.untracked,
+    };
+  }
 
-  const stagedSection =
-    result.staged.length > 0
-      ? `## Staged (${result.staged.length})\n${result.staged.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-
-  const unstagedSection =
-    result.unstaged.length > 0
-      ? `## Unstaged (${result.unstaged.length})\n${result.unstaged.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-
-  const untrackedSection =
-    result.untracked.length > 0
-      ? `## Untracked (${result.untracked.length})\n${result.untracked.map((f) => `- ${f}`).join('\n')}\n\n`
-      : '';
-
-  const text =
-    result.staged.length === 0 &&
-    result.unstaged.length === 0 &&
-    result.untracked.length === 0
-      ? `${summary}Working directory is clean.`
-      : `${summary}${stagedSection}${unstagedSection}${untrackedSection}`;
-
-  return [{ type: 'text', text }];
+  // Standard and full return everything
+  // (This simple tool doesn't have additional detail levels)
+  return result;
 }
+
+// Formatter using standardized JSON output
+const responseFormatter = createJsonFormatter<ToolOutput>({
+  filter: filterGitStatusOutput,
+});
 
 // The final tool definition
 export const gitStatusTool: ToolDefinition<

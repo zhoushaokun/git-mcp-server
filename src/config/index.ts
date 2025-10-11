@@ -93,6 +93,14 @@ const ConfigSchema = z.object({
     emptyStringAsUndefined,
     z.enum(['stateless', 'stateful', 'auto']).default('auto'),
   ),
+  mcpResponseFormat: z.preprocess(
+    emptyStringAsUndefined,
+    z.enum(['json', 'markdown', 'auto']).default('json'),
+  ),
+  mcpResponseVerbosity: z.preprocess(
+    emptyStringAsUndefined,
+    z.enum(['minimal', 'standard', 'full']).default('standard'),
+  ),
   mcpHttpPort: z.coerce.number().default(3010),
   mcpHttpHost: z.string().default('127.0.0.1'),
   mcpHttpEndpointPath: z.string().default('/mcp'),
@@ -243,6 +251,8 @@ const parseConfig = () => {
     environment: env.NODE_ENV,
     mcpTransportType: env.MCP_TRANSPORT_TYPE,
     mcpSessionMode: env.MCP_SESSION_MODE,
+    mcpResponseFormat: env.MCP_RESPONSE_FORMAT,
+    mcpResponseVerbosity: env.MCP_RESPONSE_VERBOSITY,
     mcpHttpPort: env.MCP_HTTP_PORT,
     mcpHttpHost: env.MCP_HTTP_HOST,
     mcpHttpEndpointPath: env.MCP_HTTP_ENDPOINT_PATH,
