@@ -48,9 +48,9 @@ export async function executeBranch(
         // Choose the ref prefix based on whether we want remote or local branches
         const refPrefix = options.remote ? 'refs/remotes' : 'refs/heads';
 
-        args.push('for-each-ref', `--format=${format}`, refPrefix);
+        args.push(`--format=${format}`, refPrefix);
 
-        const cmd = buildGitCommand({ command: '', args }); // Command is in args
+        const cmd = buildGitCommand({ command: 'for-each-ref', args });
         const result = await execGit(
           cmd,
           context.workingDirectory,
