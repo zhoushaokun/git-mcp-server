@@ -7,6 +7,8 @@
  *
  * @module src/config/index
  */
+import { homedir } from 'os';
+
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
@@ -35,6 +37,41 @@ const emptyStringAsUndefined = (val: unknown) => {
     return undefined;
   }
   return val;
+};
+
+/**
+ * Expands tilde (~) in paths to the user's home directory.
+ * Returns undefined for empty/undefined inputs.
+ * Supports both ~/path (expands to homedir/path) and ~ alone (expands to homedir).
+ *
+ * @param path - Path that may contain tilde prefix
+ * @returns Expanded absolute path or undefined
+ *
+ * @example
+ * expandTildePath('~/Developer/') // '/Users/username/Developer/'
+ * expandTildePath('~') // '/Users/username'
+ * expandTildePath('/absolute/path') // '/absolute/path' (unchanged)
+ * expandTildePath('') // undefined
+ */
+const expandTildePath = (path: unknown): string | undefined => {
+  if (typeof path !== 'string' || path.trim() === '') {
+    return undefined;
+  }
+
+  const trimmed = path.trim();
+
+  // Expand ~/path to homedir/path
+  if (trimmed.startsWith('~/')) {
+    return `${homedir()}${trimmed.slice(1)}`;
+  }
+
+  // Expand ~ alone to homedir
+  if (trimmed === '~') {
+    return homedir();
+  }
+
+  // Return as-is (already absolute or relative)
+  return trimmed;
 };
 
 // --- Schema Definition ---
@@ -66,7 +103,7 @@ const ConfigSchema = z.object({
       z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
     )
     .default('debug'),
-  logsPath: z.string().optional(), // Made optional as it's Node-specific
+  logsPath: z.preprocess(expandTildePath, z.string().optional()), // Made optional as it's Node-specific
   environment: z
     .preprocess(
       (val) => {
@@ -171,7 +208,10 @@ const ConfigSchema = z.object({
         ]),
       )
       .default('in-memory'),
-    filesystemPath: z.string().default('./.storage'), // This remains, but will only be used if providerType is 'filesystem'
+    filesystemPath: z.preprocess(
+      expandTildePath,
+      z.string().default('./.storage'),
+    ), // Supports tilde expansion for filesystem storage
   }),
   git: z.object({
     provider: z.preprocess(
@@ -179,14 +219,17 @@ const ConfigSchema = z.object({
       z.enum(['auto', 'cli', 'isomorphic']).default('auto'),
     ),
     signCommits: z.coerce.boolean().default(false),
-    wrapupInstructionsPath: z.string().optional(),
+    wrapupInstructionsPath: z.preprocess(
+      expandTildePath,
+      z.string().optional(),
+    ), // Supports tilde expansion for custom wrapup instructions
     baseDir: z.preprocess(
-      emptyStringAsUndefined,
+      (val) => expandTildePath(emptyStringAsUndefined(val)),
       z
         .string()
         .refine((path) => !path || path.startsWith('/'), {
           message:
-            'GIT_BASE_DIR must be an absolute path starting with "/" if provided',
+            'GIT_BASE_DIR must be an absolute path starting with "/" (tilde expansion is supported)',
         })
         .optional(),
     ),
