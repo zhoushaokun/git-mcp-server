@@ -12,7 +12,7 @@
  * @param message - The banner message to display
  * @example
  * ```typescript
- * logStartupBanner('🚀 MCP Server running at: http://localhost:3010');
+ * logStartupBanner('🚀 MCP Server running at: http://localhost:3015');
  * ```
  */
 export function logStartupBanner(message: string): void {

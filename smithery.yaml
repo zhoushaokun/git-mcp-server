@@ -10,7 +10,7 @@ startCommand:
         description: "MCP communication transport ('stdio' or 'http')."
       MCP_HTTP_PORT:
         type: integer
-        default: 3010
+        default: 3015
         description: "HTTP server port (if MCP_TRANSPORT_TYPE is 'http')."
       MCP_LOG_LEVEL:
         type: string
@@ -19,7 +19,7 @@ startCommand:
   commandFunction: |
     (config) => ({
       "command": "bunx",
-      "args": ["mcp-ts-template"],
+      "args": ["@cyanheads/git-mcp-server@latest"],
       "env": {
         "MCP_TRANSPORT_TYPE": config.MCP_TRANSPORT_TYPE,
         "MCP_HTTP_PORT": config.MCP_HTTP_PORT,
