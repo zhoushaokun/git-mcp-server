@@ -2,148 +2,60 @@
 
 All notable changes to this project will be documented in this file.
 
-## v2.4.0-alpha07 - 2025-10-10
+## v2.4.1 - 2025-10-11
 
 ### Added
 
-- **Git Wrap-up Prompt**: Added a new `git_wrapup` prompt definition that provides a structured workflow for completing git sessions, including reviewing changes, updating documentation, and committing modifications. This prompt is specifically tailored for git-mcp-server's domain.
-
-### Removed
-
-- **Code Review Prompt**: Removed the generic `code_review` prompt definition as it was not aligned with the git-mcp-server's focused scope. The git-specific workflow prompt better serves this server's purpose.
+- **Markdown Builder Utility**: Added a fluent interface markdown builder (`src/mcp-server/tools/utils/markdown-builder.ts`) for constructing LLM-optimized response formatters. Provides chainable methods for headings, sections, lists, key-value pairs, and conditional content. Improves consistency and maintainability across all tool response formatters.
+- **SDK Context Validation**: Added defensive type guard (`validateSdkContext`) in tool handler factory to validate MCP SDK context structure, catching unexpected issues early and improving robustness.
 
 ### Changed
 
-- **Prompt Registry**: Updated the prompt definitions index to export the new git-wrapup prompt instead of the code-review prompt.
-
-## v2.4.0-alpha06 - 2025-10-10
-
-### Added
-
-- **Unit Tests**: Added a comprehensive suite of unit tests for core Git tools, including `git_add`, `git_branch`, `git_commit`, `git_log`, and `git_status`. This improves code quality and regression prevention.
-- **Test Infrastructure**: Established a new test directory structure under `tests/mcp-server/tools/` with helpers for mocking, assertions, and test context setup.
-
-### Changed
-
-- **Code Refinements**: Minor import reordering in `git-branch.tool.ts` and `git-diff.tool.ts` due to auto-formatting.
-- **Documentation**: Updated `docs/tree.md` to reflect the new test file structure.
-
-## v2.4.0-alpha05 - 2025-10-10
-
-### Changed
-
-- **Major Architectural Refactor**:
-  - All Git tools (`git-add`, `git-commit`, `git-status`, etc.) were refactored to delegate their logic to the `GitProvider` service via dependency injection, making the tool layer responsible only for input validation and output formatting.
-- **Tooling and Schemas**:
-  - Updated the schemas and logic for nearly all Git tools to align with the new provider-based architecture, improving consistency and type safety.
-  - Enhanced the `git_status` tool's logic to map the provider's structured output to the tool's output schema.
-- **Documentation**:
-  - Overhauled `AGENTS.md`, `CLAUDE.md`, and `.clinerules/clinerules.md` to extensively document the new provider architecture, including service layer boundaries, validator locations, and the execution layer consolidation. The version was also updated.
-
-### Removed
-
-- **Legacy Documentation**: Removed obsolete and now-irrelevant architectural and migration documents, including `docs/migration-guide.md`, `docs/new_arc_tool_review.md`, `docs/server_comparison.md`, `docs/tool-comparison-report.md`, and `docs/tool-test-analysis.md`.
-- **Obsolete Test**: Deleted `tests/mcp-server/resources/definitions/echo.resource.test.ts`, as the corresponding `echo` resource was previously removed.
-
-## v2.4.0-alpha04 - 2025-10-10
-
-### Added
-
-- **New Tools**:
-  - `git_clear_working_dir`: A new tool to clear the session's working directory.
-  - `git_wrapup_instructions`: A tool that provides a standardized workflow for reviewing and committing changes.
-- **New Resource**:
-  - `git-working-directory.resource.ts`: Exposes the current session working directory as a discoverable MCP resource (`git://working-directory`).
-
-### Changed
-
-- **Architectural Refinement**:
-  - **Storage Service**: Refactored `StorageService` to gracefully handle missing `tenantId` by defaulting to `'default-tenant'`. This significantly improves the developer experience, especially for STDIO transport and unauthenticated HTTP contexts, by preventing unnecessary errors.
-- **Tool Enhancements**: The following tools have been significantly enhanced with new options and capabilities to align them with the underlying `IGitProvider` interface:
-  - `git_branch`: Added a new `show-current` operation.
-  - `git_cherry_pick`: Added support for `mainline`, `strategy`, and `signoff` options.
-  - `git_commit`: Added `filesToStage` for atomic stage-and-commit operations and `forceUnsignedOnFailure` for better GPG/SSH signing resilience.
-  - `git_diff`: Added `includeUntracked` option to show untracked file content in the diff.
-  - `git_log`: Added `showSignature` option to display commit signature verification status.
-  - `git_merge`: Added `abort` option to cancel a merge with conflicts.
-  - `git_push`: Added `delete` and `remoteBranch` options.
-  - `git_rebase`: Re-architected to support `mode`-based operations (`start`, `continue`, `abort`, `skip`).
-  - `git_reset`: Expanded `mode` enum to include `merge` and `keep`.
-  - `git_show`: Added a `filePath` option to view the contents of a specific file at a given commit.
-  - `git_worktree`: Added `detach`, `verbose`, and `dryRun` options.
-- **Project Meta**:
-  - Bumped the project version to `2.4.0` in `package.json`.
-  - Updated `bun.lock` with the latest dependency versions (`pino-pretty`).
-- **Code Organization**:
-  - Re-alphabetized `allToolDefinitions` in `src/mcp-server/tools/definitions/index.ts` for improved maintainability.
+- **Tool Response Formatters**: Refactored `git_add` and `git_commit` response formatters to use the new markdown builder utility, resulting in cleaner, more maintainable code with consistent formatting.
+- **Enhanced Tool Output**:
+  - `git_add` tool now includes comprehensive repository status after staging, showing all staged changes, remaining unstaged changes, untracked files, and whether the repository is ready to commit.
+  - `git_commit` tool response formatter refactored for improved readability and structure using markdown builder.
+- **Tool Handler Improvements**:
+  - Enhanced dependency injection with closure-based memoization for thread-safe singleton pattern.
+  - Added debug mode logging for tool inputs (enabled via `MCP_DEBUG_TOOL_INPUTS=true`).
+  - Improved error context logging with more detailed information about failures.
+  - Better path resolution with runtime type safety checks and comprehensive logging.
+  - Added graceful fallback when path property is unexpectedly missing from tool input.
 
 ### Fixed
 
-- **Command Validation**: Corrected the argument validation in `command-builder.ts` to allow parentheses `()`, which are necessary for `git log` format strings.
-- **Git Init**: The `git_init` and `git_set_working_dir` (with `initializeIfNotPresent`) tools now correctly default to creating a new repository with an initial branch named `main`.
-- **Git Log**: Fixed an issue where `git_log` arguments for `branch` and `path` could be misinterpreted.
+- **Tool Handler Type Safety**: Improved runtime type checking for tool inputs with path properties, preventing potential type mismatches during working directory resolution.
 
-### Removed
+### Documentation
 
-- **Echo Resource**: Removed the `echo.resource.ts` as it was a template/example and not relevant to the server's core Git functionality.
+- **README**: Enhanced formatting and improved documentation structure for prompts and tool responses sections.
+- **CHANGELOG**: Consolidated alpha release notes into cohesive v2.4.0 release notes.
 
-## v2.4.0-alpha03 - 2025-10-10
+### Dependencies
 
-### Added
+- Updated `@cloudflare/workers-types` to `^4.20251011.0`
+- Updated `@types/bun` to `^1.3.0`
+- Updated `bun-types` to `^1.3.0`
+- Removed unused transitive dependencies from lock file
 
-- **New Git Tools**: Greatly expanded the server's capabilities by adding 19 new Git tools, completing the core Git command suite. The new tools are:
-  - **Staging & Commits**: `git_add`, `git_commit`, `git_diff`, `git_log`, `git_show`.
-  - **Branching & Merging**: `git_branch`, `git_checkout`, `git_merge`, `git_rebase`, `git_cherry_pick`.
-  - **Remote Operations**: `git_remote`, `git_fetch`, `git_pull`, `git_push`.
-  - **Advanced Workflows**: `git_tag`, `git_stash`, `git_reset`, `git_worktree`.
-- **Tool Definitions**: All new tools were added to the `allToolDefinitions` barrel export in `src/mcp-server/tools/definitions/index.ts` for automatic registration.
-- **Documentation**:
-  - Added `docs/server_comparison.md` to provide a detailed comparison between the production (`git-mcp-server`) and development (`git-mcp-server-development`) instances.
-
-### Changed
-
-- **Version Bump**: Incremented the project version from `2.4.1` to `2.4.2` in `package.json` and `README.md`.
-- **Documentation**: Updated `docs/tree.md` to accurately reflect the addition of the new tool definition files and documentation.
-
-## v2.4.0-alpha02 - 2025-10-10
-
-### Added
-
-- **Git Provider Architecture**:
-  - Implemented a new provider-based architecture for all Git operations, centralizing command execution in `src/services/git`.
-  - Introduced `IGitProvider` interface and a `CliGitProvider` implementation.
-  - Added a `GitProviderFactory` to manage provider selection.
-- **New Git Tools**:
-  - Added `git_blame` to show line-by-line authorship.
-  - Added `git_reflog` to view reference logs.
-  - Added `git_clean` to remove untracked files.
-  - Added `git_init`, `git_clone`, and `git_set_working_dir` as top-level tools.
-  - Added `git_status` with a more robust output parser.
-- **Configuration**: Added new environment variables for Git provider configuration (`GIT_PROVIDER`, `GIT_SIGN_COMMITS`, etc.) in `.env.example`.
-- **Validation**: Added a suite of git-specific validators in `src/mcp-server/tools/utils/git-validators.ts`.
-
-### Changed
-
-- **Major Architectural Refactor**:
-  - All existing Git tools were refactored to use the new `GitProvider` service, removing direct CLI calls from the tool logic.
-  - The `git-status` tool was significantly improved with a new parser for porcelain v2 format.
-- **Documentation**:
-  - Overhauled `AGENTS.md` and `CLAUDE.md` to document the new provider architecture, validator locations, and service layer boundaries.
-  - Massively expanded `docs/migration-guide.md` with a detailed, phased plan for the architectural migration.
-  - Updated `docs/tree.md` to reflect the new file structure.
-
-### Removed
-
-- **Template Tools**: Removed all template example tools (`template-cat-fact`, `template-code-review-sampling`, `template-echo-message`, `template-image-test`, `template-madlibs-elicitation`) and their associated tests to focus the server on Git operations.
-
-## v2.4.0-alpha01 - 2025-10-09
-
-### Alignment
+## v2.4.0 - 2025-10-10
 
 - Aligned with [mcp-ts-template](https://github.com/cyanheads/mcp-ts-template) v2.3.5
+- Moved to [Bun](https://bun.sh) for dependency management, scripting, and runtime execution.
+- Major architectural refactor to a dual-output tool architecture with structured content and User-optimized responses.
+
+### New Features
+
+- **Git Wrapup Prompt** (`git_wrapup`): A new structured workflow prompt for completing git sessions. Guides users through a systematic protocol including reviewing changes with `git_diff`, updating changelog and documentation, creating logical commits, and optionally creating release tags. Features configurable options for skipping documentation review, creating tags, and updating agent meta files. Integrates with the `git_wrapup_instructions` tool for context-aware workflow generation.
+- **Git Blame Tool** (`git_blame`): Show line-by-line authorship information for files, displaying who last modified each line and when. Supports optional line range filtering (`startLine`, `endLine`), whitespace change ignoring, and provides formatted output with commit hash, date, author, and content for each line.
+- **Git Reflog Tool** (`git_reflog`): View reference logs (reflog) to track when branch tips and other references were updated. Essential for recovering lost commits and understanding repository history. Supports filtering by specific references (default: HEAD) and configurable entry limits. Output includes chronological history of all git operations.
 
 ### Added
 
+- **Dual-Output Tool Architecture**: All tools now implement a sophisticated dual-output system that provides different perspectives of the same operation:
+  - **Structured Content** (`outputSchema`): Type-safe Zod schemas define the complete, machine-readable data structure returned by tool logic. This is the "source of truth" containing all operational details.
+  - **Response Formatter** (`responseFormatter`): Transforms structured output into LLM-optimized `ContentBlock[]` arrays. These formatted responses balance human-readable summaries with complete data, ensuring LLMs have full context to answer follow-up questions. Supports markdown formatting, hierarchical organization, and intelligent truncation.
+  - **Key Benefit**: Clients can access raw structured data for processing while LLMs receive optimized, contextual narratives—all from a single tool invocation.
 - **Architectural Foundation**:
   - **Dependency Injection**: Integrated `tsyringe` for robust dependency injection, decoupling services and tools. A central DI `container` now manages object lifetimes.
   - **Service/Provider Pattern**: Introduced a standardized service and provider pattern (`src/services/`, `src/storage/`) for abstracting external integrations and data persistence.

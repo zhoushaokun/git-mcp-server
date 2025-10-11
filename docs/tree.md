@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-10-10 12:44:30
+Generated on: 2025-10-11 03:10:00
 
 ```
 git-mcp-server
@@ -34,7 +34,7 @@ git-mcp-server
 │   ├── mcp-server
 │   │   ├── prompts
 │   │   │   ├── definitions
-│   │   │   │   ├── code-review.prompt.ts
+│   │   │   │   ├── git-wrapup.prompt.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── utils
 │   │   │   │   └── promptDefinition.ts
@@ -83,6 +83,7 @@ git-mcp-server
 │   │   │   │   └── common.ts
 │   │   │   ├── utils
 │   │   │   │   ├── git-validators.ts
+│   │   │   │   ├── markdown-builder.ts
 │   │   │   │   ├── toolDefinition.ts
 │   │   │   │   └── toolHandlerFactory.ts
 │   │   │   └── tool-registration.ts
@@ -260,21 +261,23 @@ git-mcp-server
 │   │   ├── resources
 │   │   │   └── definitions
 │   │   ├── tools
-│   │   │   └── definitions
-│   │   │       ├── helpers
-│   │   │       │   ├── assertions.ts
-│   │   │       │   ├── index.ts
-│   │   │       │   ├── mockGitProvider.ts
-│   │   │       │   ├── mockStorageService.ts
-│   │   │       │   └── testContext.ts
-│   │   │       ├── integration
-│   │   │       ├── unit
-│   │   │       │   ├── git-add.tool.test.ts
-│   │   │       │   ├── git-branch.tool.test.ts
-│   │   │       │   ├── git-commit.tool.test.ts
-│   │   │       │   ├── git-log.tool.test.ts
-│   │   │       │   └── git-status.tool.test.ts
-│   │   │       └── README.md
+│   │   │   ├── definitions
+│   │   │   │   ├── helpers
+│   │   │   │   │   ├── assertions.ts
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── mockGitProvider.ts
+│   │   │   │   │   ├── mockStorageService.ts
+│   │   │   │   │   └── testContext.ts
+│   │   │   │   ├── integration
+│   │   │   │   ├── unit
+│   │   │   │   │   ├── git-add.tool.test.ts
+│   │   │   │   │   ├── git-branch.tool.test.ts
+│   │   │   │   │   ├── git-commit.tool.test.ts
+│   │   │   │   │   ├── git-log.tool.test.ts
+│   │   │   │   │   └── git-status.tool.test.ts
+│   │   │   │   └── README.md
+│   │   │   └── utils
+│   │   │       └── markdown-builder.test.ts
 │   │   └── transports
 │   │       └── auth
 │   │           └── lib

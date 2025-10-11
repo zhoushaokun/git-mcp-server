@@ -223,13 +223,14 @@ The server provides resources that offer contextual information about the Git en
 
 The server provides structured prompt templates that guide AI agents through complex workflows:
 
-| Prompt Name    | Description                                                                                                                                          | Parameters                                                                                              |
-| :------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------ |
-| `git_wrapup`   | A systematic workflow protocol for completing git sessions. Guides agents through reviewing changes, updating documentation, and creating commits. | `changelogPath`, `skipDocumentation`, `createTag`, `updateAgentFiles`                                   |
+| Prompt Name  | Description                                                                                                                                        | Parameters                                                            |
+| :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------- |
+| `git_wrapup` | A systematic workflow protocol for completing git sessions. Guides agents through reviewing changes, updating documentation, and creating commits. | `changelogPath`, `skipDocumentation`, `createTag`, `updateAgentFiles` |
 
 ### Using Prompts
 
 Prompts provide pre-configured workflows that agents can invoke to follow best practices. For example, the `git_wrapup` prompt creates a structured checklist for:
+
 - Analyzing repository changes with `git_diff`
 - Updating `CHANGELOG.md` with version entries
 - Reviewing and updating documentation
@@ -243,7 +244,9 @@ Prompts are MCP primitives that LLM clients can discover and invoke through the 
 This server follows MCP's dual-output architecture for all tools ([MCP Tools Specification](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)):
 
 ### What Users See (Human-Readable)
+
 When you invoke a tool through your MCP client, you see a **formatted summary** designed for human consumption. For example, `git_status` might show:
+
 ```
 # Git Status: main
 
@@ -256,7 +259,9 @@ When you invoke a tool through your MCP client, you see a **formatted summary** 
 ```
 
 ### What the LLM Sees (Complete Structured Data)
+
 Behind the scenes, the LLM receives **complete structured data** as [content blocks](https://modelcontextprotocol.io/specification/2025-06-18/server/tools#tool-results) via the `responseFormatter` function. This includes:
+
 - All metadata (commit hashes, timestamps, authors)
 - Full file lists and change details
 - Hierarchical summaries with markdown formatting
