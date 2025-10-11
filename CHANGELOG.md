@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.2 - 2025-10-10
+
+### Added
+
+- **JSON Response Formatter**: Introduced a new `json-response-formatter` utility (`src/mcp-server/tools/utils/json-response-formatter.ts`) to create LLM-optimized, structured JSON responses for tools. This improves parsing efficiency and reduces token usage compared to Markdown. The formatter supports configurable verbosity levels (`minimal`, `standard`, `full`).
+
+### Changed
+
+- **Tool Architecture**: Refactored all Git tools to align with the new v2.4.0 architecture. All `responseFormatter` implementations now use the new `createJsonFormatter`, and Git command execution is consistently delegated to the `GitProvider` service layer.
+- **Test Suite**: Updated the entire test suite to reflect the architectural changes. Test helpers, assertions, and unit tests have been modified to validate structured JSON output instead of Markdown.
+- **Configuration**: The `.env.example` file has been updated to include the new `MCP_RESPONSE_VERBOSITY` configuration option.
+- **Logging**: The logger (`src/utils/internal/logger.ts`) has been enhanced to include a `notice` level and an improved startup banner.
+
+### Dependencies
+
+- Updated `package.json` and `bun.lock` with the latest versions of project dependencies.
+
 ## v2.4.1 - 2025-10-11
 
 ### Added
