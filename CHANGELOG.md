@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.4 - 2025-10-11
+
+### Added
+
+- **Enhanced Repository Context**: The `git_set_working_dir` tool now provides rich repository context by default when setting the working directory. Includes immediate status, branch information, configured remotes, and recent commits. Context gathering can be disabled via the new `includeContext` parameter.
+
+### Changed
+
+- **Configuration**: Updated default HTTP port from 3010 to 3015 across all configuration files (`.env.example`, `src/config/index.ts`, `smithery.yaml`, tests).
+- **Documentation**: Enhanced response format documentation in README with comprehensive examples showing both JSON (LLM-optimized) and Markdown (human-readable) output formats. Added detailed explanation of verbosity levels and when to use each format.
+- **Documentation**: Clarified tool count (now 27 with addition of `git_clear_working_dir`) and updated Advanced Workflows category to reflect both `git_set_working_dir` and `git_clear_working_dir` tools.
+- **Documentation**: Added edge deployment limitations clarification - Git CLI operations require local filesystem and are not compatible with edge deployment.
+- **Branding**: Updated project references from `mcp-ts-template` to `git-mcp-server` in configuration files (`typedoc.json`, `smithery.yaml`, `wrangler.toml`).
+
+### Fixed
+
+- **Import Order**: Corrected import organization in `git-set-working-dir.tool.ts` to follow project conventions (framework imports first, internal imports second).
+
 ## v2.4.3 - 2025-10-11
 
 ### Fixed
