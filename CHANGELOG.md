@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.6 - 2025-10-11
+
+### Changed
+
+- **Documentation**: Polished the `README.md` to improve clarity and consistency across the "Tools," "Resources," and "Prompts" sections.
+- **Configuration**: Refined the `package.json` file by organizing scripts into logical groups, alphabetizing keywords, and simplifying the project description for better readability.
+
 ## v2.4.5 - 2025-10-11
 
 ### Added

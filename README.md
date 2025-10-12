@@ -1,7 +1,7 @@
 <div align="center">
   <h1>@cyanheads/git-mcp-server</h1>
-  <p><b>A secure and scalable Git MCP server giving AI agents powerful version control for local and (soon) serverless environments.</b>
-  <div>27 Tools • 1 Resources • 1 Prompt</div>
+  <p><b>A secure and scalable Git MCP server giving AI agents powerful version control for local and (soon) serverless environments. STDIO & Streamable HTTP</b>
+  <div>27 Tools • 1 Resource • 1 Prompt</div>
   </p>
 </div>
 
@@ -26,7 +26,58 @@ This server provides 27 comprehensive Git operations organized into six function
 | **Remote Operations**     | `git_remote`, `git_fetch`, `git_pull`, `git_push`                                                                              | Configure remotes, download updates, synchronize repositories, and publish changes                                    |
 | **Advanced Workflows**    | `git_tag`, `git_stash`, `git_reset`, `git_worktree`, `git_set_working_dir`, `git_clear_working_dir`, `git_wrapup_instructions` | Tag releases, stash changes, reset state, manage worktrees, set/clear session directory, and access workflow guidance |
 
-## ✨ Features
+## 📦 Resources Overview
+
+The server provides resources that offer contextual information about the Git environment:
+
+| Resource                | URI                       | Description                                                                                                                                  |
+| :---------------------- | :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Git Working Directory** | `git://working-directory` | Provides the current session working directory for git operations. This is the directory set via `git_set_working_dir` and used as the default. |
+
+## 🎯 Prompts Overview
+
+The server provides structured prompt templates that guide AI agents through complex workflows:
+
+| Prompt         | Description                                                                                                                              | Parameters                                                                   |
+| :------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------- |
+| **Git Wrap-up** | A systematic workflow protocol for completing git sessions. Guides agents through reviewing, documenting, committing, and tagging changes. | `changelogPath`, `skipDocumentation`, `createTag`, and `updateAgentFiles`. |
+
+## 🚀 Getting Started
+
+### MCP Client Settings/Configuration
+
+Add the following to your MCP Client configuration file (e.g., `cline_mcp_settings.json`). Clients have different ways to configure servers, so refer to your client's documentation for specifics.
+
+** Be sure to update environment variables as needed (especially your Git information!) **
+
+```json
+{
+  "mcpServers": {
+    "git-mcp-server": {
+      "type": "stdio",
+      "command": "bunx",
+      "args": ["@cyanheads/git-mcp-server@latest"],
+      "env": {
+        "MCP_TRANSPORT_TYPE": "stdio",
+        "MCP_LOG_LEVEL": "info",
+        "GIT_MCP_BASE_DIR": "~/Developer/",
+        "LOGS_DIR": "~/Developer/logs/git-mcp-server/",
+        "GIT_USERNAME": "cyanheads",
+        "GIT_EMAIL": "casey@caseyjhand.com",
+        "GIT_SIGN_COMMITS": "false"
+      }
+    }
+  }
+}
+```
+
+Or for Streamable HTTP:
+```bash
+MCP_TRANSPORT_TYPE=http
+MCP_HTTP_PORT=3015
+```
+
+## ✨ Server Features
 
 This server is built on the [`mcp-ts-template`](https://github.com/cyanheads/mcp-ts-template) and inherits its rich feature set:
 
@@ -47,30 +98,7 @@ Plus, specialized features for **Git integration**:
 - **Safety Features**: Explicit confirmations for destructive operations like `git clean` and `git reset --hard`.
 - **Commit Signing**: Optional GPG/SSH signing support for verified commits.
 
-## 🚀 Getting Started
-
-### MCP Client Settings/Configuration
-
-Add the following to your MCP Client configuration file (e.g., `cline_mcp_settings.json`).
-
-```json
-{
-  "mcpServers": {
-    "git-mcp-server": {
-      "command": "bunx",
-      "args": ["@cyanheads/git-mcp-server@latest"],
-      "env": {
-        "MCP_LOG_LEVEL": "info",
-        "GIT_MCP_BASE_DIR": "~/Developer/",
-        "LOGS_DIR": "~/Developer/logs/git-mcp-server/",
-        "GIT_USERNAME": "cyanheads",
-        "GIT_EMAIL": "casey@caseyjhand.com",
-        "GIT_SIGN_COMMITS": "false"
-      }
-    }
-  }
-}
-```
+### Development Environment Setup
 
 ### Prerequisites
 
@@ -184,41 +212,6 @@ bun deploy:prod
 | `src/config`                | Environment variable parsing and validation with Zod.                            |
 | `tests/`                    | Unit and integration tests, mirroring the `src/` directory structure.            |
 
-## 📦 Resources
-
-The server provides resources that offer contextual information about the Git environment:
-
-| Resource URI              | Description                                                                                   |
-| :------------------------ | :-------------------------------------------------------------------------------------------- |
-| `git://working-directory` | Returns the currently configured working directory for the session. Shows `NOT_SET` if unset. |
-
-## 🎯 Prompts
-
-The server provides structured prompt templates that guide AI agents through complex workflows:
-
-| Prompt Name  | Description                                                                                                                                        | Parameters                                                            |
-| :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------- |
-| `git_wrapup` | A systematic workflow protocol for completing git sessions. Guides agents through reviewing changes, updating documentation, and creating commits. | `changelogPath`, `skipDocumentation`, `createTag`, `updateAgentFiles` |
-
-### Using Prompts
-
-Prompts are MCP primitives that LLM clients can discover and invoke through the protocol. They work together with tools to provide comprehensive workflows:
-
-**How it works:**
-
-1. **Prompt** (`git_wrapup`): Provides the workflow template and instructions to the agent
-2. **Tool** (`git_wrapup_instructions`): Retrieves current repository status and user-specific workflow preferences
-
-The `git_wrapup` prompt creates a structured checklist for completing git sessions:
-
-- First calls `git_wrapup_instructions` tool to get context and workflow configuration
-- Analyzes repository changes with `git_diff`
-- Updates `CHANGELOG.md` with version entries
-- Reviews and updates documentation
-- Creates atomic, conventional commits
-- Verifies completion with `git_status`
-
-This dual approach (prompt + tool) ensures agents have both the workflow logic and current repository context to complete tasks effectively.
 
 ## 📤 Understanding Tool Responses
 
