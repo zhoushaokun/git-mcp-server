@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.8 - 2025-10-13
+
+### Fixed
+
+- **Package Scripts**: Reorganized `package.json` scripts section to match template structure, fixing stdio transport connection issues. Removed comment separators that could interfere with script execution and reordered scripts in the proper sequence (build → deploy → start → dev). Added missing `rebuild` script.
+- **Transport Detection**: Resolved issue where MCP clients (like Cursor) would show red connection indicator despite successful tool/resource registration when using stdio transport.
+
+### Changed
+
+- **Script Organization**: Scripts now follow consistent ordering pattern matching the mcp-ts-template for better maintainability and cross-project consistency.
+
 ## v2.4.7 - 2025-10-13
 
 ### Added
@@ -13,7 +24,6 @@ All notable changes to this project will be documented in this file.
 
 - **Documentation**: Updated `README.md` to reflect the new cross-runtime compatibility, providing clear instructions and configuration examples for both `bunx` and `npx`.
 - **Dependencies**: Updated several dependencies to their latest versions, including `hono`, `repomix`, and `vite`.
-
 
 ## v2.4.6 - 2025-10-11
 
