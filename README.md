@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.4.8-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/git-mcp-server/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/)
+[![Version](https://img.shields.io/badge/Version-2.4.9-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/git-mcp-server/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
@@ -73,7 +73,7 @@ Add the following to your MCP Client configuration file (e.g., `cline_mcp_settin
       "env": {
         "MCP_TRANSPORT_TYPE": "stdio",
         "MCP_LOG_LEVEL": "info",
-        "GIT_MCP_BASE_DIR": "~/Developer/",
+        "GIT_BASE_DIR": "~/Developer/",
         "LOGS_DIR": "~/Developer/logs/git-mcp-server/",
         "GIT_USERNAME": "cyanheads",
         "GIT_EMAIL": "casey@caseyjhand.com",
@@ -96,7 +96,7 @@ Add the following to your MCP Client configuration file (e.g., `cline_mcp_settin
       "env": {
         "MCP_TRANSPORT_TYPE": "stdio",
         "MCP_LOG_LEVEL": "info",
-        "GIT_MCP_BASE_DIR": "~/Developer/",
+        "GIT_BASE_DIR": "~/Developer/",
         "LOGS_DIR": "~/Developer/logs/git-mcp-server/",
         "GIT_USERNAME": "cyanheads",
         "GIT_EMAIL": "casey@caseyjhand.com",
@@ -133,8 +133,9 @@ Plus, specialized features for **Git integration**:
 - **Optimized Git Execution**: Direct git CLI interaction with cross-runtime support for high-performance process management, streaming I/O, and timeout handling (current CLI provider).
 - **Comprehensive Coverage**: 27 tools covering all essential Git operations from init to push.
 - **Working Directory Management**: Session-specific directory context for multi-repo workflows.
+- **Configurable Git Identity**: Override author/committer information via environment variables with automatic fallback to global git config.
 - **Safety Features**: Explicit confirmations for destructive operations like `git clean` and `git reset --hard`.
-- **Commit Signing**: Optional GPG/SSH signing support for verified commits.
+- **Commit Signing**: Optional GPG/SSH signing support for all commit-creating operations (commits, merges, rebases, cherry-picks, and tags).
 
 ### Development Environment Setup
 
@@ -190,7 +191,9 @@ All configuration is centralized and validated at startup in `src/config/index.t
 | `STORAGE_PROVIDER_TYPE`        | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-kv`, `r2`.                                                                            | `in-memory` |
 | `OTEL_ENABLED`                 | Set to `true` to enable OpenTelemetry.                                                                                                                    | `false`     |
 | `MCP_LOG_LEVEL`                | The minimum level for logging (`debug`, `info`, `warn`, `error`).                                                                                         | `info`      |
-| `GIT_SIGN_COMMITS`             | Set to `"true"` to enable GPG/SSH signing for commits. Requires server-side Git configuration.                                                            | `false`     |
+| `GIT_SIGN_COMMITS`             | Set to `"true"` to enable GPG/SSH signing for all commits, merges, rebases, cherry-picks, and tags. Requires GPG/SSH configuration.                       | `false`     |
+| `GIT_AUTHOR_NAME`              | Git author name. Aliases: `GIT_USERNAME`, `GIT_USER`. Falls back to global git config if not set.                                                         | `(none)`    |
+| `GIT_AUTHOR_EMAIL`             | Git author email. Aliases: `GIT_EMAIL`, `GIT_USER_EMAIL`. Falls back to global git config if not set.                                                     | `(none)`    |
 | `GIT_BASE_DIR`                 | Optional absolute path to restrict all git operations to a specific directory tree. Provides security sandboxing for multi-tenant or shared environments. | `(none)`    |
 | `GIT_WRAPUP_INSTRUCTIONS_PATH` | Optional path to custom markdown file with Git workflow instructions.                                                                                     | `(none)`    |
 | `MCP_AUTH_SECRET_KEY`          | **Required for `jwt` auth.** A 32+ character secret key.                                                                                                  | `(none)`    |

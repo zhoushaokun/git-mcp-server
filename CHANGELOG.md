@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.9 - 2025-10-13
+
+### Added
+
+- **Configurable Git Identity**: Introduced support for setting Git author and committer information via environment variables (e.g., `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`). The server now automatically uses these values, with a fallback to the user's global Git configuration if they are not set. This allows for consistent identity management across all Git operations.
+- **Expanded Commit Signing**: Extended GPG/SSH signing capabilities to all commit-creating operations. Signing can now be enabled for `git merge`, `git rebase`, `git cherry-pick`, and `git tag` in addition to `git commit`.
+
+### Changed
+
+- **Internal Refactor**: Centralized the logic for handling Git identity and commit signing within the command builder (`command-builder.ts`) and a new configuration helper (`config-helper.ts`). This ensures that all Git operations consistently use the configured identity and signing settings.
+- **Documentation**: Updated `README.md` and `.env.example` to provide clear documentation and examples for the new Git identity and expanded signing features.
+- **Version**: Bumped the package version to `2.4.9`.
+
 ## v2.4.8 - 2025-10-13
 
 ### Fixed

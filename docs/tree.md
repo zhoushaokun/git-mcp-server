@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-10-13 09:06:41
+Generated on: 2025-10-13 10:22:58
 
 ```
 git-mcp-server
@@ -159,6 +159,7 @@ git-mcp-server
 │   │   │   │   │   │   └── index.ts
 │   │   │   │   │   ├── utils
 │   │   │   │   │   │   ├── command-builder.ts
+│   │   │   │   │   │   ├── config-helper.ts
 │   │   │   │   │   │   ├── error-mapper.ts
 │   │   │   │   │   │   ├── git-executor.ts
 │   │   │   │   │   │   ├── git-validators.ts
