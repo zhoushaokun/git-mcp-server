@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.7 - 2025-10-13
+
+### Added
+
+- **Cross-Runtime Compatibility**: The server now officially supports both **Bun** and **Node.js** runtimes. A new runtime detection mechanism (`src/utils/internal/runtime.ts`) and a runtime adapter for Git command execution (`src/services/git/providers/cli/utils/runtime-adapter.ts`) have been added. This ensures optimal performance by using `Bun.spawn` in the Bun runtime and `child_process.spawn` in the Node.js runtime.
+- **Runtime Logging**: The server now logs the detected runtime environment on startup for easier debugging and support.
+
+### Changed
+
+- **Documentation**: Updated `README.md` to reflect the new cross-runtime compatibility, providing clear instructions and configuration examples for both `bunx` and `npx`.
+- **Dependencies**: Updated several dependencies to their latest versions, including `hono`, `repomix`, and `vite`.
+
+
 ## v2.4.6 - 2025-10-11
 
 ### Changed

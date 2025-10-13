@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.4.5-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/git-mcp-server/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/)
+[![Version](https://img.shields.io/badge/Version-2.4.7-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/git-mcp-server/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
@@ -30,25 +30,38 @@ This server provides 27 comprehensive Git operations organized into six function
 
 The server provides resources that offer contextual information about the Git environment:
 
-| Resource                | URI                       | Description                                                                                                                                  |
-| :---------------------- | :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resource                  | URI                       | Description                                                                                                                                     |
+| :------------------------ | :------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Git Working Directory** | `git://working-directory` | Provides the current session working directory for git operations. This is the directory set via `git_set_working_dir` and used as the default. |
 
 ## 🎯 Prompts Overview
 
 The server provides structured prompt templates that guide AI agents through complex workflows:
 
-| Prompt         | Description                                                                                                                              | Parameters                                                                   |
-| :------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------- |
+| Prompt          | Description                                                                                                                                | Parameters                                                                 |
+| :-------------- | :----------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------- |
 | **Git Wrap-up** | A systematic workflow protocol for completing git sessions. Guides agents through reviewing, documenting, committing, and tagging changes. | `changelogPath`, `skipDocumentation`, `createTag`, and `updateAgentFiles`. |
 
 ## 🚀 Getting Started
+
+### Runtime Compatibility
+
+This server works with **both Bun and Node.js runtimes**:
+
+| Runtime     | Command                                 | Minimum Version | Notes                                    |
+| ----------- | --------------------------------------- | --------------- | ---------------------------------------- |
+| **Bun**     | `bunx @cyanheads/git-mcp-server@latest` | ≥ 1.2.0         | Native Bun runtime (optimal performance) |
+| **Node.js** | `npx @cyanheads/git-mcp-server@latest`  | ≥ 20.0.0        | Via npx/bunx (universal compatibility)   |
+
+The server automatically detects the runtime and uses the appropriate process spawning method for git operations.
 
 ### MCP Client Settings/Configuration
 
 Add the following to your MCP Client configuration file (e.g., `cline_mcp_settings.json`). Clients have different ways to configure servers, so refer to your client's documentation for specifics.
 
-** Be sure to update environment variables as needed (especially your Git information!) **
+**Be sure to update environment variables as needed (especially your Git information!)**
+
+#### Using Bun (bunx)
 
 ```json
 {
@@ -71,7 +84,31 @@ Add the following to your MCP Client configuration file (e.g., `cline_mcp_settin
 }
 ```
 
-Or for Streamable HTTP:
+#### Using Node.js (npx)
+
+```json
+{
+  "mcpServers": {
+    "git-mcp-server": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@cyanheads/git-mcp-server@latest"],
+      "env": {
+        "MCP_TRANSPORT_TYPE": "stdio",
+        "MCP_LOG_LEVEL": "info",
+        "GIT_MCP_BASE_DIR": "~/Developer/",
+        "LOGS_DIR": "~/Developer/logs/git-mcp-server/",
+        "GIT_USERNAME": "cyanheads",
+        "GIT_EMAIL": "casey@caseyjhand.com",
+        "GIT_SIGN_COMMITS": "false"
+      }
+    }
+  }
+}
+```
+
+#### Streamable HTTP Configuration
+
 ```bash
 MCP_TRANSPORT_TYPE=http
 MCP_HTTP_PORT=3015
@@ -91,8 +128,9 @@ This server is built on the [`mcp-ts-template`](https://github.com/cyanheads/mcp
 
 Plus, specialized features for **Git integration**:
 
+- **Cross-Runtime Compatibility**: Works seamlessly with both Bun and Node.js runtimes. Automatically detects the runtime and uses optimal process spawning (Bun.spawn in Bun, child_process.spawn in Node.js).
 - **Provider-Based Architecture**: Pluggable git provider system with current CLI implementation and planned isomorphic-git provider for edge deployment.
-- **Optimized Git Execution**: Direct git CLI interaction via Bun.spawn for high-performance process management with streaming I/O and timeout handling (current CLI provider).
+- **Optimized Git Execution**: Direct git CLI interaction with cross-runtime support for high-performance process management, streaming I/O, and timeout handling (current CLI provider).
 - **Comprehensive Coverage**: 27 tools covering all essential Git operations from init to push.
 - **Working Directory Management**: Session-specific directory context for multi-repo workflows.
 - **Safety Features**: Explicit confirmations for destructive operations like `git clean` and `git reset --hard`.
@@ -102,8 +140,10 @@ Plus, specialized features for **Git integration**:
 
 ### Prerequisites
 
-- [Bun v1.2.0](https://bun.sh/) or higher
+- **Either** [Bun v1.2.0+](https://bun.sh/) **OR** [Node.js v20.0.0+](https://nodejs.org/)
 - [Git](https://git-scm.com/) installed and accessible in your system PATH
+
+> **Note**: Development uses Bun for the best experience, but the published package works with both Bun (`bunx`) and Node.js (`npx`).
 
 ### Installation
 
@@ -121,8 +161,16 @@ cd git-mcp-server
 
 3. **Install dependencies:**
 
+**With Bun (recommended for development):**
+
 ```sh
 bun install
+```
+
+**With Node.js:**
+
+```sh
+npm install
 ```
 
 ## ⚙️ Configuration
@@ -149,6 +197,24 @@ All configuration is centralized and validated at startup in `src/config/index.t
 | `OAUTH_ISSUER_URL`             | **Required for `oauth` auth.** URL of the OIDC provider.                                                                                                  | `(none)`    |
 
 ## ▶️ Running the Server
+
+### For End Users (via Package Manager)
+
+The easiest way to use the server is via `bunx` or `npx` (no installation required):
+
+**With Bun:**
+
+```sh
+bunx @cyanheads/git-mcp-server@latest
+```
+
+**With Node.js:**
+
+```sh
+npx @cyanheads/git-mcp-server@latest
+```
+
+Both commands work identically and are configured through environment variables or your MCP client configuration.
 
 ### Local Development
 
@@ -211,7 +277,6 @@ bun deploy:prod
 | `src/utils`                 | Core utilities for logging, error handling, performance, and security.           |
 | `src/config`                | Environment variable parsing and validation with Zod.                            |
 | `tests/`                    | Unit and integration tests, mirroring the `src/` directory structure.            |
-
 
 ## 📤 Understanding Tool Responses
 
