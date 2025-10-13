@@ -15,6 +15,7 @@ import {
   GIT_FIELD_DELIMITER,
   GIT_RECORD_DELIMITER,
   mapGitError,
+  shouldSignCommits,
 } from '../../utils/index.js';
 
 /**
@@ -44,7 +45,10 @@ export async function executeCommit(
       args.push('--no-verify');
     }
 
-    if (options.sign) {
+    // Add signing support - use explicit option or fall back to config default
+    const shouldSign = options.sign ?? shouldSignCommits();
+
+    if (shouldSign) {
       args.push('--gpg-sign');
     }
 

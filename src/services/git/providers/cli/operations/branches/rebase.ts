@@ -10,7 +10,11 @@ import type {
   GitRebaseOptions,
   GitRebaseResult,
 } from '../../../../types.js';
-import { buildGitCommand, mapGitError } from '../../utils/index.js';
+import {
+  buildGitCommand,
+  mapGitError,
+  shouldSignCommits,
+} from '../../utils/index.js';
 
 /**
  * Execute git rebase to reapply commits.
@@ -95,6 +99,13 @@ export async function executeRebase(
 
       if (options.preserve) {
         args.push('--preserve-merges');
+      }
+
+      // Add signing support for rebased commits - use explicit option or fall back to config default
+      const shouldSign = options.sign ?? shouldSignCommits();
+
+      if (shouldSign) {
+        args.push('--gpg-sign');
       }
     }
 

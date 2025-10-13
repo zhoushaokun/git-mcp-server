@@ -10,7 +10,11 @@ import type {
   GitMergeResult,
   GitOperationContext,
 } from '../../../../types.js';
-import { buildGitCommand, mapGitError } from '../../utils/index.js';
+import {
+  buildGitCommand,
+  mapGitError,
+  shouldSignCommits,
+} from '../../utils/index.js';
 
 /**
  * Execute git merge to integrate changes.
@@ -41,6 +45,13 @@ export async function executeMerge(
 
     if (options.message) {
       args.push('-m', options.message);
+    }
+
+    // Add signing support - use explicit option or fall back to config default
+    const shouldSign = options.sign ?? shouldSignCommits();
+
+    if (shouldSign) {
+      args.push('-S');
     }
 
     const cmd = buildGitCommand({ command: 'merge', args });

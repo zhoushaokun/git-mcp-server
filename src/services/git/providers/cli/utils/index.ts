@@ -4,6 +4,7 @@
  */
 
 export * from './command-builder.js';
+export * from './config-helper.js';
 export * from './error-mapper.js';
 export * from './git-executor.js';
 export * from './git-validators.js';

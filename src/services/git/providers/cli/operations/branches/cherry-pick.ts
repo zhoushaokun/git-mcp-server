@@ -10,7 +10,11 @@ import type {
   GitCherryPickResult,
   GitOperationContext,
 } from '../../../../types.js';
-import { buildGitCommand, mapGitError } from '../../utils/index.js';
+import {
+  buildGitCommand,
+  mapGitError,
+  shouldSignCommits,
+} from '../../utils/index.js';
 
 /**
  * Execute git cherry-pick to apply commits.
@@ -36,6 +40,13 @@ export async function executeCherryPick(
 
       if (options.noCommit) {
         args.push('--no-commit');
+      }
+
+      // Add signing support for cherry-picked commits - use explicit option or fall back to config default
+      const shouldSign = options.sign ?? shouldSignCommits();
+
+      if (shouldSign) {
+        args.push('--gpg-sign');
       }
     }
 

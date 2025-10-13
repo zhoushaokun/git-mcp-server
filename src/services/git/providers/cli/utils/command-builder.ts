@@ -3,6 +3,8 @@
  * @module services/git/providers/cli/utils/command-builder
  */
 
+import type { AppConfig } from '@/config/index.js';
+
 /**
  * Git command configuration.
  */
@@ -57,10 +59,30 @@ export function escapeShellArg(str: string): string {
 }
 
 /**
+ * Helper to safely load config for git operations.
+ * Uses dynamic import to avoid circular dependencies.
+ *
+ * @returns AppConfig object or null if unavailable
+ */
+function loadConfig(): AppConfig | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const configModule = require('@/config/index.js') as {
+      config: AppConfig;
+    };
+    return configModule.config;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Build environment variables for git command.
  *
  * This function preserves the existing process environment (including PATH)
  * to ensure git executable can be found, while adding git-specific settings.
+ *
+ * Automatically includes git author/committer information from config if available.
  *
  * @param additionalEnv - Additional environment variables to override defaults
  * @returns Combined environment object with PATH preserved
@@ -81,6 +103,24 @@ export function buildGitEnv(
     LANG: 'en_US.UTF-8', // Ensure git uses UTF-8 encoding
     LC_ALL: 'en_US.UTF-8',
   });
+
+  // Load git author/committer info from config if available
+  // This allows consistent author identity across all git operations
+  const config = loadConfig();
+  if (config?.git) {
+    if (config.git.authorName) {
+      env.GIT_AUTHOR_NAME = config.git.authorName;
+    }
+    if (config.git.authorEmail) {
+      env.GIT_AUTHOR_EMAIL = config.git.authorEmail;
+    }
+    if (config.git.committerName) {
+      env.GIT_COMMITTER_NAME = config.git.committerName;
+    }
+    if (config.git.committerEmail) {
+      env.GIT_COMMITTER_EMAIL = config.git.committerEmail;
+    }
+  }
 
   // Apply any additional overrides (highest priority)
   if (additionalEnv) {

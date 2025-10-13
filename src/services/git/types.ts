@@ -456,6 +456,8 @@ export interface GitMergeOptions {
   squash?: boolean;
   /** Custom merge commit message */
   message?: string;
+  /** Sign merge commit with GPG/SSH */
+  sign?: boolean;
   /** Abort an in-progress merge that has conflicts */
   abort?: boolean;
 }
@@ -490,6 +492,8 @@ export interface GitRebaseOptions {
   onto?: string;
   /** Preserve merge commits */
   preserve?: boolean;
+  /** Sign rebased commits with GPG/SSH */
+  sign?: boolean;
 }
 
 export interface GitRebaseResult {
@@ -520,6 +524,8 @@ export interface GitCherryPickOptions {
   strategy?: 'ort' | 'recursive' | 'octopus' | 'ours' | 'subtree';
   /** Add Signed-off-by line to the commit message */
   signoff?: boolean;
+  /** Sign cherry-picked commits with GPG/SSH */
+  sign?: boolean;
 }
 
 export interface GitCherryPickResult {
@@ -671,6 +677,8 @@ export interface GitTagOptions {
   message?: string;
   /** Create annotated tag */
   annotated?: boolean;
+  /** Sign tag with GPG/SSH (implies annotated) */
+  sign?: boolean;
   /** Force tag creation */
   force?: boolean;
 }

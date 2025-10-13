@@ -219,6 +219,10 @@ const ConfigSchema = z.object({
       z.enum(['auto', 'cli', 'isomorphic']).default('auto'),
     ),
     signCommits: z.coerce.boolean().default(false),
+    authorName: z.string().optional(),
+    authorEmail: z.string().email().optional(),
+    committerName: z.string().optional(),
+    committerEmail: z.string().email().optional(),
     wrapupInstructionsPath: z.preprocess(
       expandTildePath,
       z.string().optional(),
@@ -363,6 +367,22 @@ const parseConfig = () => {
     git: {
       provider: env.GIT_PROVIDER,
       signCommits: env.GIT_SIGN_COMMITS,
+      // Support multiple naming conventions for author/committer
+      // Priority: GIT_AUTHOR_NAME > GIT_USERNAME > GIT_USER
+      authorName:
+        env.GIT_AUTHOR_NAME || env.GIT_USERNAME || env.GIT_USER || undefined,
+      authorEmail:
+        env.GIT_AUTHOR_EMAIL ||
+        env.GIT_EMAIL ||
+        env.GIT_USER_EMAIL ||
+        undefined,
+      committerName:
+        env.GIT_COMMITTER_NAME || env.GIT_USERNAME || env.GIT_USER || undefined,
+      committerEmail:
+        env.GIT_COMMITTER_EMAIL ||
+        env.GIT_EMAIL ||
+        env.GIT_USER_EMAIL ||
+        undefined,
       wrapupInstructionsPath: env.GIT_WRAPUP_INSTRUCTIONS_PATH,
       baseDir: env.GIT_BASE_DIR,
       maxCommandTimeoutMs: env.GIT_MAX_COMMAND_TIMEOUT_MS,

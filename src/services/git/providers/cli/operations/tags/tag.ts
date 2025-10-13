@@ -14,6 +14,7 @@ import {
   buildGitCommand,
   mapGitError,
   parseGitTag,
+  shouldSignCommits,
 } from '../../utils/index.js';
 
 /**
@@ -68,7 +69,14 @@ export async function executeTag(
 
         args.push(options.tagName);
 
-        if (options.message && options.annotated) {
+        // Determine if we should sign the tag - use explicit option or fall back to config default
+        const shouldSign = options.sign ?? shouldSignCommits();
+
+        // Signing implies annotated tag, and requires a message
+        if (shouldSign) {
+          const message = options.message || `Tag ${options.tagName}`;
+          args.push('-s', '-m', message);
+        } else if (options.message && options.annotated) {
           args.push('-a', '-m', options.message);
         }
 
