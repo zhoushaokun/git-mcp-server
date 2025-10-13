@@ -1,13 +1,14 @@
 /**
- * @fileoverview Centralized Git CLI command executor using Bun.spawn
+ * @fileoverview Centralized Git CLI command executor with cross-runtime support
  * @module services/git/providers/cli/utils/git-executor
  *
  * This module provides the core execution engine for all git operations,
- * replacing Node.js execFile with Bun's modern spawn API for improved
- * performance and better control over process I/O.
+ * with support for both Bun and Node.js runtimes. When running via bunx
+ * (Node.js), it uses child_process.spawn. When running in native Bun,
+ * it uses Bun.spawn for better performance.
  *
  * Key features:
- * - Bun.spawn for optimal performance
+ * - Cross-runtime compatibility (Bun and Node.js)
  * - Configurable timeouts (60s default)
  * - Buffer size limits (10MB max)
  * - Automatic argument validation
@@ -17,16 +18,21 @@
 
 import { mapGitError } from './error-mapper.js';
 import { buildGitEnv, validateGitArgs } from './command-builder.js';
+import { spawnGitCommand } from './runtime-adapter.js';
 
 /** Maximum execution time for git commands (60 seconds) */
 const GIT_COMMAND_TIMEOUT_MS = 60000;
 
 /**
- * Executes a git command using Bun.spawn for improved performance and streaming.
+ * Executes a git command with cross-runtime support.
  *
- * This function replaces the traditional Node.js execFile approach with Bun's
- * modern spawn API, providing:
- * - Better performance through optimized process spawning
+ * This function automatically detects the runtime (Bun vs Node.js) and uses
+ * the appropriate process spawning method:
+ * - In Bun runtime: Uses Bun.spawn for optimal performance
+ * - In Node.js runtime (bunx): Uses child_process.spawn for compatibility
+ *
+ * Features:
+ * - Cross-runtime compatibility
  * - Streaming I/O for efficient handling of large outputs
  * - Robust timeout handling
  * - Automatic security validation
@@ -53,45 +59,16 @@ export async function executeGitCommand(
     // Validate arguments for security before execution
     validateGitArgs(args);
 
-    // Spawn the git process with Bun's optimized spawn API
-    const proc = Bun.spawn(['git', ...args], {
+    // Use runtime adapter to spawn the process
+    // This works in both Bun and Node.js runtimes
+    const result = await spawnGitCommand(
+      args,
       cwd,
-      env: buildGitEnv(process.env as Record<string, string>),
-      stdio: ['ignore', 'pipe', 'pipe'], // stdin ignored, stdout/stderr piped
-    });
-
-    // Create promises for reading stdout and stderr streams
-    const stdoutPromise = Bun.readableStreamToText(proc.stdout);
-    const stderrPromise = Bun.readableStreamToText(proc.stderr);
-
-    // Create a timeout promise that will kill the process if it exceeds the limit
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => {
-        proc.kill();
-        reject(
-          new Error(
-            `Git command timed out after ${GIT_COMMAND_TIMEOUT_MS / 1000}s: ${args.join(' ')}`,
-          ),
-        );
-      }, GIT_COMMAND_TIMEOUT_MS),
+      buildGitEnv(process.env as Record<string, string>),
+      GIT_COMMAND_TIMEOUT_MS,
     );
 
-    // Wait for the process to exit, but race against the timeout
-    const exitCode = await Promise.race([proc.exited, timeoutPromise]);
-
-    // Read the output streams
-    const stdout = await stdoutPromise;
-    const stderr = await stderrPromise;
-
-    // Check if the command succeeded (exit code 0)
-    if (exitCode !== 0) {
-      // Combine stderr and stdout for richer error context
-      // Git sometimes writes errors to stdout, so we include both
-      const combinedOutput = `Exit Code: ${exitCode}\nStderr: ${stderr}\nStdout: ${stdout}`;
-      throw new Error(combinedOutput);
-    }
-
-    return { stdout, stderr };
+    return result;
   } catch (error) {
     // mapGitError will transform the raw error into a structured McpError
     // with appropriate error codes and user-friendly messages

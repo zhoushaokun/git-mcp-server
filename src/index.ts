@@ -14,6 +14,10 @@ import {
   requestContextService,
 } from '@/utils/index.js';
 import { type McpLogLevel, logger } from '@/utils/internal/logger.js';
+import {
+  detectRuntime,
+  getRuntimeDescription,
+} from '@/utils/internal/runtime.js';
 
 import { config as appConfigType } from '@/config/index.js';
 import container, {
@@ -122,6 +126,18 @@ const start = async (): Promise<void> => {
   logger.info(
     `Logger initialized. Effective MCP logging level: ${validatedMcpLogLevel}.`,
     requestContextService.createRequestContext({ operation: 'LoggerInit' }),
+  );
+
+  // Log runtime detection for debugging and support
+  const runtime = detectRuntime();
+  const runtimeDesc = getRuntimeDescription();
+  logger.info(
+    `Runtime detected: ${runtimeDesc}`,
+    requestContextService.createRequestContext({
+      operation: 'RuntimeDetection',
+      runtime,
+      runtimeVersion: runtimeDesc,
+    }),
   );
 
   // Storage Service is now initialized in the container

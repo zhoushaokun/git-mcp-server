@@ -149,10 +149,12 @@ const SAFE_GIT_OPTIONS = new Set([
  * Validate git command arguments for safety.
  *
  * SECURITY MODEL:
- * Since we use Bun.spawn() with array arguments (not shell strings), we are
- * inherently protected from shell injection attacks. Characters like ;, |, $,
- * etc. cannot be used for command chaining because arguments are passed
- * directly to the git process, not interpreted by a shell.
+ * We use the runtime adapter which spawns processes with array arguments
+ * (not shell strings), providing inherent protection from shell injection attacks.
+ * This works in both Bun (Bun.spawn) and Node.js (child_process.spawn) runtimes.
+ *
+ * Characters like ;, |, $, etc. cannot be used for command chaining because
+ * arguments are passed directly to the git process, not interpreted by a shell.
  *
  * This function focuses on Git-specific security concerns:
  * 1. Null bytes (universally dangerous in many contexts)

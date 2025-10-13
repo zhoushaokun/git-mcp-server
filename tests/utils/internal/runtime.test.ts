@@ -7,9 +7,26 @@ import { describe, expect, it } from 'vitest';
 import { runtimeCaps } from '../../../src/utils/internal/runtime.js';
 
 describe('Runtime Capabilities', () => {
-  it('should detect Node.js environment', () => {
-    // This test runs in Node, so should be true
-    expect(runtimeCaps.isNode).toBe(true);
+  it('should detect the current runtime environment', () => {
+    // This test runs via `bun test`, so Bun runtime is detected
+    // In CI or when running via Node.js directly, Node would be detected
+    const detectedBun = runtimeCaps.isBun;
+    const detectedNode = runtimeCaps.isNode;
+
+    // At least one should be true
+    expect(detectedBun || detectedNode).toBe(true);
+
+    // If Bun is detected, Node should not be (mutually exclusive)
+    if (detectedBun) {
+      expect(runtimeCaps.isNode).toBe(false);
+    }
+
+    // If Node is detected, Bun should not be (mutually exclusive)
+    if (detectedNode) {
+      expect(runtimeCaps.isBun).toBe(false);
+    }
+
+    // Both have process and Buffer
     expect(runtimeCaps.hasProcess).toBe(true);
     expect(runtimeCaps.hasBuffer).toBe(true);
   });
