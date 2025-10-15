@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.5.1 - 2025-10-15
+
+### Fixed
+
+- **Critical: Dependency Resolution Issues with `bunx`/`npx`**: Resolved Cursor MCP client connection failures caused by Bun's `EEXIST` linking errors during dependency installation. The root cause was that all dependencies were listed as runtime dependencies despite being bundled into the single-file output by `bun build`.
+  - **Solution**: Moved all dependencies to `devDependencies` since they are already bundled into `dist/index.js` (7.2MB single-file bundle)
+  - **Impact**: Package now installs in ~20ms with **zero runtime dependencies**, eliminating all dependency linking conflicts
+  - **Benefit**: MCP clients using `bunx` or `npx` can now reliably execute the server without installation failures
+
+### Technical Details
+
+- The build process (`bun build --target node`) creates a self-contained bundle with all code inlined
+- Published package now contains only: `dist/index.js`, `package.json`, `README.md`, `LICENSE`
+- Package size reduced from requiring 30+ dependency installations to single-file execution
+- No changes to functionality - all features work identically
+
+## v2.5.0 - 2025-10-13
+
+### Added
+
+- **MCP Spec 2025-06-18 Compliance Enhancements**:
+  - **Protocol Version Validation**: Server now properly validates `MCP-Protocol-Version` header and returns HTTP 400 Bad Request for unsupported protocol versions (per MCP spec requirement). Previously only logged a warning.
+  - **Session Management**: Implemented comprehensive HTTP session lifecycle management per MCP specification:
+    - New `SessionManager` service tracks session creation, activity, and expiry
+    - Sessions automatically expire after configurable timeout (`MCP_STATEFUL_SESSION_STALE_TIMEOUT_MS`)
+    - Background cleanup removes stale sessions periodically
+    - Server returns HTTP 404 when session expires, signaling clients to reinitialize
+    - DELETE endpoint for explicit client-initiated session termination
+  - **Cancellation Support**: Wired up `AbortSignal` throughout the git operation stack for proper request cancellation:
+    - Git CLI executor now accepts and respects `AbortSignal` from MCP SDK
+    - Both Bun and Node.js runtime adapters kill child processes on abort
+    - Long-running operations (clone, fetch, push, pull) can be cancelled mid-execution
+    - Resources cleaned up properly on cancellation
+
+### Changed
+
+- **HTTP Transport**: Enhanced `httpTransport.ts` with session validation and lifecycle management
+- **Git Runtime Adapter**: Updated `runtime-adapter.ts` to support cancellation in both Bun and Node.js spawning paths
+- **Session Lifecycle**: HTTP transport now stops session cleanup interval during graceful shutdown
+
+### Technical Debt Reduced
+
+- Eliminated potential memory leak from never-expiring sessions
+- Improved cancellation story for long-running git operations
+- Better alignment with MCP specification recommendations
+
 ## v2.4.9 - 2025-10-13
 
 ### Added

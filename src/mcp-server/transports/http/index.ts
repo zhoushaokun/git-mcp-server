@@ -5,4 +5,5 @@
 
 export { httpErrorHandler } from './httpErrorHandler.js';
 export { createHttpApp, startHttpTransport } from './httpTransport.js';
+export { SessionManager } from './sessionManager.js';
 export type { HonoNodeBindings } from './httpTypes.js';

@@ -114,7 +114,7 @@ export function detectRuntime(): 'bun' | 'node' {
  *
  * The function:
  * 1. Spawns the git process with piped stdout/stderr
- * 2. Races the process exit against a timeout
+ * 2. Races the process exit against a timeout and abort signal
  * 3. Reads streams using the standard ReadableStream.text() method
  * 4. Returns structured output or throws on error
  *
@@ -122,24 +122,47 @@ export function detectRuntime(): 'bun' | 'node' {
  * @param cwd - Working directory
  * @param env - Environment variables
  * @param timeout - Timeout in milliseconds
+ * @param signal - Optional AbortSignal for cancellation
  * @returns Promise resolving to stdout and stderr
- * @throws Error if the command fails or times out
+ * @throws Error if the command fails, times out, or is aborted
  */
 async function spawnWithBun(
   args: string[],
   cwd: string,
   env: Record<string, string>,
   timeout: number,
+  signal?: AbortSignal,
 ): Promise<GitCommandResult> {
   // Cast globalThis.Bun to our typed interface
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const bunApi = globalThis.Bun as any as BunSpawnAPI;
+
+  // Check if already aborted before starting
+  if (signal?.aborted) {
+    throw new Error(
+      `Git command cancelled before execution: git ${args.join(' ')}`,
+    );
+  }
 
   // Spawn the process using typed interface - no more eslint-disable needed
   const proc = bunApi.spawn(['git', ...args], {
     cwd,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  // Create abort signal listener that kills the process
+  const abortPromise = new Promise<never>((_, reject) => {
+    if (signal) {
+      signal.addEventListener(
+        'abort',
+        () => {
+          proc.kill();
+          reject(new Error(`Git command cancelled: git ${args.join(' ')}`));
+        },
+        { once: true },
+      );
+    }
   });
 
   // Create a timeout promise that will kill the process if it exceeds the limit
@@ -157,8 +180,12 @@ async function spawnWithBun(
     void proc.exited.finally(() => clearTimeout(timeoutId));
   });
 
-  // Wait for the process to exit, but race against the timeout
-  const exitCode = await Promise.race([proc.exited, timeoutPromise]);
+  // Wait for the process to exit, racing against timeout and abort signal
+  const exitCode = await Promise.race([
+    proc.exited,
+    timeoutPromise,
+    ...(signal ? [abortPromise] : []),
+  ]);
 
   // Read the output streams using standard ReadableStream.text() method
   // This is the modern Web Streams API approach
@@ -185,16 +212,26 @@ async function spawnWithBun(
  * @param cwd - Working directory
  * @param env - Environment variables
  * @param timeout - Timeout in milliseconds
+ * @param signal - Optional AbortSignal for cancellation
  * @returns Promise resolving to stdout and stderr
- * @throws Error if the command fails or times out
+ * @throws Error if the command fails, times out, or is aborted
  */
 async function spawnWithNode(
   args: string[],
   cwd: string,
   env: Record<string, string>,
   timeout: number,
+  signal?: AbortSignal,
 ): Promise<GitCommandResult> {
   return new Promise((resolve, reject) => {
+    // Check if already aborted before starting
+    if (signal?.aborted) {
+      reject(
+        new Error(`Git command cancelled before execution: ${args.join(' ')}`),
+      );
+      return;
+    }
+
     const proc = spawn('git', args, {
       cwd,
       env,
@@ -212,6 +249,16 @@ async function spawnWithNode(
       stderrChunks.push(chunk);
     });
 
+    // Setup abort signal handler
+    const abortHandler = () => {
+      proc.kill('SIGTERM');
+      reject(new Error(`Git command cancelled: ${args.join(' ')}`));
+    };
+
+    if (signal) {
+      signal.addEventListener('abort', abortHandler, { once: true });
+    }
+
     // Setup timeout
     const timeoutHandle = setTimeout(() => {
       proc.kill('SIGTERM');
@@ -224,11 +271,17 @@ async function spawnWithNode(
 
     proc.on('error', (error) => {
       clearTimeout(timeoutHandle);
+      if (signal) {
+        signal.removeEventListener('abort', abortHandler);
+      }
       reject(error);
     });
 
     proc.on('close', (exitCode) => {
       clearTimeout(timeoutHandle);
+      if (signal) {
+        signal.removeEventListener('abort', abortHandler);
+      }
 
       const stdout = Buffer.concat(stdoutChunks).toString('utf-8');
       const stderr = Buffer.concat(stderrChunks).toString('utf-8');
@@ -249,12 +302,17 @@ async function spawnWithNode(
  * Automatically detects the runtime (Bun vs Node.js) and uses the
  * optimal process spawning method for that runtime.
  *
+ * Supports cancellation via AbortSignal (MCP Spec 2025-06-18):
+ * - Clients can cancel long-running operations by aborting the request
+ * - The git process will be killed and resources cleaned up
+ *
  * @param args - Git command arguments (e.g., ['status', '--porcelain'])
  * @param cwd - Working directory for command execution
  * @param env - Environment variables
  * @param timeout - Timeout in milliseconds (default: 60000)
+ * @param signal - Optional AbortSignal for cancellation support
  * @returns Promise resolving to stdout and stderr
- * @throws Error if the command fails or times out
+ * @throws Error if the command fails, times out, or is cancelled
  *
  * @example
  * ```typescript
@@ -262,7 +320,8 @@ async function spawnWithNode(
  *   ['status', '--porcelain'],
  *   '/path/to/repo',
  *   { GIT_TERMINAL_PROMPT: '0' },
- *   60000
+ *   60000,
+ *   abortController.signal
  * );
  * console.log(result.stdout); // Git output
  * ```
@@ -272,12 +331,13 @@ export async function spawnGitCommand(
   cwd: string,
   env: Record<string, string>,
   timeout = 60000,
+  signal?: AbortSignal,
 ): Promise<GitCommandResult> {
   const runtime = detectRuntime();
 
   if (runtime === 'bun') {
-    return spawnWithBun(args, cwd, env, timeout);
+    return spawnWithBun(args, cwd, env, timeout, signal);
   } else {
-    return spawnWithNode(args, cwd, env, timeout);
+    return spawnWithNode(args, cwd, env, timeout, signal);
   }
 }
