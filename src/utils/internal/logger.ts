@@ -125,8 +125,10 @@ export class Logger {
         transports.push({ target: 'pino/file', options: { destination: 1 } });
       }
     } else if (!isTest) {
-      // Plain JSON output for STDIO mode (MCP spec requirement) or non-development
-      transports.push({ target: 'pino/file', options: { destination: 1 } });
+      // CRITICAL: For STDIO transport, logs MUST go to stderr (fd 2), NOT stdout (fd 1).
+      // The MCP specification requires only JSON-RPC messages on stdout.
+      // For HTTP transport or production, we also use stderr to avoid polluting stdout.
+      transports.push({ target: 'pino/file', options: { destination: 2 } });
     }
 
     if (config.logsPath) {

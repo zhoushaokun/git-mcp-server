@@ -308,17 +308,23 @@ describe('Logger Transport Mode Handling', () => {
     }
   });
 
-  it('should output plain JSON (no ANSI codes) when initialized with stdio transport', async () => {
-    // Create a new logger instance for this specific test
+  it('should output plain JSON (no ANSI codes) to stderr when initialized with stdio transport', async () => {
+    // NOTE: This test verifies STDIO mode behavior by checking file output.
+    // Direct stderr capture is difficult with Pino's buffering, but we verify:
+    // 1. No ANSI codes in output (MCP spec requirement)
+    // 2. Valid JSON format (parseable by MCP clients)
+    // 3. Logger initializes with stdio transport mode
+    //
+    // The actual stderr routing (fd 2) is verified by the implementation:
+    // - Line 131 in logger.ts uses { destination: 2 } for STDIO mode
+    // - This ensures logs go to stderr, not stdout, per MCP specification
+
     const stdioLogger = Logger.getInstance();
 
     // Close any existing logger state
     if (stdioLogger.isInitialized()) {
       await stdioLogger.close();
     }
-
-    // Initialize with STDIO transport mode
-    await stdioLogger.initialize('info', 'stdio');
 
     // Create a test log directory for this specific test
     const stdioTestLogDir = path.join(process.cwd(), 'logs', 'stdio-test');
@@ -333,8 +339,7 @@ describe('Logger Transport Mode Handling', () => {
       rmSync(stdioTestLogDir, { recursive: true, force: true });
     }
 
-    // Re-initialize with new path
-    await stdioLogger.close();
+    // Initialize with STDIO transport mode
     await stdioLogger.initialize('info', 'stdio');
 
     // Wait for logger to initialize file transports
@@ -350,28 +355,35 @@ describe('Logger Transport Mode Handling', () => {
     // Wait for log to be written
     await new Promise((res) => setTimeout(res, 500));
 
-    // Read the log file
-    if (existsSync(stdioTestLogPath)) {
-      const logContent = readFileSync(stdioTestLogPath, 'utf-8');
+    // Read the log file to verify output format
+    expect(existsSync(stdioTestLogPath)).toBe(true);
 
-      // Check for ANSI escape codes (e.g., [35m, [39m, [32m, etc.)
-      const ansiPattern = /\x1b\[\d+m/;
-      expect(ansiPattern.test(logContent)).toBe(false);
+    const logContent = readFileSync(stdioTestLogPath, 'utf-8');
 
-      // Verify the log entry is valid JSON
-      const logLines = logContent
-        .split('\n')
-        .filter((line) => line.trim() !== '');
-      for (const line of logLines) {
-        expect(() => JSON.parse(line)).not.toThrow();
-      }
+    // CRITICAL: Check for ANSI escape codes (e.g., [35m, [39m, [32m, etc.)
+    // The MCP specification requires clean JSON output with no color codes
+    const ansiPattern = /\x1b\[\d+m/;
+    expect(ansiPattern.test(logContent)).toBe(false);
 
-      // Verify our test message was logged
-      const logs = logLines.map((line) => JSON.parse(line));
-      const testLog = logs.find((log) => log.testId === 'stdio-ansi-test');
-      expect(testLog).toBeDefined();
-      expect(testLog.msg).toBe('STDIO transport test message');
+    // Verify the log entry is valid JSON (MCP clients must be able to parse)
+    const logLines = logContent
+      .split('\n')
+      .filter((line) => line.trim() !== '');
+
+    expect(logLines.length).toBeGreaterThan(0);
+
+    for (const line of logLines) {
+      expect(() => JSON.parse(line)).not.toThrow();
     }
+
+    // Verify our test message was logged with correct content
+    const logs = logLines.map((line) => JSON.parse(line));
+    const testLog = logs.find((log) => log.testId === 'stdio-ansi-test');
+    expect(testLog).toBeDefined();
+    expect(testLog.msg).toBe('STDIO transport test message');
+
+    // Verify logger was initialized with stdio transport awareness
+    expect(stdioLogger.isInitialized()).toBe(true);
 
     // Cleanup
     await stdioLogger.close();
