@@ -1,12 +1,14 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-10-15 14:34:31
+Generated on: 2025-10-15 14:52:53
 
 ```
 git-mcp-server
 ├── .clinerules
 │   └── clinerules.md
 ├── .github
+│   ├── codeql
+│   │   └── codeql-config.yml
 │   ├── workflows
 │   │   └── publish.yml
 │   └── FUNDING.yml
@@ -331,6 +333,7 @@ git-mcp-server
 │   └── setup.ts
 ├── .dockerignore
 ├── .env.example
+├── .gitattributes
 ├── .gitignore
 ├── .prettierignore
 ├── .prettierrc.json
