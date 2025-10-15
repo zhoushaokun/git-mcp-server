@@ -71,7 +71,10 @@ export class Logger {
     return Logger.instance;
   }
 
-  private async createPinoLogger(level: McpLogLevel): Promise<PinoLogger> {
+  private async createPinoLogger(
+    level: McpLogLevel,
+    transportType?: 'stdio' | 'http',
+  ): Promise<PinoLogger> {
     const pinoLevel = mcpToPinoLevel[level] || 'info';
 
     const pinoOptions: pino.LoggerOptions = {
@@ -99,7 +102,12 @@ export class Logger {
     const isDevelopment = config.environment === 'development';
     const isTest = config.environment === 'testing';
 
-    if (isDevelopment && !isServerless) {
+    // CRITICAL: STDIO transport MUST NOT output colored logs to stdout.
+    // The MCP specification requires clean JSON-RPC on stdout with no ANSI codes.
+    // Only use pretty/colored output for HTTP mode or when explicitly debugging.
+    const useColoredOutput = isDevelopment && transportType !== 'stdio';
+
+    if (useColoredOutput && !isServerless) {
       // Try to resolve 'pino-pretty' robustly even when bundled (e.g., Bun/ESM),
       // falling back to JSON stdout if resolution fails.
       try {
@@ -117,6 +125,7 @@ export class Logger {
         transports.push({ target: 'pino/file', options: { destination: 1 } });
       }
     } else if (!isTest) {
+      // Plain JSON output for STDIO mode (MCP spec requirement) or non-development
       transports.push({ target: 'pino/file', options: { destination: 1 } });
     }
 
@@ -166,7 +175,10 @@ export class Logger {
     });
   }
 
-  public async initialize(level: McpLogLevel = 'info'): Promise<void> {
+  public async initialize(
+    level: McpLogLevel = 'info',
+    transportType?: 'stdio' | 'http',
+  ): Promise<void> {
     if (this.initialized) {
       this.warning(
         'Logger already initialized.',
@@ -177,7 +189,7 @@ export class Logger {
       return;
     }
     this.currentMcpLevel = level;
-    this.pinoLogger = await this.createPinoLogger(level);
+    this.pinoLogger = await this.createPinoLogger(level, transportType);
     this.interactionLogger = await this.createInteractionLogger();
 
     // Start the cleanup timer only after initialization and only in Node.js

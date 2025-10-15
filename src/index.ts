@@ -121,7 +121,8 @@ const start = async (): Promise<void> => {
     }
   }
 
-  await logger.initialize(validatedMcpLogLevel);
+  // Pass transport type to logger to ensure STDIO mode uses plain JSON (no ANSI colors)
+  await logger.initialize(validatedMcpLogLevel, config.mcpTransportType);
 
   logger.info(
     `Logger initialized. Effective MCP logging level: ${validatedMcpLogLevel}.`,

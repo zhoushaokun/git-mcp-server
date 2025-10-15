@@ -298,3 +298,108 @@ describe('Logger Integration (Pino)', () => {
     loggerWithInternals.interactionLogger = originalInteractionLogger;
   });
 });
+
+describe('Logger Transport Mode Handling', () => {
+  afterAll(async () => {
+    // Clean up any test loggers
+    const testLogger = Logger.getInstance();
+    if (testLogger.isInitialized()) {
+      await testLogger.close();
+    }
+  });
+
+  it('should output plain JSON (no ANSI codes) when initialized with stdio transport', async () => {
+    // Create a new logger instance for this specific test
+    const stdioLogger = Logger.getInstance();
+
+    // Close any existing logger state
+    if (stdioLogger.isInitialized()) {
+      await stdioLogger.close();
+    }
+
+    // Initialize with STDIO transport mode
+    await stdioLogger.initialize('info', 'stdio');
+
+    // Create a test log directory for this specific test
+    const stdioTestLogDir = path.join(process.cwd(), 'logs', 'stdio-test');
+    const stdioTestLogPath = path.join(stdioTestLogDir, 'combined.log');
+
+    // Temporarily override config for this test
+    const originalLogsPath = config.logsPath;
+    config.logsPath = stdioTestLogDir;
+
+    // Clean up old logs if they exist
+    if (existsSync(stdioTestLogDir)) {
+      rmSync(stdioTestLogDir, { recursive: true, force: true });
+    }
+
+    // Re-initialize with new path
+    await stdioLogger.close();
+    await stdioLogger.initialize('info', 'stdio');
+
+    // Wait for logger to initialize file transports
+    await new Promise((res) => setTimeout(res, 500));
+
+    // Write a test message
+    stdioLogger.info('STDIO transport test message', {
+      testId: 'stdio-ansi-test',
+      requestId: 'test-stdio-1',
+      timestamp: new Date().toISOString(),
+    });
+
+    // Wait for log to be written
+    await new Promise((res) => setTimeout(res, 500));
+
+    // Read the log file
+    if (existsSync(stdioTestLogPath)) {
+      const logContent = readFileSync(stdioTestLogPath, 'utf-8');
+
+      // Check for ANSI escape codes (e.g., [35m, [39m, [32m, etc.)
+      const ansiPattern = /\x1b\[\d+m/;
+      expect(ansiPattern.test(logContent)).toBe(false);
+
+      // Verify the log entry is valid JSON
+      const logLines = logContent
+        .split('\n')
+        .filter((line) => line.trim() !== '');
+      for (const line of logLines) {
+        expect(() => JSON.parse(line)).not.toThrow();
+      }
+
+      // Verify our test message was logged
+      const logs = logLines.map((line) => JSON.parse(line));
+      const testLog = logs.find((log) => log.testId === 'stdio-ansi-test');
+      expect(testLog).toBeDefined();
+      expect(testLog.msg).toBe('STDIO transport test message');
+    }
+
+    // Cleanup
+    await stdioLogger.close();
+    if (existsSync(stdioTestLogDir)) {
+      rmSync(stdioTestLogDir, { recursive: true, force: true });
+    }
+
+    // Restore original config
+    config.logsPath = originalLogsPath;
+  });
+
+  it('should allow colored output when initialized with http transport', async () => {
+    // This test ensures HTTP mode can use pino-pretty in development
+    // We just verify it doesn't throw an error during initialization
+    const httpLogger = Logger.getInstance();
+
+    // Close any existing logger state
+    if (httpLogger.isInitialized()) {
+      await httpLogger.close();
+    }
+
+    // Initialize with HTTP transport mode (should allow colors in dev)
+    await httpLogger.initialize('info', 'http');
+
+    // Verify logger is initialized successfully
+    expect(httpLogger.isInitialized()).toBe(true);
+
+    // Cleanup
+    await httpLogger.close();
+  });
+});

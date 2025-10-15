@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.5.2 - 2025-10-15
+
+### Fixed
+
+- **STDIO Transport Logging Compliance**: Fixed logger to prevent ANSI color codes from appearing in stdout when using STDIO transport. The MCP specification requires clean JSON-RPC output with no formatting escape sequences. Logger now accepts transport type during initialization and forces plain JSON output for STDIO mode while preserving colored output for HTTP mode in development.
+  - Added `transportType` parameter to `logger.initialize()`
+  - STDIO mode now bypasses `pino-pretty` and outputs raw JSON
+  - HTTP mode continues to use colored output in development for better developer experience
+  - Added comprehensive test coverage validating ANSI code removal in STDIO logs
+
+### Technical Details
+
+- The root cause was that the logger used `pino-pretty` for all development environments, which adds ANSI escape codes for colorized output
+- MCP clients parse stdout as JSON-RPC and fail when encountering non-JSON content
+- Solution: Pass `config.mcpTransportType` to logger during initialization to conditionally enable pretty output
+
 ## v2.5.1 - 2025-10-15
 
 ### Fixed

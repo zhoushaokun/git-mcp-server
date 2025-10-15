@@ -1,6 +1,6 @@
 # git-mcp-server - Directory Structure
 
-Generated on: 2025-10-13 10:51:47
+Generated on: 2025-10-15 14:34:31
 
 ```
 git-mcp-server
@@ -10,6 +10,7 @@ git-mcp-server
 │   ├── workflows
 │   │   └── publish.yml
 │   └── FUNDING.yml
+├── .husky
 ├── coverage
 ├── docs
 │   └── tree.md
@@ -106,7 +107,8 @@ git-mcp-server
 │   │   │   │   ├── httpErrorHandler.ts
 │   │   │   │   ├── httpTransport.ts
 │   │   │   │   ├── httpTypes.ts
-│   │   │   │   └── index.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   └── sessionManager.ts
 │   │   │   ├── stdio
 │   │   │   │   ├── index.ts
 │   │   │   │   └── stdioTransport.ts
