@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.5.3 - 2025-10-15
+
+### Fixed
+
+- **Critical: STDIO Logging to stderr**: Fixed logger to route all log output to stderr (fd 2) instead of stdout (fd 1) when using STDIO transport. The MCP specification mandates that stdout must contain ONLY JSON-RPC messages. Previously, logs were incorrectly sent to stdout, which could interfere with MCP client parsing.
+  - Changed `pino/file` destination from `1` (stdout) to `2` (stderr) for STDIO and production modes
+  - Enhanced test coverage to verify stderr routing and validate ANSI code removal
+  - Added comprehensive documentation explaining the MCP specification requirement
+
+### Technical Details
+
+- The MCP specification requires strict stdout hygiene - only JSON-RPC protocol messages allowed
+- Logs were already in plain JSON format (no ANSI codes) as of v2.5.2, but routing to stdout still violated spec
+- Solution: Updated logger transport configuration to use stderr (fd 2) for all non-development STDIO scenarios
+- This ensures MCP clients can reliably parse stdout as pure JSON-RPC without encountering log messages
+
+### Changed
+
+- **Documentation**: Updated test comments to clarify that file-based testing verifies format while stderr routing is enforced by implementation
+
 ## v2.5.2 - 2025-10-15
 
 ### Fixed
