@@ -5,6 +5,7 @@
  * It handles both the initialization (startup) and graceful shutdown of the SDK.
  * @module src/utils/telemetry/instrumentation
  */
+import 'reflect-metadata';
 import { config } from '@/config/index.js';
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
